@@ -13,6 +13,7 @@ const NorbiFarmEngine = {
     farmTab: null,
     loopEnabled: false,
     loopTimer: null,
+    botDetectionTimer: null,
     settings: {
         loopInterval: 10, // minutes
         randomDelayRange: 3 // ±X minutes
@@ -22,6 +23,7 @@ const NorbiFarmEngine = {
         this.createUI();
         this.setupMessageListener();
         this.renameTab();
+        this.startBotDetection(); // Start continuous bot detection
         console.log('Norbi0N Farm Engine initialized');
     },
     
@@ -680,6 +682,66 @@ const NorbiFarmEngine = {
             loopStatusEl.style.color = '#d32f2f';
             stopLoopBtn.disabled = true;
             stopLoopBtn.style.opacity = '0.5';
+        }
+    },
+    
+    // Bot Protection Detection
+    startBotDetection: function() {
+        if (this.botDetectionTimer) return; // Already running
+        
+        var self = this;
+        this.botDetectionTimer = setInterval(function() {
+            self.checkBotProtection();
+        }, 1000); // Check every 1 second
+        
+        this.log('Bot protection monitoring started');
+    },
+    
+    stopBotDetection: function() {
+        if (this.botDetectionTimer) {
+            clearInterval(this.botDetectionTimer);
+            this.botDetectionTimer = null;
+            this.log('Bot protection monitoring stopped');
+        }
+    },
+    
+    checkBotProtection: function() {
+        try {
+            // Check for bot protection element on current page
+            var botElement = document.getElementById('botprotection_quest');
+            
+            if (botElement) {
+                this.log('=== BOT PROTECTION DETECTED ===');
+                
+                if (this.loopEnabled) {
+                    // Loop mode is ON - stop it for safety
+                    this.log('Bot protection detected! Loop mode stopped for safety');
+                    
+                    // Immediately disable loop mode
+                    this.loopEnabled = false;
+                    
+                    // Clear any scheduled runs
+                    if (this.loopTimer) {
+                        clearTimeout(this.loopTimer);
+                        this.loopTimer = null;
+                    }
+                    
+                    // Update UI
+                    document.getElementById('enable-loop').checked = false;
+                    this.updateLoopStatus();
+                    this.updateStatus('Bot Protection Detected - Loop Stopped');
+                    
+                    // Save settings to persist the disabled state
+                    this.saveSettings();
+                    
+                    this.log('Please solve bot protection manually and re-enable loop mode when safe');
+                } else {
+                    // Loop mode is OFF - just log the detection
+                    this.log('Bot protection detected on page (loop mode already disabled)');
+                }
+            }
+        } catch (error) {
+            console.error('Error checking bot protection:', error);
         }
     },
     
