@@ -52,8 +52,8 @@ const NorbiFarmEngine = {
             'font-size: 11px;' +
             'box-shadow: 3px 3px 8px rgba(0,0,0,0.4);' +
         '">' +
-            // Header (draggable)
-            '<div id="norbi-farm-header" style="' +
+            // Header
+            '<div style="' +
                 'background: linear-gradient(to bottom, #c1a264, #a08751);' +
                 'padding: 12px;' +
                 'border-bottom: 2px solid #603000;' +
@@ -63,10 +63,8 @@ const NorbiFarmEngine = {
                 'color: #2c1810;' +
                 'text-shadow: 1px 1px 1px rgba(255,255,255,0.3);' +
                 'border-radius: 5px 5px 0 0;' +
-                'cursor: move;' +
-                'user-select: none;' +
             '">' +
-                'Norbi0N Farm Engine v2.0 [ENGINE TAB] - 🖱️ Drag to Move' +
+                'Norbi0N Farm Engine v2.0 [ENGINE TAB]' +
             '</div>' +
             
             '<div style="padding: 15px;">' +
@@ -225,9 +223,6 @@ const NorbiFarmEngine = {
         
         // Update initial UI state
         this.updateLoopStatus();
-        
-        // Initialize drag functionality
-        this.initializeDragFunctionality();
     },
     
     startFarming: function() {
@@ -483,9 +478,6 @@ const NorbiFarmEngine = {
                                                                         console.log('BOT PROTECTION DETECTED! Stopping farming immediately...');
                                                                         console.log('Bot protection element found:', botElement);
                                                                         
-                                                                        // Send notifications immediately (before stopping farming)
-                                                                        this.sendFarmTabNotifications('Bot protection detected during active farming! Farming stopped immediately for safety.', 'botprotection_quest');
-                                                                        
                                                                         // Stop farming immediately
                                                                         this.stopFarming();
                                                                         
@@ -502,146 +494,6 @@ const NorbiFarmEngine = {
                                                                     }
                                                                 } catch (error) {
                                                                     console.error('Error checking bot protection:', error);
-                                                                }
-                                                            },
-                                                            
-                                                            // Farm Tab Notification System
-                                                            sendFarmTabNotifications: function(message, detectionMethod) {
-                                                                // Get settings from localStorage (same as engine tab)
-                                                                var settings = this.getFarmTabSettings();
-                                                                if (!settings || !settings.notificationsEnabled) {
-                                                                    console.log('Notifications disabled, skipping...');
-                                                                    return;
-                                                                }
-                                                                
-                                                                console.log('Sending Farm Tab notifications...');
-                                                                
-                                                                // Send Discord notification if configured
-                                                                if (settings.discordWebhookUrl) {
-                                                                    this.sendFarmTabDiscord(message, detectionMethod, settings);
-                                                                } else {
-                                                                    console.log('Discord webhook not configured, skipping Discord notification');
-                                                                }
-                                                                
-                                                                // Send Telegram notification if configured
-                                                                if (settings.telegramBotToken && settings.telegramChatId) {
-                                                                    this.sendFarmTabTelegram(message, detectionMethod, settings);
-                                                                } else {
-                                                                    console.log('Telegram not configured, skipping Telegram notification');
-                                                                }
-                                                            },
-                                                            
-                                                            getFarmTabSettings: function() {
-                                                                try {
-                                                                    var saved = localStorage.getItem('norbi_farm_settings');
-                                                                    if (saved) {
-                                                                        return JSON.parse(saved);
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Failed to load settings for notifications:', error);
-                                                                }
-                                                                return null;
-                                                            },
-                                                            
-                                                            sendFarmTabDiscord: function(message, detectionMethod, settings) {
-                                                                try {
-                                                                    var embed = {
-                                                                        title: "🚨 BOT PROTECTION DETECTED [FARM TAB]",
-                                                                        description: message,
-                                                                        color: 15158332, // Red color
-                                                                        fields: [
-                                                                            {
-                                                                                name: "🎯 Detection Method",
-                                                                                value: detectionMethod,
-                                                                                inline: true
-                                                                            },
-                                                                            {
-                                                                                name: "📍 Location",
-                                                                                value: "Active Farming Tab",
-                                                                                inline: true
-                                                                            },
-                                                                            {
-                                                                                name: "⏰ Time",
-                                                                                value: new Date().toLocaleString(),
-                                                                                inline: true
-                                                                            }
-                                                                        ],
-                                                                        footer: {
-                                                                            text: "Norbi0N Farm Engine v2.0 [FARM TAB ALERT]"
-                                                                        }
-                                                                    };
-                                                                    
-                                                                    var payload = {
-                                                                        embeds: [embed]
-                                                                    };
-                                                                    
-                                                                    fetch(settings.discordWebhookUrl, {
-                                                                        method: 'POST',
-                                                                        headers: {
-                                                                            'Content-Type': 'application/json'
-                                                                        },
-                                                                        body: JSON.stringify(payload)
-                                                                    }).then(function(response) {
-                                                                        if (response.ok) {
-                                                                            console.log('Farm Tab Discord notification sent successfully');
-                                                                        } else {
-                                                                            console.error('Failed to send Farm Tab Discord notification:', response.status);
-                                                                        }
-                                                                    }).catch(function(error) {
-                                                                        console.error('Farm Tab Discord notification error:', error);
-                                                                    });
-                                                                } catch (error) {
-                                                                    console.error('Error sending Farm Tab Discord notification:', error);
-                                                                }
-                                                            },
-                                                            
-                                                            sendFarmTabTelegram: function(message, detectionMethod, settings) {
-                                                                try {
-                                                                    var telegramMessage = "🚨 *BOT PROTECTION DETECTED [FARM TAB]* 🚨\n\n" +
-                                                                        "💥 " + message + "\n\n" +
-                                                                        "🎯 *Detection:* " + detectionMethod + "\n" +
-                                                                        "📍 *Location:* Active Farming Tab\n" +
-                                                                        "⏰ *Time:* " + new Date().toLocaleString() + "\n\n" +
-                                                                        "⚠️ Farming stopped immediately!";
-                                                                    
-                                                                    var url = 'https://api.telegram.org/bot' + settings.telegramBotToken + '/sendMessage';
-                                                                    
-                                                                    var payload = {
-                                                                        chat_id: settings.telegramChatId,
-                                                                        text: telegramMessage,
-                                                                        parse_mode: 'Markdown'
-                                                                    };
-                                                                    
-                                                                    // Send 15 aggressive notifications as requested
-                                                                    for (var i = 1; i <= 15; i++) {
-                                                                        (function(msgNumber) {
-                                                                            setTimeout(function() {
-                                                                                var aggressivePayload = {
-                                                                                    chat_id: settings.telegramChatId,
-                                                                                    text: "🚨 FARM TAB ALERT #" + msgNumber + "/15 🚨\n\n" + telegramMessage,
-                                                                                    parse_mode: 'Markdown'
-                                                                                };
-                                                                                
-                                                                                fetch(url, {
-                                                                                    method: 'POST',
-                                                                                    headers: {
-                                                                                        'Content-Type': 'application/json'
-                                                                                    },
-                                                                                    body: JSON.stringify(aggressivePayload)
-                                                                                }).then(function(response) {
-                                                                                    if (response.ok) {
-                                                                                        console.log('Farm Tab Telegram notification #' + msgNumber + ' sent successfully');
-                                                                                    } else {
-                                                                                        console.error('Failed to send Farm Tab Telegram notification #' + msgNumber + ':', response.status);
-                                                                                    }
-                                                                                }).catch(function(error) {
-                                                                                    console.error('Farm Tab Telegram notification #' + msgNumber + ' error:', error);
-                                                                                });
-                                                                            }, (msgNumber - 1) * 500); // 500ms delay between messages
-                                                                        })(i);
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Error sending Farm Tab Telegram notification:', error);
                                                                 }
                                                             },
                                                             
@@ -1065,229 +917,6 @@ const NorbiFarmEngine = {
         console.log('[Norbi Farm] ' + message);
     },
     
-    // Drag Functionality
-    initializeDragFunctionality: function() {
-        var header = document.getElementById('norbi-farm-header');
-        var panel = document.getElementById('norbi-farm-engine');
-        var isDragging = false;
-        var currentX = 0;
-        var currentY = 0;
-        var initialX = 0;
-        var initialY = 0;
-        var xOffset = 0;
-        var yOffset = 0;
-        
-        var self = this;
-        
-        header.addEventListener('mousedown', function(e) {
-            initialX = e.clientX - xOffset;
-            initialY = e.clientY - yOffset;
-            
-            if (e.target === header) {
-                isDragging = true;
-                header.style.cursor = 'grabbing';
-            }
-        });
-        
-        document.addEventListener('mousemove', function(e) {
-            if (isDragging) {
-                e.preventDefault();
-                currentX = e.clientX - initialX;
-                currentY = e.clientY - initialY;
-                
-                xOffset = currentX;
-                yOffset = currentY;
-                
-                // Keep panel within viewport bounds
-                var rect = panel.getBoundingClientRect();
-                var maxX = window.innerWidth - rect.width;
-                var maxY = window.innerHeight - rect.height;
-                
-                currentX = Math.max(0, Math.min(currentX, maxX));
-                currentY = Math.max(0, Math.min(currentY, maxY));
-                
-                panel.style.left = currentX + 'px';
-                panel.style.top = currentY + 'px';
-                panel.style.right = 'auto'; // Remove right positioning
-            }
-        });
-        
-        document.addEventListener('mouseup', function(e) {
-            if (isDragging) {
-                initialX = currentX;
-                initialY = currentY;
-                isDragging = false;
-                header.style.cursor = 'move';
-                
-                // Save position to localStorage
-                localStorage.setItem('norbi_farm_position', JSON.stringify({
-                    x: currentX,
-                    y: currentY
-                }));
-                
-                self.log('Panel position saved');
-            }
-        });
-        
-        // Load saved position
-        try {
-            var savedPosition = localStorage.getItem('norbi_farm_position');
-            if (savedPosition) {
-                var pos = JSON.parse(savedPosition);
-                currentX = pos.x || 0;
-                currentY = pos.y || 0;
-                xOffset = currentX;
-                yOffset = currentY;
-                
-                panel.style.left = currentX + 'px';
-                panel.style.top = currentY + 'px';
-                panel.style.right = 'auto';
-            }
-        } catch (error) {
-            console.error('Failed to load saved position:', error);
-        }
-    },
-    
-    // Test Notification Functions
-    testDiscordNotification: function() {
-        // Get current settings (same as saveSettings but without saving)
-        var discordUrl = document.getElementById('discord-webhook').value.trim();
-        var notificationsEnabled = document.getElementById('enable-notifications').checked;
-        
-        if (!notificationsEnabled) {
-            this.log('⚠️ Notifications are disabled! Enable them first.');
-            return;
-        }
-        
-        if (!discordUrl) {
-            this.log('⚠️ Discord webhook URL not configured!');
-            return;
-        }
-        
-        this.log('🧪 Sending Discord test notification...');
-        
-        // Create test embed
-        var embed = {
-            title: "🧪 DISCORD TEST NOTIFICATION",
-            description: "This is a test notification from your Norbi0N Farm Engine!",
-            color: 3447003, // Blue color for test
-            fields: [
-                {
-                    name: "✅ Status",
-                    value: "Test Successful",
-                    inline: true
-                },
-                {
-                    name: "🏰 Village",
-                    value: game_data.village.id.toString(),
-                    inline: true
-                },
-                {
-                    name: "⏰ Time",
-                    value: new Date().toLocaleString(),
-                    inline: true
-                }
-            ],
-            footer: {
-                text: "Norbi0N Farm Engine v2.0 [TEST MODE]"
-            }
-        };
-        
-        var payload = {
-            embeds: [embed]
-        };
-        
-        var self = this;
-        fetch(discordUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        }).then(function(response) {
-            if (response.ok) {
-                self.log('✅ Discord test notification sent successfully!');
-            } else {
-                self.log('❌ Discord test failed: HTTP ' + response.status);
-            }
-        }).catch(function(error) {
-            self.log('❌ Discord test error: ' + error.message);
-        });
-    },
-    
-    testTelegramNotification: function() {
-        // Get current settings
-        var telegramToken = document.getElementById('telegram-token').value.trim();
-        var telegramChatId = document.getElementById('telegram-chat-id').value.trim();
-        var notificationsEnabled = document.getElementById('enable-notifications').checked;
-        
-        if (!notificationsEnabled) {
-            this.log('⚠️ Notifications are disabled! Enable them first.');
-            return;
-        }
-        
-        if (!telegramToken || !telegramChatId) {
-            this.log('⚠️ Telegram token or chat ID not configured!');
-            return;
-        }
-        
-        this.log('🧪 Sending Telegram test notification (3 messages)...');
-        
-        var telegramMessage = "🧪 *TELEGRAM TEST NOTIFICATION* 🧪\n\n" +
-            "✅ This is a test notification from your Norbi0N Farm Engine!\n\n" +
-            "🏰 *Village:* " + game_data.village.id + "\n" +
-            "⏰ *Time:* " + new Date().toLocaleString() + "\n\n" +
-            "🔥 Test successful!";
-        
-        var url = 'https://api.telegram.org/bot' + telegramToken + '/sendMessage';
-        
-        var payload = {
-            chat_id: telegramChatId,
-            text: telegramMessage,
-            parse_mode: 'Markdown'
-        };
-        
-        var self = this;
-        // Send 3 test messages instead of 15 for testing
-        for (var i = 1; i <= 3; i++) {
-            (function(msgNumber) {
-                setTimeout(function() {
-                    var testPayload = {
-                        chat_id: telegramChatId,
-                        text: "🧪 TEST MESSAGE #" + msgNumber + "/3 🧪\n\n" + telegramMessage,
-                        parse_mode: 'Markdown'
-                    };
-                    
-                    fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(testPayload)
-                    }).then(function(response) {
-                        if (response.ok) {
-                            self.log('✅ Telegram test message #' + msgNumber + ' sent successfully!');
-                        } else {
-                            self.log('❌ Telegram test #' + msgNumber + ' failed: HTTP ' + response.status);
-                        }
-                    }).catch(function(error) {
-                        self.log('❌ Telegram test #' + msgNumber + ' error: ' + error.message);
-                    });
-                }, (msgNumber - 1) * 1000); // 1 second delay between test messages
-            })(i);
-        }
-    },
-    
-    setupMessageListener: function() {
-        var self = this;
-        // Listen for messages from farm tab
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.source === 'norbi_farm_tab') {
-                self.log('Message from farm tab: ' + event.data.message);
-            }
-        });
-    },
-    
     // Notification System
     sendDiscordNotification: function(message, detectionMethods) {
         if (!this.settings.notificationsEnabled) {
@@ -1397,6 +1026,173 @@ const NorbiFarmEngine = {
                 }, (msgNumber - 1) * 500); // 500ms delay between messages
             })(i);
         }
+    },
+    
+    // Test Notification Functions
+    testDiscordNotification: function() {
+        var discordUrl = document.getElementById('discord-webhook').value.trim();
+        var notificationsEnabled = document.getElementById('enable-notifications').checked;
+        
+        if (!notificationsEnabled) {
+            this.log('⚠️ Notifications are disabled! Enable them first.');
+            return;
+        }
+        
+        if (!discordUrl) {
+            this.log('⚠️ Discord webhook URL not configured!');
+            return;
+        }
+        
+        this.log('🧪 Sending Discord test notification...');
+        
+        var embed = {
+            title: "🧪 DISCORD TEST NOTIFICATION",
+            description: "This is a test notification from your Norbi0N Farm Engine!",
+            color: 3447003, // Blue color for test
+            fields: [
+                {
+                    name: "✅ Status",
+                    value: "Test Successful",
+                    inline: true
+                },
+                {
+                    name: "🏰 Village",
+                    value: game_data.village.id.toString(),
+                    inline: true
+                },
+                {
+                    name: "⏰ Time",
+                    value: new Date().toLocaleString(),
+                    inline: true
+                }
+            ],
+            footer: {
+                text: "Norbi0N Farm Engine v2.0 [TEST MODE]"
+            }
+        };
+        
+        var payload = {
+            embeds: [embed]
+        };
+        
+        var self = this;
+        fetch(discordUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        }).then(function(response) {
+            if (response.ok) {
+                self.log('✅ Discord test notification sent successfully!');
+            } else {
+                self.log('❌ Discord test failed: HTTP ' + response.status);
+            }
+        }).catch(function(error) {
+            self.log('❌ Discord test error: ' + error.message);
+        });
+    },
+    
+    testTelegramNotification: function() {
+        var telegramToken = document.getElementById('telegram-token').value.trim();
+        var telegramChatId = document.getElementById('telegram-chat-id').value.trim();
+        var notificationsEnabled = document.getElementById('enable-notifications').checked;
+        
+        if (!notificationsEnabled) {
+            this.log('⚠️ Notifications are disabled! Enable them first.');
+            return;
+        }
+        
+        if (!telegramToken || !telegramChatId) {
+            this.log('⚠️ Telegram token or chat ID not configured!');
+            return;
+        }
+        
+        this.log('🧪 Sending Telegram test notification (3 messages)...');
+        
+        var telegramMessage = "🧪 *TELEGRAM TEST NOTIFICATION* 🧪\n\n" +
+            "✅ This is a test notification from your Norbi0N Farm Engine!\n\n" +
+            "🏰 *Village:* " + game_data.village.id + "\n" +
+            "⏰ *Time:* " + new Date().toLocaleString() + "\n\n" +
+            "🔥 Test successful!";
+        
+        var url = 'https://api.telegram.org/bot' + telegramToken + '/sendMessage';
+        
+        var payload = {
+            chat_id: telegramChatId,
+            text: telegramMessage,
+            parse_mode: 'Markdown'
+        };
+        
+        var self = this;
+        // Send 3 test messages instead of 15 for testing
+        for (var i = 1; i <= 3; i++) {
+            (function(msgNumber) {
+                setTimeout(function() {
+                    var testPayload = {
+                        chat_id: telegramChatId,
+                        text: "🧪 TEST MESSAGE #" + msgNumber + "/3 🧪\n\n" + telegramMessage,
+                        parse_mode: 'Markdown'
+                    };
+                    
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(testPayload)
+                    }).then(function(response) {
+                        if (response.ok) {
+                            self.log('✅ Telegram test message #' + msgNumber + ' sent successfully!');
+                        } else {
+                            self.log('❌ Telegram test #' + msgNumber + ' failed: HTTP ' + response.status);
+                        }
+                    }).catch(function(error) {
+                        self.log('❌ Telegram test #' + msgNumber + ' error: ' + error.message);
+                    });
+                }, (msgNumber - 1) * 1000); // 1 second delay between test messages
+            })(i);
+        }
+    },
+    
+    setupMessageListener: function() {
+        var self = this;
+        // Listen for messages from farm tab
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.source === 'norbi_farm_tab') {
+                self.log('Message from farm tab: ' + event.data.message);
+            }
+            
+            // Listen for bot protection messages from farm tab
+            if (event.data && event.data.source === 'norbi_farm_bot_detection') {
+                self.log('=== BOT PROTECTION DETECTED IN FARM TAB ===');
+                self.log('Message: ' + event.data.message);
+                self.log('Detection method: ' + event.data.detectionMethod);
+                self.log('Total presses: ' + event.data.totalPresses);
+                
+                // Send notifications via Discord and Telegram
+                var notificationsSent = [];
+                
+                // Try Discord notification
+                self.sendDiscordNotification(event.data.message, event.data.detectionMethod);
+                if (self.settings.notificationsEnabled && self.settings.discordWebhookUrl) {
+                    notificationsSent.push('Discord');
+                }
+                
+                // Try Telegram notification
+                self.sendTelegramNotification(event.data.message, event.data.detectionMethod);
+                if (self.settings.notificationsEnabled && self.settings.telegramBotToken && self.settings.telegramChatId) {
+                    notificationsSent.push('Telegram');
+                }
+                
+                // Log which notifications were sent
+                if (notificationsSent.length > 0) {
+                    self.log('🔔 Farm tab notifications sent via: ' + notificationsSent.join(' and '));
+                } else {
+                    self.log('🔔 No notification channels configured for farm tab alerts');
+                }
+            }
+        });
     }
 };
 
@@ -1408,6 +1204,7 @@ const NorbiFarmTabHandler = {
     command: null,
     pressTimer: null,
     progressTimer: null,
+    botDetectionTimer: null,
     totalPresses: 0,
     isRunning: false,
     
@@ -1545,7 +1342,12 @@ const NorbiFarmTabHandler = {
             self.monitorProgress();
         }, 100); // Check every 100ms like Helper.js
         
-        console.log('Continuous farming started');
+        // Start bot protection monitoring (80ms like original injection)
+        this.botDetectionTimer = setInterval(function() {
+            self.checkBotProtection();
+        }, 80);
+        
+        console.log('Continuous farming started with bot protection monitoring');
     },
     
     pressEnter: function() {
@@ -1699,6 +1501,11 @@ const NorbiFarmTabHandler = {
             this.progressTimer = null;
         }
         
+        if (this.botDetectionTimer) {
+            clearInterval(this.botDetectionTimer);
+            this.botDetectionTimer = null;
+        }
+        
         console.log('Stopped farming. Total Enter presses: ' + this.totalPresses);
     },
     
@@ -1720,6 +1527,49 @@ const NorbiFarmTabHandler = {
         
         localStorage.setItem('norbi_farm_result', JSON.stringify(result));
         console.log('Result reported to engine');
+    },
+    
+    // Bot Protection Detection with Communication to Engine
+    checkBotProtection: function() {
+        if (!this.isRunning) return;
+        
+        try {
+            // Check for bot protection element (original detection method)
+            var botElement = document.getElementById('botprotection_quest');
+            
+            if (botElement) {
+                console.log('BOT PROTECTION DETECTED in farm tab! Stopping farming and notifying engine...');
+                
+                // Send message to engine tab for notifications
+                try {
+                    window.opener.postMessage({
+                        source: 'norbi_farm_bot_detection',
+                        message: 'Bot protection detected during active farming! Farming stopped immediately for safety.',
+                        detectionMethod: 'botprotection_quest',
+                        totalPresses: this.totalPresses,
+                        timestamp: Date.now()
+                    }, '*');
+                    console.log('Notification message sent to engine tab');
+                } catch (error) {
+                    console.error('Failed to send message to engine tab:', error);
+                }
+                
+                // Stop farming immediately
+                this.stopFarming();
+                
+                // Report bot protection detection via localStorage (existing method)
+                this.reportResult('error', 'Bot protection detected - farming stopped for safety', {
+                    totalPresses: this.totalPresses,
+                    error: 'Bot protection quest appeared'
+                });
+                
+                return true; // Bot protection detected
+            }
+        } catch (error) {
+            console.error('Error checking bot protection:', error);
+        }
+        
+        return false; // No bot protection detected
     }
 };
 
