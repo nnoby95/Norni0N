@@ -20,7 +20,11 @@
         DISCORD_SETTINGS: 'norbion2_discord_settings',
         PROCESS_STATE: 'norbion2_process_state',
         ATTACK_SIZES: 'norbion2_attack_sizes',
-        MESSAGE_IDS: 'norbion2_message_ids'
+        MESSAGE_IDS: 'norbion2_message_ids',
+        NOBLES_MESSAGE_ID: 'norbion2_nobles_message_id',
+        LAST_DISCORD_DATA: 'norbion2_last_discord_data',
+        LAST_MESSAGE_RESET: 'norbion2_last_message_reset',
+        RESET_INTERVAL: 'norbion2_reset_interval'
     };
     
     const PROCESS_STATES = {
@@ -34,6 +38,7 @@
     let currentState = PROCESS_STATES.MONITORING;
     let botProtectionDetected = false;
     let botDetectionTimer = null;
+    let messageResetTimer = null;
     
     // =============================================================================
     // UTILITY FUNCTIONS
@@ -233,9 +238,9 @@
     function cleanVillageName(villageText) {
         if (!villageText) return villageText;
         
-        // Remove K## pattern and clean coordinates
+        // Keep village name and coordinates, remove only K## pattern
         // Example: "FeKete (509|471) K45" -> "FeKete 509|471"
-        return villageText.replace(/\s*\([^)]*\)\s*K\d+\s*/, '').replace(/\s*\(([^)]*)\)\s*/, ' $1').trim();
+        return villageText.replace(/\s*K\d+\s*$/, '').replace(/\s*\(([^)]*)\)\s*/, ' $1').trim();
     }
     
     function cleanAttackerCoords(attackerText) {
@@ -245,6 +250,15 @@
         // Example: "15. Camelot (564|544) K55" -> "564|544"
         const coordMatch = attackerText.match(/\((\d+\|\d+)\)/);
         return coordMatch ? coordMatch[1] : attackerText;
+    }
+    
+    function extractTargetCoordinates(villageText) {
+        if (!villageText) return '';
+        
+        // Extract coordinates from target village
+        // Example: "FeKete (509|471) K45" -> "509|471"
+        const coordMatch = villageText.match(/\((\d+\|\d+)\)/);
+        return coordMatch ? coordMatch[1] : '';
     }
     
     function saveAttackSize(commandId, attackSize) {
@@ -386,6 +400,24 @@
             return;
         }
         
+        if (processState.state === PROCESS_STATES.POST_GAME_REFRESH && processState.action === 'process_decreased_attacks') {
+            // We just refreshed after attacks decreased - compare and update Discord
+            log('Post-refresh: Processing decreased attacks');
+            setTimeout(() => {
+                processDecreasedAttacks();
+            }, 3000); // Wait for page to fully load
+            return;
+        }
+        
+        if (processState.state === PROCESS_STATES.POST_GAME_REFRESH && processState.action === 'force_message_reset') {
+            // We just refreshed after forced message reset - extract fresh data and send new messages
+            log('Post-refresh: Processing forced message reset');
+            setTimeout(() => {
+                processForcedReset();
+            }, 3000); // Wait for page to fully load
+            return;
+        }
+        
         if (processState.state === PROCESS_STATES.WAITING_FOR_GAME_REFRESH) {
             // We are waiting for the game to complete tagging and refresh the page
             log('Detected WAITING_FOR_GAME_REFRESH state - checking if tagging is complete');
@@ -470,19 +502,28 @@
             sendBotProtectionAlert(currentCount);
             
         } else if (currentCount < monitorData.count) {
-            // Attacks decreased (some landed) - reset tracking
-            log('ATTACKS DECREASED! ' + monitorData.count + ' -> ' + currentCount + ' - RESETTING');
+            // Attacks decreased (some landed) - REFRESH PAGE and then update
+            log('ATTACKS DECREASED! ' + monitorData.count + ' -> ' + currentCount + ' - PREPARING FOR UPDATE');
             
             setStorageData(STORAGE_KEYS.MONITOR_DATA, {
                 count: currentCount,
-                lastTaggedCount: 0,
+                lastTaggedCount: currentCount, // Keep this updated
                 timestamp: timestamp,
                 timeString: timeString
             });
             
-            // Reset process state and clear message IDs for fresh start
-            setStorageData(STORAGE_KEYS.PROCESS_STATE, { state: PROCESS_STATES.MONITORING });
-            setStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+            // Set state to indicate we need to process decreased attacks after refresh
+            setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+                state: PROCESS_STATES.POST_GAME_REFRESH,
+                action: 'process_decreased_attacks',
+                timestamp: timestamp 
+            });
+            
+            // Refresh page to get updated DOM data
+            log('Refreshing page to get updated attack data...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
             
         } else {
             // Just update current count
@@ -504,6 +545,8 @@
             });
             setStorageData(STORAGE_KEYS.PROCESS_STATE, { state: PROCESS_STATES.MONITORING });
             setStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+            setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
+            setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
         }
     }
     
@@ -601,6 +644,59 @@
                 finishProcessing();
             }
         }, 2000);
+    }
+    
+    function processDecreasedAttacks() {
+        log('=== PROCESSING DECREASED ATTACKS ===');
+        
+        // Extract current attack data
+        const currentData = extractAttackData();
+        const lastData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        if (!currentData || !lastData.attacks) {
+            log('No valid data for comparison - extracting and sending current data');
+            if (currentData) {
+                sendToDiscord();
+            }
+            finishProcessing();
+            return;
+        }
+        
+        // Compare command IDs to find which attacks landed
+        const currentCommandIds = new Set(currentData.attacks.map(attack => attack.commandId).filter(id => id));
+        const lastCommandIds = new Set(lastData.attacks.map(attack => attack.commandId).filter(id => id));
+        
+        const landedCommandIds = [...lastCommandIds].filter(id => !currentCommandIds.has(id));
+        
+        log('Current attacks: ' + currentData.attacks.length);
+        log('Previous attacks: ' + lastData.attacks.length);
+        log('Landed attacks (command IDs): ' + landedCommandIds.join(', '));
+        
+        if (landedCommandIds.length > 0) {
+            log('Updating Discord messages to remove ' + landedCommandIds.length + ' landed attacks');
+            sendToDiscord(); // This will update with current data (removes landed attacks automatically)
+        } else {
+            log('No attacks detected as landed (might be command ID detection issue)');
+            sendToDiscord(); // Send current state anyway
+        }
+        
+        finishProcessing();
+    }
+    
+    function processForcedReset() {
+        log('=== PROCESSING FORCED MESSAGE RESET ===');
+        
+        // Extract current attack data and send as NEW messages
+        const currentData = extractAttackData();
+        
+        if (currentData && currentData.attacks.length > 0) {
+            log('Sending fresh Discord messages after reset - ' + currentData.attacks.length + ' attacks');
+            sendToDiscord(true); // FORCE NEW MESSAGES - ignore any existing message IDs
+        } else {
+            log('No attacks found after reset - no Discord messages to send');
+        }
+        
+        finishProcessing();
     }
     
     function finishProcessing() {
@@ -711,11 +807,13 @@
     // DISCORD FUNCTIONALITY
     // =============================================================================
     
-    function sendToDiscord() {
+    function sendToDiscord(forceNew = false) {
         log('=== SENDING TO DISCORD ===');
         
         const discordData = getStorageData('norbion2_discord_data');
         const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const lastDiscordData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        const messageIds = getStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
         
         if (!discordData.attacks || discordData.attacks.length === 0) {
             log('No attack data found for Discord');
@@ -727,7 +825,12 @@
             return;
         }
         
-        log('Sending ' + discordData.attacks.length + ' attacks to Discord');
+        // Check if this is an update (we have existing message IDs) or first send
+        const isUpdate = messageIds.length > 0 && !forceNew;
+        log((isUpdate ? 'UPDATING' : 'SENDING NEW') + ' ' + discordData.attacks.length + ' attacks to Discord' + (forceNew ? ' (FORCED NEW)' : ''));
+        
+        // Save current data for future comparisons
+        setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, discordData);
         
         // Create Discord message chunks
         const chunks = createDiscordChunks(discordData);
@@ -737,14 +840,14 @@
         chunks.forEach((chunk, index) => {
             setTimeout(() => {
                 log('Sending chunk ' + (index + 1) + '/' + chunks.length);
-                sendDiscordChunk(settings.webhook, chunk, index + 1, chunks.length);
+                sendDiscordChunk(settings.webhook, chunk, index + 1, chunks.length, forceNew);
             }, index * 2000);
         });
         
         // Send nobles separately if nobles webhook is configured
         if (settings.noblesWebhook) {
             setTimeout(() => {
-                sendNoblesToSeparateWebhook(discordData, settings.noblesWebhook);
+                sendNoblesToSeparateWebhook(discordData, settings.noblesWebhook, forceNew);
             }, chunks.length * 2000 + 1000); // Send after all main chunks
         }
     }
@@ -771,7 +874,7 @@
         let isFirstChunk = true;
         
         villageGroups.forEach((villageGroup) => {
-            // Format village group with cleaned name
+            // Format village group with name and coordinates
             const cleanedTargetVillage = cleanVillageName(villageGroup.targetVillage);
             let villageText = '<:emoji_43:1419114390514569296> **' + cleanedTargetVillage + '**\n';
             
@@ -779,7 +882,8 @@
                 const attackSizeEmoji = getAttackSizeEmoji(attack.attackSize);
                 const unitEmoji = getUnitEmoji(attack.unitType);
                 const cleanedAttackerCoords = cleanAttackerCoords(attack.attackerVillage);
-                villageText += '- ' + attackSizeEmoji + ' ' + unitEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + '\n';
+                const attackerName = attack.attackerName || 'Unknown';
+                villageText += '- ' + attackSizeEmoji + ' ' + unitEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + ' **' + attackerName + '**\n';
             });
             villageText += '\n';
             
@@ -872,12 +976,12 @@
         });
     }
 
-    function sendDiscordChunk(webhook, message, partNum, totalParts) {
+    function sendDiscordChunk(webhook, message, partNum, totalParts, forceNew = false) {
         // Get stored message IDs
         const messageIds = getStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
         const existingMessageId = messageIds[partNum - 1];
 
-        if (existingMessageId) {
+        if (existingMessageId && !forceNew) {
             // Edit existing message
             log('Editing Discord message part ' + partNum + '/' + totalParts);
             editDiscordMessage(webhook, existingMessageId, message)
@@ -896,7 +1000,10 @@
                     sendNewDiscordMessage(webhook, message, partNum, totalParts);
                 });
         } else {
-            // Send new message
+            // Send new message (either no existing ID or forced new)
+            if (forceNew && existingMessageId) {
+                log('Forcing NEW message for part ' + partNum + '/' + totalParts + ' (ignoring existing ID)');
+            }
             sendNewDiscordMessage(webhook, message, partNum, totalParts);
         }
     }
@@ -930,14 +1037,31 @@
         });
     }
     
-    function sendNoblesToSeparateWebhook(discordData, noblesWebhook) {
-        log('=== SENDING NOBLES TO SEPARATE WEBHOOK ===');
+    function sendNoblesToSeparateWebhook(discordData, noblesWebhook, forceNew = false) {
+        log('=== PROCESSING NOBLES FOR SEPARATE WEBHOOK ===');
         
         // Filter only noble attacks
         const nobleAttacks = discordData.attacks.filter(attack => attack.unitType === 'Noble');
+        const existingNoblesMessageId = getStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
         
         if (nobleAttacks.length === 0) {
-            log('No noble attacks found - skipping nobles webhook');
+            log('No noble attacks found');
+            
+            // If we had nobles before but none now, update message to say "No nobles"
+            if (existingNoblesMessageId) {
+                log('Updating nobles message to show no nobles remaining');
+                const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+                const playerName = settings.playerName || 'Player';
+                const noNoblesMessage = '✅ **NO NOBLE ATTACKS** ✅\\n**Player:** ' + playerName + '\\n**Time:** ' + discordData.timeString + '\\n\\nAll noble attacks have landed or been resolved.';
+                
+                editDiscordMessage(noblesWebhook, existingNoblesMessageId, noNoblesMessage)
+                    .then(response => {
+                        log('Nobles message updated to show no nobles: ' + (response.ok ? 'Success' : 'Failed'));
+                    })
+                    .catch(error => {
+                        log('Error updating nobles message: ' + error);
+                    });
+            }
             return;
         }
         
@@ -964,13 +1088,41 @@
                 const attackSizeEmoji = getAttackSizeEmoji(attack.attackSize);
                 const nobleEmoji = getUnitEmoji('Noble');
                 const cleanedAttackerCoords = cleanAttackerCoords(attack.attackerVillage);
-                noblesMessage += '- ' + attackSizeEmoji + ' ' + nobleEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + '\n';
+                const attackerName = attack.attackerName || 'Unknown';
+                noblesMessage += '- ' + attackSizeEmoji + ' ' + nobleEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + ' **' + attackerName + '**\n';
             });
             noblesMessage += '\n';
         });
         
-        // Send to nobles webhook (no editing for nobles - always send new)
-        fetch(noblesWebhook, {
+        // Send or edit nobles message
+        if (existingNoblesMessageId && !forceNew) {
+            // Edit existing nobles message
+            log('Editing existing nobles message');
+            editDiscordMessage(noblesWebhook, existingNoblesMessageId, noblesMessage)
+                .then(response => {
+                    if (response.ok) {
+                        log('Nobles message edited successfully');
+                    } else {
+                        log('Nobles message edit failed - HTTP ' + response.status + ', sending new message');
+                        sendNewNoblesMessage(noblesWebhook, noblesMessage);
+                    }
+                })
+                .catch(error => {
+                    log('Nobles message edit error: ' + error + ', sending new message');
+                    sendNewNoblesMessage(noblesWebhook, noblesMessage);
+                });
+        } else {
+            // Send new nobles message (either no existing ID or forced new)
+            if (forceNew && existingNoblesMessageId) {
+                log('Forcing NEW nobles message (ignoring existing ID)');
+            }
+            sendNewNoblesMessage(noblesWebhook, noblesMessage);
+        }
+    }
+    
+    function sendNewNoblesMessage(noblesWebhook, noblesMessage) {
+        log('Sending new nobles message');
+        fetch(noblesWebhook + '?wait=true', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -979,14 +1131,84 @@
         })
         .then(response => {
             if (response.ok) {
-                log('Nobles sent to separate webhook successfully');
+                log('New nobles message sent successfully');
+                return response.json();
             } else {
                 log('Nobles webhook failed - HTTP ' + response.status);
+                throw new Error('HTTP ' + response.status);
             }
+        })
+        .then(data => {
+            // Store nobles message ID for future edits
+            setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, data.id);
+            log('Stored nobles message ID: ' + data.id);
         })
         .catch(error => {
             log('Nobles webhook error: ' + error);
         });
+    }
+    
+    // =============================================================================
+    // MESSAGE RESET SYSTEM
+    // =============================================================================
+    
+    function startMessageResetTimer() {
+        if (messageResetTimer) return;
+        
+        messageResetTimer = setInterval(() => {
+            checkMessageReset();
+        }, 60 * 60 * 1000); // Check every hour
+        
+        log('Message reset timer started - checking every hour');
+    }
+    
+    function stopMessageResetTimer() {
+        if (messageResetTimer) {
+            clearInterval(messageResetTimer);
+            messageResetTimer = null;
+            log('Message reset timer stopped');
+        }
+    }
+    
+    function checkMessageReset() {
+        const lastResetTime = getStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, 0);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8); // hours
+        const now = Date.now();
+        const timeSinceReset = now - lastResetTime;
+        const resetIntervalMs = resetInterval * 60 * 60 * 1000;
+        
+        log('Checking message reset: ' + Math.round(timeSinceReset / (60 * 60 * 1000)) + 'h since last reset, interval: ' + resetInterval + 'h');
+        
+        if (timeSinceReset > resetIntervalMs) {
+            log('=== TIME FOR MESSAGE RESET ===');
+            forceMessageReset();
+        }
+    }
+    
+    function forceMessageReset() {
+        log('=== FORCING MESSAGE RESET ===');
+        
+        // Clear all message IDs to force new messages
+        setStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+        setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
+        setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        // Update reset timestamp
+        setStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, Date.now());
+        
+        // Set state to refresh and extract fresh data
+        setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+            state: PROCESS_STATES.POST_GAME_REFRESH,
+            action: 'force_message_reset',
+            timestamp: new Date().toISOString()
+        });
+        
+        log('Message IDs cleared - refreshing page for fresh data extraction');
+        
+        // Refresh page to get current attack data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
     }
     
     // =============================================================================
@@ -1193,6 +1415,22 @@
                 </table>
                 
                 <table class="vis" style="width: 100%; margin-bottom: 15px;">
+                    <tr><th colspan="2" style="background: #c1a264;">Message Settings</th></tr>
+                    <tr>
+                        <td style="font-weight: bold;">Reset Interval:</td>
+                        <td>
+                            <select id="norbion2-reset-interval" style="width: 100%; padding: 4px; border: 1px solid #603000; font-size: 11px;">
+                                <option value="4">Every 4 hours</option>
+                                <option value="8" selected>Every 8 hours</option>
+                                <option value="12">Every 12 hours</option>
+                                <option value="24">Every 24 hours</option>
+                            </select>
+                            <br><small style="color: #666;">Fresh Discord messages at intervals</small>
+                        </td>
+                    </tr>
+                </table>
+                
+                <table class="vis" style="width: 100%; margin-bottom: 15px;">
                     <tr><th colspan="2" style="background: #c1a264;">Single-Tab Mode</th></tr>
                     <tr>
                         <td style="font-weight: bold;">Status:</td>
@@ -1268,9 +1506,12 @@
     
     function loadDiscordSettings() {
         const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8);
+        
         const webhookElement = document.getElementById('norbion2-webhook');
         const noblesWebhookElement = document.getElementById('norbion2-nobles-webhook');
         const playerNameElement = document.getElementById('norbion2-player-name');
+        const resetIntervalElement = document.getElementById('norbion2-reset-interval');
         
         if (webhookElement && settings.webhook) {
             webhookElement.value = settings.webhook;
@@ -1281,6 +1522,9 @@
         if (playerNameElement && settings.playerName) {
             playerNameElement.value = settings.playerName;
         }
+        if (resetIntervalElement) {
+            resetIntervalElement.value = resetInterval;
+        }
         log('Discord settings loaded');
     }
     
@@ -1288,6 +1532,7 @@
         const webhook = document.getElementById('norbion2-webhook').value;
         const noblesWebhook = document.getElementById('norbion2-nobles-webhook').value;
         const playerName = document.getElementById('norbion2-player-name').value;
+        const resetInterval = document.getElementById('norbion2-reset-interval').value;
         
         setStorageData(STORAGE_KEYS.DISCORD_SETTINGS, { 
             webhook: webhook,
@@ -1295,13 +1540,15 @@
             playerName: playerName
         });
         
+        setStorageData(STORAGE_KEYS.RESET_INTERVAL, parseInt(resetInterval));
+        
         const status = document.getElementById('norbion2-status');
         if (status) {
             status.innerHTML = 'Settings saved successfully!';
             status.style.color = 'green';
         }
         
-        log('Discord settings saved');
+        log('Discord settings saved - Reset interval: ' + resetInterval + ' hours');
     }
     
     function testDiscordWebhook() {
@@ -1405,8 +1652,20 @@
         localStorage.removeItem(STORAGE_KEYS.MONITOR_DATA);
         localStorage.removeItem(STORAGE_KEYS.PROCESS_STATE);
         localStorage.removeItem(STORAGE_KEYS.MESSAGE_IDS);
+        localStorage.removeItem(STORAGE_KEYS.NOBLES_MESSAGE_ID);
+        localStorage.removeItem(STORAGE_KEYS.LAST_DISCORD_DATA);
+        localStorage.removeItem(STORAGE_KEYS.LAST_MESSAGE_RESET);
+        localStorage.removeItem(STORAGE_KEYS.RESET_INTERVAL);
         localStorage.removeItem('norbion2_discord_data');
-        log('All data reset');
+        log('All data reset - please refresh page');
+    };
+    
+    window.clearCache = function() {
+        localStorage.removeItem(STORAGE_KEYS.MESSAGE_IDS);
+        localStorage.removeItem(STORAGE_KEYS.NOBLES_MESSAGE_ID);
+        localStorage.removeItem(STORAGE_KEYS.LAST_DISCORD_DATA);
+        localStorage.removeItem('norbion2_discord_data');
+        log('Discord cache cleared - next update will send fresh data');
     };
     
     window.forceOpenDiscordPanel2 = function() {
@@ -1503,6 +1762,81 @@
         .catch(error => log('Emoji test error: ' + error));
     };
     
+    window.testNewFormat = function() {
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        if (!settings.webhook) {
+            log('No webhook configured');
+            return;
+        }
+        
+        const testMessage = {
+            content: '**Format Test**\n<:emoji_43:1419114390514569296> **A Medve nem Játék 513|576**\n- <:attack_large:1166514222633590894> <:unit_snob:1419105303319937075> 519|573 at 19:39:07:925 **A Medve nem Játék**\n- <:attack_medium:1166514224026095656> <:unit_light:1421029411917922335> 516|570 at 22:15:04:899 **Player Name**'
+        };
+        
+        fetch(settings.webhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testMessage)
+        })
+        .then(response => log('Format test sent: ' + (response.ok ? 'Success' : 'Failed')))
+        .catch(error => log('Format test error: ' + error));
+    };
+    
+    window.testComparison = function() {
+        log('=== TESTING COMPARISON LOGIC ===');
+        const currentData = extractAttackData();
+        const lastData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        if (!currentData) {
+            log('No current data extracted');
+            return;
+        }
+        
+        log('Current attacks: ' + currentData.attacks.length);
+        currentData.attacks.forEach((attack, i) => {
+            log('Attack ' + (i+1) + ': ID=' + attack.commandId + ' Unit=' + attack.unitType + ' From=' + attack.attackerName);
+        });
+        
+        if (lastData.attacks) {
+            log('Previous attacks: ' + lastData.attacks.length);
+            lastData.attacks.forEach((attack, i) => {
+                log('Previous ' + (i+1) + ': ID=' + attack.commandId + ' Unit=' + attack.unitType + ' From=' + attack.attackerName);
+            });
+            
+            // Show comparison
+            const currentCommandIds = new Set(currentData.attacks.map(attack => attack.commandId).filter(id => id));
+            const lastCommandIds = new Set(lastData.attacks.map(attack => attack.commandId).filter(id => id));
+            const landedCommandIds = [...lastCommandIds].filter(id => !currentCommandIds.has(id));
+            
+            log('Landed command IDs: ' + landedCommandIds.join(', '));
+        } else {
+            log('No previous data found');
+        }
+        
+        return { currentData, lastData };
+    };
+    
+    window.forceReset = function() {
+        log('Manual force reset triggered');
+        forceMessageReset();
+    };
+    
+    window.checkResetStatus = function() {
+        const lastResetTime = getStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, 0);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8);
+        const now = Date.now();
+        const timeSinceReset = now - lastResetTime;
+        const hoursLeft = resetInterval - (timeSinceReset / (60 * 60 * 1000));
+        
+        log('=== RESET STATUS ===');
+        log('Reset interval: ' + resetInterval + ' hours');
+        log('Time since last reset: ' + Math.round(timeSinceReset / (60 * 60 * 1000) * 100) / 100 + ' hours');
+        log('Time until next reset: ' + Math.round(Math.max(0, hoursLeft) * 100) / 100 + ' hours');
+        log('Last reset: ' + (lastResetTime ? new Date(lastResetTime).toLocaleString() : 'Never'));
+        
+        return { resetInterval, timeSinceReset, hoursLeft, lastResetTime };
+    };
+    
     window.debugCurrentPage = function() {
         log('=== DEBUG CURRENT PAGE ===');
         log('URL: ' + window.location.href);
@@ -1546,12 +1880,15 @@
         // Start bot protection monitoring
         startBotDetection();
         
+        // Start message reset timer
+        startMessageResetTimer();
+        
         // Start main monitoring loop
         processAttackMonitoring();
         setInterval(processAttackMonitoring, 10000); // Check every 10 seconds
         
         log('Monitoring started - check every 10 seconds');
-        log('Available functions: norbion2Status(), norbion2Reset(), forceOpenDiscordPanel2(), openDiscord(), discord(), testExtractData(), testSendDiscord(), testFullProcess(), debugCurrentPage()');
+        log('Available functions: norbion2Status(), norbion2Reset(), clearCache(), forceReset(), checkResetStatus(), forceOpenDiscordPanel2(), openDiscord(), discord(), testExtractData(), testSendDiscord(), testFullProcess(), testNewFormat(), testComparison(), debugCurrentPage()');
     }
     
     // Start when DOM is ready
