@@ -3493,14 +3493,29 @@ function szem4_EPITO_Wopen(){try{
 	/*Eredmény: faluID, teljes építendő lista, pointer a sorra*/
 	var TT=document.getElementById("epit_lista").rows;
 	var now=getServerTime();
+	let readyVillages = [];
+	let waitingVillages = [];
+	
 	for (var i=1;i<TT.length;i++) {
 		var datum=new Date(TT[i].cells[2].textContent);
+		let coord = TT[i].cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+		
 		if (datum<now) {
 			var lista=szem4_EPITO_csopToList(TT[i].cells[1].getElementsByTagName("select")[0].value);
-			let coord = TT[i].cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+			debug('szem4_EPITO_Wopen', `Village ${coord} is READY (Return: ${datum.toLocaleString()}, Now: ${now.toLocaleString()})`);
 			return [ KTID[coord], lista, TT[i] ];
+		} else {
+			let minutesUntil = Math.round((datum - now) / 60000);
+			waitingVillages.push(`${coord} (${minutesUntil}m)`);
 		}
 	}
+	
+	if (waitingVillages.length > 0) {
+		debug('szem4_EPITO_Wopen', `No village ready. Waiting: ${waitingVillages.join(', ')}`);
+	} else {
+		debug('szem4_EPITO_Wopen', 'No villages in builder list');
+	}
+	
 	return [0,";"];
 }catch(e){debug("Epito_Wopen",e);}}
 
@@ -3622,7 +3637,14 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		const premiumBadge = isPremiumUser ? '👑 Premium' : '🆓 Free';
 		szem4_EPITO_infoCell(PMEP[2],"alap",`✅ Építési sor megtelt! / Build queue full! ${premiumBadge} (${buildList.length}/${maxQueueCapacity}). ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2],firstBuildTime);
-		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}`);
+		
+		// Close builder window - no need to keep it open
+		if (EPIT_REF && !EPIT_REF.closed) {
+			EPIT_REF.close();
+			debug('szem4_EPITO_IntettiBuild', `Closing builder window - queue full (${buildList.length}/${maxQueueCapacity})`);
+		}
+		
+		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}. Next check: ${new Date(PMEP[2].cells[2].textContent).toLocaleString()}`);
 		return;
 	}
 	
@@ -3796,6 +3818,13 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 				errorMsg = `✅ Építkezési sor megtelt! / Build queue full! ${premiumStatus} (${buildList.length}/${queueLimit}). ` + writeAllBuildTime(allBuildTime);
 				errorColor = 'alap';
 				retryTime = firstBuildTime > 0 ? firstBuildTime : 60;
+				
+				// Close builder window
+				if (EPIT_REF && !EPIT_REF.closed) {
+					EPIT_REF.close();
+					debug('szem4_EPITO_IntettiBuild', `Closing builder window - queue full at button check`);
+				}
+				
 				debug('szem4_EPITO_IntettiBuild', `Queue full: ${buildList.length}/${queueLimit} (Premium: ${isPremium})`);
 			} else {
 				// Button is hidden for unknown reason
@@ -3849,12 +3878,19 @@ function szem4_EPITO_motor(){try{
 				if (PMEP[0]) {
 					EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
 					EPIT_LEPES=1;
+					debug('szem4_EPITO_motor', `Opening village for building: ${PMEP[0]}`);
 				} else {
-					if (document.getElementById("epit_lista").rows.length==1) 
+					// No village ready - close window and wait
+					if (EPIT_REF && !EPIT_REF.closed) {
+						EPIT_REF.close();
+						debug('szem4_EPITO_motor', 'No village ready, closing builder window');
+					}
+					if (document.getElementById("epit_lista").rows.length==1) {
 						nexttime=5000;
-					else {
+						debug('szem4_EPITO_motor', 'No villages in builder list, waiting 5s');
+					} else {
 						nexttime=60000;
-						if (MOBILE_MODE) EPIT_REF.close();
+						debug('szem4_EPITO_motor', 'Villages waiting for Return time, next check in 60s');
 					}
 				}
 				if (EPIT_REF && EPIT_REF.document) EPIT_REF.document.title = 'szem4/építő';
