@@ -844,50 +844,58 @@
             position: fixed;
             top: 80px;
             right: 20px;
-            width: 380px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border: 3px solid #ffd700;
-            border-radius: 12px;
+            width: 400px;
+            max-height: 85vh;
+            background: linear-gradient(135deg, #2b1d0e 0%, #1a1308 100%);
+            border: 3px solid #d4a574;
+            border-radius: 8px;
             padding: 0;
             z-index: 99999;
-            font-family: 'Segoe UI', Verdana, Arial, sans-serif;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.3);
+            font-family: Verdana, Arial, sans-serif;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(212, 165, 116, 0.1);
             display: none;
+            overflow: hidden;
         ">
             <!-- HEADER -->
             <div style="
-                background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
-                padding: 15px;
-                border-radius: 9px 9px 0 0;
-                border-bottom: 3px solid #b8860b;
+                background: linear-gradient(to bottom, #d4a574 0%, #b8945f 100%);
+                padding: 12px 15px;
+                border-bottom: 2px solid #8b6f47;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
             ">
                 <div>
-                    <h3 style="margin: 0; color: #1a1a2e; text-shadow: 0 1px 2px rgba(255,255,255,0.5); font-size: 18px; font-weight: bold;">
+                    <h3 style="margin: 0; color: #2b1d0e; text-shadow: 0 1px 0 rgba(255,255,255,0.3); font-size: 16px; font-weight: bold;">
                         🎮 Norbi0N Master Control
                     </h3>
-                    <small style="color: #333; font-weight: 600;">v1.0 - Unified Engine Manager</small>
+                    <small style="color: #3d2817; font-weight: 600; font-size: 10px;">v1.0 - Unified Engine Manager</small>
                 </div>
                 <button id="master-minimize-btn" 
-                        style="background: rgba(0,0,0,0.2); 
-                               border: 2px solid #1a1a2e; 
-                               border-radius: 50%; 
-                               width: 28px; 
-                               height: 28px; 
+                        style="background: rgba(43,29,14,0.3); 
+                               border: 1px solid #3d2817; 
+                               border-radius: 3px; 
+                               width: 24px; 
+                               height: 24px; 
                                cursor: pointer; 
                                font-weight: bold; 
-                               color: #1a1a2e;
+                               color: #3d2817;
                                padding: 0;
                                line-height: 1;
-                               font-size: 20px;
-                               transition: all 0.3s;">
+                               font-size: 18px;
+                               transition: all 0.2s;">
                     ×
                 </button>
             </div>
             
-            <div style="padding: 20px;">
+            <!-- SCROLLABLE CONTENT -->
+            <div style="
+                max-height: calc(85vh - 50px);
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 15px;
+                background: linear-gradient(to bottom, rgba(26,19,8,0.5), rgba(43,29,14,0.3));
+            ">
             
                 <!-- MODULE GRID -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
@@ -1060,109 +1068,113 @@
                 </div>
                 
                 <!-- STATUS SUMMARY -->
-                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,215,0,0.3); font-size: 11px; color: #ddd;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 4px; border: 1px solid #8b6f47; font-size: 10px; color: #b8945f;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <span>Active Modules:</span>
-                        <span id="activeModulesCount" style="color: #4caf50; font-weight: bold;">0/4</span>
+                        <span id="activeModulesCount" style="color: #5a8d3d; font-weight: bold;">0/4</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span>System Status:</span>
-                        <span id="systemStatus" style="color: #ffd700; font-weight: bold;">Ready</span>
+                        <span id="systemStatus" style="color: #d4a574; font-weight: bold;">Ready</span>
                     </div>
                 </div>
                 
                 <!-- QUEUE STATUS -->
-                <div style="background: rgba(76,175,80,0.1); padding: 10px; border-radius: 8px; border: 1px solid rgba(76,175,80,0.3); font-size: 11px; color: #ddd; margin-top: 10px;">
-                    <h4 style="margin: 0 0 8px 0; color: #4caf50; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+                <div style="background: rgba(212,165,116,0.15); padding: 10px; border-radius: 4px; border: 1px solid #8b6f47; font-size: 10px; color: #b8945f; margin-top: 10px;">
+                    <h4 style="margin: 0 0 6px 0; color: #d4a574; font-size: 11px; font-weight: bold; text-transform: uppercase;">
                         📋 Task Queue
                     </h4>
-                    <div id="queueStatus">
-                        <strong style="color: #999;">⏸️ System Idle</strong><br>
-                        <span style="font-size: 10px;">No modules running</span>
+                    <div id="queueStatus" style="color: #b8945f;">
+                        <strong style="color: #8b6f47;">⏸️ System Idle</strong><br>
+                        <span style="font-size: 9px; color: #6a5a4a;">No modules running</span>
                     </div>
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(76,175,80,0.2); font-size: 10px; color: #888;">
-                        <strong>Priorities:</strong> Farm(1) → Scavenger(2) → Builder(3) → Recruiter(4)
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(139,111,71,0.3); font-size: 9px; color: #6a5a4a;">
+                        <strong>Priorities:</strong> Farm(1) → Scav(2) → Builder(3) → Recruit(4)
                     </div>
                 </div>
                 
-                <!-- NOTIFICATION SETTINGS -->
-                <div style="background: rgba(255,152,0,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,152,0,0.3); font-size: 11px; color: #ddd; margin-top: 10px;">
-                    <h4 style="margin: 0 0 10px 0; color: #ff9800; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-                        🔔 Bot Protection Notifications
-                    </h4>
-                    
-                    <!-- Discord Settings -->
-                    <div style="margin-bottom: 12px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                        <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                            <input type="checkbox" id="discord-enabled" style="margin-right: 8px;">
-                            <span style="font-weight: bold; color: #7289da;">📢 Discord Notifications</span>
-                        </label>
-                        <input type="text" id="discord-webhook" placeholder="Discord Webhook URL" style="
-                            width: 100%;
-                            padding: 6px;
-                            background: rgba(0,0,0,0.3);
-                            border: 1px solid rgba(255,255,255,0.2);
-                            border-radius: 4px;
-                            color: #fff;
-                            font-size: 10px;
-                        ">
+                <!-- NOTIFICATION SETTINGS - COLLAPSIBLE -->
+                <div style="background: rgba(212,165,116,0.15); padding: 8px 12px; border-radius: 4px; border: 1px solid #8b6f47; margin-top: 10px;">
+                    <div id="notifications-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+                        <h4 style="margin: 0; color: #d4a574; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+                            🔔 Bot Protection Alerts
+                        </h4>
+                        <span id="notifications-toggle" style="color: #d4a574; font-size: 16px; font-weight: bold; transition: transform 0.3s;">▼</span>
                     </div>
                     
-                    <!-- Telegram Settings -->
-                    <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                        <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
-                            <input type="checkbox" id="telegram-enabled" style="margin-right: 8px;">
-                            <span style="font-weight: bold; color: #0088cc;">📱 Telegram Notifications</span>
-                        </label>
-                        <input type="text" id="telegram-token" placeholder="Bot Token" style="
-                            width: 100%;
-                            padding: 6px;
-                            background: rgba(0,0,0,0.3);
-                            border: 1px solid rgba(255,255,255,0.2);
-                            border-radius: 4px;
-                            color: #fff;
-                            font-size: 10px;
-                            margin-bottom: 6px;
-                        ">
-                        <input type="text" id="telegram-chatid" placeholder="Chat ID" style="
-                            width: 100%;
-                            padding: 6px;
-                            background: rgba(0,0,0,0.3);
-                            border: 1px solid rgba(255,255,255,0.2);
-                            border-radius: 4px;
-                            color: #fff;
-                            font-size: 10px;
-                            margin-bottom: 6px;
-                        ">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label style="color: #ddd; font-size: 10px; white-space: nowrap;">Messages to send:</label>
-                            <input type="number" id="telegram-count" min="1" max="100" value="1" style="
-                                width: 60px;
-                                padding: 4px;
-                                background: rgba(0,0,0,0.3);
-                                border: 1px solid rgba(255,255,255,0.2);
-                                border-radius: 4px;
-                                color: #fff;
-                                font-size: 10px;
+                    <div id="notifications-content" style="display: none; margin-top: 10px; font-size: 10px;">
+                        <!-- Discord Settings -->
+                        <div style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; border: 1px solid #8b6f47;">
+                            <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                                <input type="checkbox" id="discord-enabled" style="margin-right: 6px;">
+                                <span style="font-weight: bold; color: #7289da; font-size: 10px;">📢 Discord</span>
+                            </label>
+                            <input type="text" id="discord-webhook" placeholder="Webhook URL" style="
+                                width: calc(100% - 12px);
+                                padding: 5px;
+                                background: rgba(0,0,0,0.4);
+                                border: 1px solid #5a4a3a;
+                                border-radius: 3px;
+                                color: #d4a574;
+                                font-size: 9px;
                             ">
-                            <span style="color: #888; font-size: 9px;">(1 sec delay each)</span>
                         </div>
+                        
+                        <!-- Telegram Settings -->
+                        <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; border: 1px solid #8b6f47; margin-bottom: 8px;">
+                            <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                                <input type="checkbox" id="telegram-enabled" style="margin-right: 6px;">
+                                <span style="font-weight: bold; color: #0088cc; font-size: 10px;">📱 Telegram</span>
+                            </label>
+                            <input type="text" id="telegram-token" placeholder="Bot Token" style="
+                                width: calc(100% - 12px);
+                                padding: 5px;
+                                background: rgba(0,0,0,0.4);
+                                border: 1px solid #5a4a3a;
+                                border-radius: 3px;
+                                color: #d4a574;
+                                font-size: 9px;
+                                margin-bottom: 4px;
+                            ">
+                            <input type="text" id="telegram-chatid" placeholder="Chat ID" style="
+                                width: calc(100% - 12px);
+                                padding: 5px;
+                                background: rgba(0,0,0,0.4);
+                                border: 1px solid #5a4a3a;
+                                border-radius: 3px;
+                                color: #d4a574;
+                                font-size: 9px;
+                                margin-bottom: 4px;
+                            ">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label style="color: #b8945f; font-size: 9px;">Msg count:</label>
+                                <input type="number" id="telegram-count" min="1" max="100" value="1" style="
+                                    width: 50px;
+                                    padding: 3px;
+                                    background: rgba(0,0,0,0.4);
+                                    border: 1px solid #5a4a3a;
+                                    border-radius: 3px;
+                                    color: #d4a574;
+                                    font-size: 9px;
+                                ">
+                                <span style="color: #6a5a4a; font-size: 8px;">(1s delay)</span>
+                            </div>
+                        </div>
+                        
+                        <button id="save-notifications-btn" style="
+                            width: 100%;
+                            padding: 6px;
+                            background: linear-gradient(to bottom, #5a8d3d, #4a7a2d);
+                            color: #fff;
+                            font-weight: bold;
+                            border: 1px solid #3a5a1d;
+                            border-radius: 3px;
+                            cursor: pointer;
+                            font-size: 10px;
+                            text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+                            transition: all 0.2s;
+                        ">💾 Save Settings</button>
                     </div>
-                    
-                    <button id="save-notifications-btn" style="
-                        width: 100%;
-                        margin-top: 10px;
-                        padding: 8px;
-                        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
-                        color: white;
-                        font-weight: bold;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 10px;
-                        box-shadow: 0 2px 6px rgba(76,175,80,0.4);
-                        transition: all 0.3s;
-                    ">💾 Save Notification Settings</button>
                 </div>
                 
                 <!-- INFO PANEL -->
@@ -1174,25 +1186,49 @@
         </div>
         
         <style>
+            /* Scrollbar Styling - Tribal Wars Style */
+            #masterControlPanel ::-webkit-scrollbar {
+                width: 8px;
+            }
+            
+            #masterControlPanel ::-webkit-scrollbar-track {
+                background: rgba(43,29,14,0.5);
+                border-radius: 4px;
+            }
+            
+            #masterControlPanel ::-webkit-scrollbar-thumb {
+                background: linear-gradient(to bottom, #d4a574, #b8945f);
+                border-radius: 4px;
+                border: 1px solid #8b6f47;
+            }
+            
+            #masterControlPanel ::-webkit-scrollbar-thumb:hover {
+                background: linear-gradient(to bottom, #e0b580, #c4a16b);
+            }
+            
             .module-card:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 6px 16px rgba(0,0,0,0.6) !important;
             }
             
             .module-card.active {
-                border-color: #ffd700 !important;
-                box-shadow: 0 0 20px rgba(255,215,0,0.4) !important;
+                border-color: #d4a574 !important;
+                box-shadow: 0 0 15px rgba(212,165,116,0.4) !important;
             }
             
             #enableAllModules:hover,
-            #disableAllModules:hover {
+            #disableAllModules:hover,
+            #forceReloadModules:hover {
                 transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(255,255,255,0.3);
+                opacity: 0.9;
+            }
+            
+            #save-notifications-btn:hover {
+                opacity: 0.9;
             }
             
             #master-minimize-btn:hover {
-                background: rgba(0,0,0,0.4) !important;
-                transform: rotate(90deg);
+                background: rgba(43,29,14,0.5) !important;
             }
         </style>
         `;
@@ -1271,8 +1307,28 @@
         // Notification settings save button
         document.getElementById('save-notifications-btn')?.addEventListener('click', saveNotificationSettings);
         
+        // Notification section toggle
+        document.getElementById('notifications-header')?.addEventListener('click', toggleNotificationsSection);
+        
         // Load existing notification settings
         loadNotificationSettings();
+    }
+    
+    function toggleNotificationsSection() {
+        const content = document.getElementById('notifications-content');
+        const toggle = document.getElementById('notifications-toggle');
+        
+        if (content && toggle) {
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                toggle.style.transform = 'rotate(180deg)';
+                toggle.textContent = '▲';
+            } else {
+                content.style.display = 'none';
+                toggle.style.transform = 'rotate(0deg)';
+                toggle.textContent = '▼';
+            }
+        }
     }
     
     function saveNotificationSettings() {
