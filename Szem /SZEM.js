@@ -1562,12 +1562,16 @@ function loadBotNotifications() {
 			
 			// Load to UI
 			document.getElementById('discord_enabled').checked = BOT_NOTIFICATION_SETTINGS.discord.enabled;
-			document.getElementById('discord_webhook').value = BOT_NOTIFICATION_SETTINGS.discord.webhookUrl;
+			document.getElementById('discord_webhook').value = BOT_NOTIFICATION_SETTINGS.discord.webhookUrl || '';
 			document.getElementById('telegram_enabled').checked = BOT_NOTIFICATION_SETTINGS.telegram.enabled;
-			document.getElementById('telegram_token').value = BOT_NOTIFICATION_SETTINGS.telegram.botToken;
-			document.getElementById('telegram_chatid').value = BOT_NOTIFICATION_SETTINGS.telegram.chatId;
-			document.getElementById('telegram_repeat').value = BOT_NOTIFICATION_SETTINGS.telegram.repeatCount;
-			document.getElementById('telegram_interval').value = BOT_NOTIFICATION_SETTINGS.telegram.interval;
+			document.getElementById('telegram_token').value = BOT_NOTIFICATION_SETTINGS.telegram.botToken || '';
+			document.getElementById('telegram_chatid').value = BOT_NOTIFICATION_SETTINGS.telegram.chatId || '';
+			document.getElementById('telegram_repeat').value = BOT_NOTIFICATION_SETTINGS.telegram.repeatCount || 30;
+			document.getElementById('telegram_interval').value = BOT_NOTIFICATION_SETTINGS.telegram.interval || 1000;
+			
+			debug('loadBotNotifications', 'Értesítési beállítások sikeresen betöltve');
+		} else {
+			debug('loadBotNotifications', 'Nincs mentett értesítési beállítás');
 		}
 	} catch(e) {
 		debug('loadBotNotifications', 'Hiba: ' + e);
@@ -1698,6 +1702,9 @@ function loadSettings() {
 		}
 	});
 	selectTheme(SZEM4_SETTINGS.selectedProfile);
+	
+	// Load bot notification settings after SZEM4_SETTINGS is loaded
+	loadBotNotifications();
 }
 
 function restartKieg(type) {
@@ -4241,9 +4248,6 @@ $(document).ready(function(){
 	soundVolume(0.0);
 	playSound("bot2"); /* Ha elmegy a net, tudjon csipogni */
 	
-	// Load bot notification settings
-	loadBotNotifications();
-	
 	if (confirm("Engedélyezed az adatok mentését?\nKésőbb is elindíthatja, ha visszapipálja a mentés engedélyezését - ekkor szükséges kézi adatbetöltés is előtte.")) {
 		if (CLOUD_AUTHS) {
 			naplo("☁️ Sync","Connecting to Firebase Cloud System...");
@@ -4256,6 +4260,8 @@ $(document).ready(function(){
 	} else {
 		szem4_ADAT_StopAll();
 		onWallpChange();
+		// Still need to load bot notifications even if not saving data
+		loadBotNotifications();
 	}
 	setTimeout(function(){soundVolume(1.0);},2000);
 	
