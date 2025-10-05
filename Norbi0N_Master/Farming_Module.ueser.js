@@ -854,8 +854,18 @@
         },
         
         updateLoopStatus: function() {
+            const checkbox = document.getElementById('enable-loop');
             const status = document.getElementById('loop-status');
             const stopBtn = document.getElementById('stop-loop-btn');
+            
+            // Update loopEnabled from checkbox
+            if (checkbox) {
+                this.loopEnabled = checkbox.checked;
+                
+                // Save the setting immediately
+                GM_setValue('norbi_loop_enabled', this.loopEnabled);
+                this.log('Loop mode ' + (this.loopEnabled ? 'enabled' : 'disabled') + ' - saved to storage');
+            }
             
             if (this.loopEnabled) {
                 status.textContent = 'Enabled';
