@@ -76,7 +76,8 @@
                     text.includes('bot védelem') ||
                     text.includes('botvédelem') ||
                     text.includes('játék folytatása előtt') ||
-                    text.includes('botvédelmi ellenőrzés')) {
+                    text.includes('botvédelmi ellenőrzés') ||
+                    text.includes('kezdd meg a botvédelem ellenőrzését')) {
                     isDetected = true;
                     method = 'quest-text';
                     break;
