@@ -3550,12 +3550,21 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (!EPIT_REF.document.getElementById("buildqueue")) throw 'No queue';
 		var buildQueueRows=EPIT_REF.document.getElementById("buildqueue").rows;
 		for (var i=1;i<buildQueueRows.length;i++) {try{
-			buildList+=buildQueueRows[i].cells[0].getElementsByTagName("img")[0].src.match(/[A-Za-z0-9]+\.(png)/g)[0].replace(/[0-9]+/g,"").replace(".png","");
+			// Support both .png and .webp image formats
+			var imgSrc = buildQueueRows[i].cells[0].getElementsByTagName("img")[0].src;
+			var buildingMatch = imgSrc.match(/[A-Za-z0-9]+\.(png|webp)/g);
+			if (buildingMatch) {
+				buildList += buildingMatch[0].replace(/[0-9]+/g,"").replace(".png","").replace(".webp","");
+				buildList += ";";
+			}
+			
+			// Calculate build times
 			textTime=buildQueueRows[i].cells[1].textContent.split(":");
 			allBuildTime+=parseInt(textTime[0])*60+parseInt(textTime[1])+(parseInt(textTime[2])/60);
 			if (firstBuildTime==0) firstBuildTime=allBuildTime;
-			buildList+=";";
-		}catch(e){}}
+		}catch(e){
+			debug('szem4_EPITO_IntettiBuild', `Error reading queue row ${i}: ${e}`);
+		}}
 
 		allBuildTime = Math.round(allBuildTime);
 		firstBuildTime = Math.ceil(firstBuildTime);
@@ -3563,14 +3572,41 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (isNaN(allBuildTime)) allBuildTime = 5;
 		if (isNaN(firstBuildTime)) firstBuildTime = 5;
 		if (firstBuildTime>180) firstBuildTime=180;
-	}catch(e){var buildList=";"; var allBuildTime=0; var firstBuildTime=0;}
+		
+		debug('szem4_EPITO_IntettiBuild', `Build queue detected: ${buildList} (${buildList.split(';').filter(x=>x).length} buildings)`);
+	}catch(e){
+		var buildList=";"; 
+		var allBuildTime=0; 
+		var firstBuildTime=0;
+		debug('szem4_EPITO_IntettiBuild', `Error reading build queue: ${e}`);
+	}
 	
 	if (buildList === '') buildList = ';';
 	buildList=buildList.split(";");
 	buildList.pop();
 	
-	// Check premium status for queue size limit
-	const isPremiumUser = EPIT_REF.game_data.player.premium;
+	// Check premium status for queue size limit (multiple detection methods)
+	let isPremiumUser = false;
+	try {
+		// Method 1: game_data.player.premium
+		if (EPIT_REF.game_data && EPIT_REF.game_data.player && EPIT_REF.game_data.player.premium) {
+			isPremiumUser = true;
+		}
+		// Method 2: Check for 3+ buildings in queue (only premium can do this)
+		else if (buildList.length >= 3) {
+			isPremiumUser = true;
+			debug('szem4_EPITO_IntettiBuild', 'Premium detected by queue size (3+ buildings)');
+		}
+		// Method 3: Check DOM for premium indicator
+		else if (EPIT_REF.document.querySelector('.icon.header.premium')) {
+			isPremiumUser = true;
+			debug('szem4_EPITO_IntettiBuild', 'Premium detected by DOM premium icon');
+		}
+	} catch(e) {
+		debug('szem4_EPITO_IntettiBuild', `Premium detection error: ${e}. Assuming Free account.`);
+		isPremiumUser = false;
+	}
+	
 	const maxQueueCapacity = isPremiumUser ? 5 : 2;
 	
 	if (buildList.length >= maxQueueCapacity) {
@@ -3696,8 +3732,19 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		let errorColor = 'red';
 		let retryTime = 60;
 		
-		// Detect premium status to determine max queue size
-		const isPremium = EPIT_REF.game_data.player.premium;
+		// Detect premium status to determine max queue size (use same detection as above)
+		let isPremium = false;
+		try {
+			if (EPIT_REF.game_data && EPIT_REF.game_data.player && EPIT_REF.game_data.player.premium) {
+				isPremium = true;
+			} else if (buildList.length >= 3) {
+				isPremium = true;
+			} else if (EPIT_REF.document.querySelector('.icon.header.premium')) {
+				isPremium = true;
+			}
+		} catch(e) {
+			isPremium = false;
+		}
 		const maxQueueSize = isPremium ? 5 : 2;
 		const queueLimit = isPremium ? 5 : 2;
 		
