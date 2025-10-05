@@ -389,10 +389,10 @@
     // =========================================================================
     
     const MODULE_URLS = {
-        farm: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Project/Norbi0N_Farming.user.js',
-        builder: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Project/Norbi0N_Builder.use.js',
-        recruiter: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Project/Norbi0N_Recruiter.use.js',
-        scavenger: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Project/Norbi0N_scav.user.js'
+        farm: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Master/Farming_Module.ueser.js',
+        builder: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Master/Builder_Module.user.js',
+        recruiter: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Master/Recruit_Module.user.js',
+        scavenger: 'https://raw.githubusercontent.com/nnoby95/Norni0N/main/Norbi0N_Master/Scav_Module.user.js'
     };
     
     async function loadModule(moduleName) {
