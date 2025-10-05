@@ -3613,17 +3613,19 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 
 	/* Minden épület kész */
 	if (nextToBuild === '') {
-		naplo("Építő",'<a href="'+VILL1ST.replace(/(village=)[0-9]+/g,"village="+PMEP[0])+'" target="_BLANK">'+EPIT_REF.game_data.village.name+" ("+EPIT_REF.game_data.village.x+"|"+EPIT_REF.game_data.village.y+")</a> falu teljesen felépült és törlődött a listából");
+		naplo("Építő",'🎉 <a href="'+VILL1ST.replace(/(village=)[0-9]+/g,"village="+PMEP[0])+'" target="_BLANK">'+EPIT_REF.game_data.village.name+" ("+EPIT_REF.game_data.village.x+"|"+EPIT_REF.game_data.village.y+")</a> falu teljesen felépült és törlődött a listából / Village fully built and removed from list");
 		setTimeout(() => playSound("falu_kesz"), 1500);
 		szem4_EPITO_addIdo(PMEP[2],"del");
+		debug('szem4_EPITO_IntettiBuild', `Village ${EPIT_REF.game_data.village.name} completed all buildings in list`);
 		return;
 	}
 
 	/* Cél szükségeletének lekérése */
 	var nextToBuildRow = EPIT_REF.document.getElementById('main_buildrow_' + nextToBuild);
 	if (!nextToBuildRow) {
-		szem4_EPITO_infoCell(PMEP[2],firstBuildTime==0?"red":"yellow", nextToBuild+" nem építhető. Előfeltétel szükséges? " + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],firstBuildTime==0?"red":"yellow", `⚠️ ${nextToBuild} nem építhető. / ${nextToBuild} cannot be built. Előfeltétel szükséges? / Prerequisite required? ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], firstBuildTime>0?firstBuildTime:60);
+		debug('szem4_EPITO_IntettiBuild', `Building row not found for ${nextToBuild} - prerequisite missing or invalid building ID`);
 		return;
 	}
 	var resNeed = {
@@ -3635,12 +3637,13 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	if (Math.max(resNeed.wood, resNeed.stone, resNeed.iron) > EPIT_REF.game_data.village.storage_max) nextToBuild = 'storage+';
 	if (resNeed.pop > (EPIT_REF.game_data.village.pop_max - EPIT_REF.game_data.village.pop)) nextToBuild = 'farm+';
 	if (nextToBuild == 'farm+' && EPIT_REF.game_data.village.buildings.farm == 30) {
-		szem4_EPITO_infoCell(PMEP[2],"red","Tanya megtelt, építés nem folytatható. " + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],"red","❌ Tanya megtelt (30), építés nem folytatható! / Farm maxed (30), cannot continue building! " + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], 120);
+		debug('szem4_EPITO_IntettiBuild', 'Farm is maxed at level 30, cannot build further');
 		return;
 	}
 	if (nextToBuild == 'farm+' && buildList.includes('farm')) {
-		szem4_EPITO_infoCell(PMEP[2],'yellow', 'Tanya megtelt, de már építés alatt... ' + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],'yellow', '⏳ Tanya megtelt, de már építés alatt... / Farm full, but already building... ' + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], 120);
 		return;
 	}
@@ -3667,26 +3670,103 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	}
 
 	if (EPIT_REF.game_data.village.wood < resNeed.wood || EPIT_REF.game_data.village.stone < resNeed.stone || EPIT_REF.game_data.village.iron < resNeed.iron) {
-		szem4_EPITO_infoCell(PMEP[2],"yellow","Nyersanyag hiány lépett fel. " + writeAllBuildTime(allBuildTime));
+		const missing = [];
+		if (EPIT_REF.game_data.village.wood < resNeed.wood) missing.push(`🪵 ${resNeed.wood - EPIT_REF.game_data.village.wood}`);
+		if (EPIT_REF.game_data.village.stone < resNeed.stone) missing.push(`🧱 ${resNeed.stone - EPIT_REF.game_data.village.stone}`);
+		if (EPIT_REF.game_data.village.iron < resNeed.iron) missing.push(`⚒️ ${resNeed.iron - EPIT_REF.game_data.village.iron}`);
+		szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}. ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+		debug('szem4_EPITO_IntettiBuild', `Resource shortage for ${nextToBuild}. Missing: ${missing.join(', ')}`);
 		return;
 	} 
 
 	/* Minden rendben, építhető, klikk */
-	szem4_EPITO_infoCell(PMEP[2],"alap","Építés folyamatban.");
+	szem4_EPITO_infoCell(PMEP[2],"alap","Építés folyamatban. / Building in progress.");
 	var buildBtn = nextToBuildRow.querySelector('.btn.btn-build');
-	if (buildBtn.style.display == 'none') {
-		if (buildList.length < 2) {
-			szem4_EPITO_infoCell(PMEP[2],"red","Ismeretlen hiba. " + writeAllBuildTime(allBuildTime));
-		} else {
-			szem4_EPITO_infoCell(PMEP[2],"alap","Építkezési sor megtelt. " + writeAllBuildTime(allBuildTime));
+	if (!buildBtn || buildBtn.style.display == 'none') {
+		// Enhanced error detection
+		let errorMsg = '';
+		let errorColor = 'red';
+		let retryTime = 60;
+		
+		// Check if building is already at max level
+		const currentLevel = currentBuildLvls[nextToBuild];
+		if (currentLevel >= 30) {
+			errorMsg = `❌ ${nextToBuild} már maximális szinten (30)! / ${nextToBuild} already at max level (30)! Építési lista frissítése szükséges. / Update build list needed.`;
+			errorColor = 'red';
+			retryTime = 300; // 5 minutes
+			debug('szem4_EPITO_IntettiBuild', `Building ${nextToBuild} is maxed at level ${currentLevel}`);
 		}
-		szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?firstBuildTime:60);
+		// Check if page is fully loaded
+		else if (!EPIT_REF.document.querySelector('#buildings')) {
+			errorMsg = `⚠️ Oldal nem töltődött be teljesen. / Page not fully loaded. Újrapróbálás... / Retrying...`;
+			errorColor = 'yellow';
+			retryTime = 10;
+			debug('szem4_EPITO_IntettiBuild', 'Buildings div not found - page not loaded');
+		}
+		// Check if build button exists at all
+		else if (!buildBtn) {
+			// Check if building requires prerequisites
+			const buildRow = EPIT_REF.document.getElementById('main_buildrow_' + nextToBuild);
+			if (buildRow && buildRow.querySelector('.inactive')) {
+				errorMsg = `⚠️ ${nextToBuild} előfeltétele hiányzik! / ${nextToBuild} prerequisite missing! Ellenőrizd a listát. / Check your list.`;
+				errorColor = 'yellow';
+				retryTime = 120;
+				debug('szem4_EPITO_IntettiBuild', `Building ${nextToBuild} has missing prerequisite`);
+			} else {
+				errorMsg = `❌ ${nextToBuild} építési gomb nem található! / ${nextToBuild} build button not found! Esetleg nem létező épület? / Invalid building ID?`;
+				errorColor = 'red';
+				retryTime = 300;
+				debug('szem4_EPITO_IntettiBuild', `Build button for ${nextToBuild} not found in DOM`);
+			}
+		}
+		// Build button exists but is hidden
+		else {
+			if (buildList.length >= 2) {
+				errorMsg = `✅ Építkezési sor megtelt (${buildList.length}/3). / Build queue full (${buildList.length}/3). ` + writeAllBuildTime(allBuildTime);
+				errorColor = 'alap';
+				retryTime = firstBuildTime > 0 ? firstBuildTime : 60;
+			} else {
+				// Button is hidden for unknown reason
+				const buildingInfo = EPIT_REF.document.querySelector(`#main_buildrow_${nextToBuild}`);
+				if (buildingInfo) {
+					const infoText = buildingInfo.textContent;
+					if (infoText.includes('max') || infoText.includes('Max')) {
+						errorMsg = `❌ ${nextToBuild} elérte a maximumot! / ${nextToBuild} reached maximum! Töröld a listából. / Remove from list.`;
+						errorColor = 'red';
+						retryTime = 300;
+					} else if (infoText.includes('pontok') || infoText.includes('points')) {
+						errorMsg = `⚠️ Nem elég pontod ehhez az épülethez! / Not enough points for this building! ${nextToBuild}`;
+						errorColor = 'yellow';
+						retryTime = 120;
+					} else {
+						errorMsg = `❓ ${nextToBuild} nem építhető (ismeretlen ok). / ${nextToBuild} cannot be built (unknown reason). Gomb rejtett de sor nem telt. / Button hidden but queue not full. ` + writeAllBuildTime(allBuildTime);
+						errorColor = 'yellow';
+						retryTime = 30;
+					}
+				} else {
+					errorMsg = `❌ ${nextToBuild} sor nem található az oldalon! / ${nextToBuild} row not found on page! Érvénytelen épület ID? / Invalid building ID?`;
+					errorColor = 'red';
+					retryTime = 300;
+				}
+				debug('szem4_EPITO_IntettiBuild', `Build button hidden but queue not full. List: ${buildList.join(',')}, NextToBuild: ${nextToBuild}`);
+			}
+		}
+		
+		szem4_EPITO_infoCell(PMEP[2], errorColor, errorMsg);
+		szem4_EPITO_addIdo(PMEP[2], retryTime);
 		return;
 	}
+	
+	// Everything OK, click the button
 	buildBtn.click();
 	playSound("epites");
-}catch(e){debug("epit_IntelliB",e);}}
+	debug('szem4_EPITO_IntettiBuild', `Successfully clicked build button for ${nextToBuild}`);
+}catch(e){
+	debug("epit_IntelliB", `ERROR: ${e} | Village: ${EPIT_REF.game_data.village.name} | NextToBuild: ${nextToBuild || 'unknown'}`);
+	szem4_EPITO_infoCell(PMEP[2],"red",`💥 Kritikus hiba / Critical error: ${e.message || e}`);
+	szem4_EPITO_addIdo(PMEP[2], 120);
+}}
 
 function szem4_EPITO_motor(){try{
 	var nexttime=750;
