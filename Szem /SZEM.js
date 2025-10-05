@@ -3568,9 +3568,16 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	if (buildList === '') buildList = ';';
 	buildList=buildList.split(";");
 	buildList.pop();
-	if (buildList.length>4) {
-		szem4_EPITO_infoCell(PMEP[2],"alap","Építési sor megtelt. " + writeAllBuildTime(allBuildTime));
+	
+	// Check premium status for queue size limit
+	const isPremiumUser = EPIT_REF.game_data.player.premium;
+	const maxQueueCapacity = isPremiumUser ? 5 : 2;
+	
+	if (buildList.length >= maxQueueCapacity) {
+		const premiumBadge = isPremiumUser ? '👑 Premium' : '🆓 Free';
+		szem4_EPITO_infoCell(PMEP[2],"alap",`✅ Építési sor megtelt! / Build queue full! ${premiumBadge} (${buildList.length}/${maxQueueCapacity}). ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2],firstBuildTime);
+		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}`);
 		return;
 	}
 	
@@ -3689,6 +3696,11 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		let errorColor = 'red';
 		let retryTime = 60;
 		
+		// Detect premium status to determine max queue size
+		const isPremium = EPIT_REF.game_data.player.premium;
+		const maxQueueSize = isPremium ? 5 : 2;
+		const queueLimit = isPremium ? 5 : 2;
+		
 		// Check if building is already at max level
 		const currentLevel = currentBuildLvls[nextToBuild];
 		if (currentLevel >= 30) {
@@ -3722,10 +3734,13 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		}
 		// Build button exists but is hidden
 		else {
-			if (buildList.length >= 2) {
-				errorMsg = `✅ Építkezési sor megtelt (${buildList.length}/3). / Build queue full (${buildList.length}/3). ` + writeAllBuildTime(allBuildTime);
+			// Check if queue is full based on premium status
+			if (buildList.length >= maxQueueSize) {
+				const premiumStatus = isPremium ? '👑 Premium' : '🆓 Free';
+				errorMsg = `✅ Építkezési sor megtelt! / Build queue full! ${premiumStatus} (${buildList.length}/${queueLimit}). ` + writeAllBuildTime(allBuildTime);
 				errorColor = 'alap';
 				retryTime = firstBuildTime > 0 ? firstBuildTime : 60;
+				debug('szem4_EPITO_IntettiBuild', `Queue full: ${buildList.length}/${queueLimit} (Premium: ${isPremium})`);
 			} else {
 				// Button is hidden for unknown reason
 				const buildingInfo = EPIT_REF.document.querySelector(`#main_buildrow_${nextToBuild}`);
@@ -3740,7 +3755,8 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 						errorColor = 'yellow';
 						retryTime = 120;
 					} else {
-						errorMsg = `❓ ${nextToBuild} nem építhető (ismeretlen ok). / ${nextToBuild} cannot be built (unknown reason). Gomb rejtett de sor nem telt. / Button hidden but queue not full. ` + writeAllBuildTime(allBuildTime);
+						const premiumStatus = isPremium ? '👑 Premium' : '🆓 Free';
+						errorMsg = `❓ ${nextToBuild} nem építhető (ismeretlen ok). / ${nextToBuild} cannot be built (unknown reason). Gomb rejtett de sor nem telt. / Button hidden but queue not full. ${premiumStatus} Queue: ${buildList.length}/${queueLimit}. ` + writeAllBuildTime(allBuildTime);
 						errorColor = 'yellow';
 						retryTime = 30;
 					}
@@ -3749,7 +3765,7 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 					errorColor = 'red';
 					retryTime = 300;
 				}
-				debug('szem4_EPITO_IntettiBuild', `Build button hidden but queue not full. List: ${buildList.join(',')}, NextToBuild: ${nextToBuild}`);
+				debug('szem4_EPITO_IntettiBuild', `Build button hidden but queue not full. Premium: ${isPremium}, Queue: ${buildList.length}/${queueLimit}, List: ${buildList.join(',')}, NextToBuild: ${nextToBuild}`);
 			}
 		}
 		
