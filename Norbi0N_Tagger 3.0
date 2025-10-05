@@ -1,0 +1,1903 @@
+// ==UserScript==
+// @name         Norbion Tagger 2.0
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Single-tab auto-tagger: monitor, tag, and Discord notifications all in one tab
+// @author       Norbi0N
+// @match        https://*.klanhaboru.hu/game.php*screen=overview_villages*mode=incomings*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    
+    // =============================================================================
+    // CONSTANTS AND STATE MANAGEMENT
+    // =============================================================================
+    
+    const STORAGE_KEYS = {
+        MONITOR_DATA: 'norbion2_monitor_data',
+        DISCORD_SETTINGS: 'norbion2_discord_settings',
+        PROCESS_STATE: 'norbion2_process_state',
+        ATTACK_SIZES: 'norbion2_attack_sizes',
+        MESSAGE_IDS: 'norbion2_message_ids',
+        NOBLES_MESSAGE_ID: 'norbion2_nobles_message_id',
+        LAST_DISCORD_DATA: 'norbion2_last_discord_data',
+        LAST_MESSAGE_RESET: 'norbion2_last_message_reset',
+        RESET_INTERVAL: 'norbion2_reset_interval'
+    };
+    
+    const PROCESS_STATES = {
+        MONITORING: 'monitoring',
+        TAGGING_NEEDED: 'tagging_needed',
+        PROCESSING: 'processing',
+        WAITING_FOR_GAME_REFRESH: 'waiting_for_game_refresh',
+        POST_GAME_REFRESH: 'post_game_refresh'
+    };
+    
+    let currentState = PROCESS_STATES.MONITORING;
+    let botProtectionDetected = false;
+    let botDetectionTimer = null;
+    let messageResetTimer = null;
+    
+    // =============================================================================
+    // UTILITY FUNCTIONS
+    // =============================================================================
+    
+    function log(message) {
+        console.log('Norbion Tagger 2.0: ' + message);
+    }
+    
+    function getStorageData(key, defaultValue = {}) {
+        try {
+            return JSON.parse(localStorage.getItem(key) || JSON.stringify(defaultValue));
+        } catch (error) {
+            log('Error reading storage for ' + key + ': ' + error);
+            return defaultValue;
+        }
+    }
+    
+    function setStorageData(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify(data));
+        } catch (error) {
+            log('Error writing storage for ' + key + ': ' + error);
+        }
+    }
+    
+    function getCurrentAttackCount() {
+        const incomingCell = document.getElementById('incomings_amount');
+        if (!incomingCell) {
+            log('incomings_amount element not found');
+            return 0;
+        }
+        return parseInt(incomingCell.textContent) || 0;
+    }
+    
+    function extractUnitType(cell) {
+        if (!cell) return 'Unknown';
+        
+        const text = cell.textContent.trim();
+        log('DEBUG: Extracting unit type from cell text: "' + text + '"');
+        
+        // Check for unit types in quickedit-label span
+        const quickEditLabel = cell.querySelector('.quickedit-label');
+        if (quickEditLabel) {
+            const labelText = quickEditLabel.textContent.trim();
+            if (labelText.includes('FN')) {
+                log('DEBUG: Found FN in quickedit-label -> Noble');
+                return 'Noble';
+            }
+            if (labelText.includes('KLov')) {
+                log('DEBUG: Found KLov in quickedit-label -> Light');
+                return 'Light';
+            }
+        }
+        
+        // Check for noble-specific attributes (backup method)
+        const nobleHint = cell.querySelector('[data-icon-hint*="Főnemest tartalmaz"]');
+        if (nobleHint) {
+            log('DEBUG: Found "Főnemest tartalmaz" -> Noble');
+            return 'Noble';
+        }
+        
+        // Check for other unit types
+        if (text.includes('Kos ') || text.includes('Kos\n') || text.match(/\bKos\b/)) {
+            log('DEBUG: Found Kos -> Ram');
+            return 'Ram';
+        }
+        if (text.includes('Kém ') || text.includes('Kém\n') || text.match(/\bKém\b/)) {
+            log('DEBUG: Found Kém -> Spy');
+            return 'Spy';
+        }
+        if (text.includes('Bárdos ') || text.includes('Bárdos\n') || text.match(/\bBárdos\b/)) {
+            log('DEBUG: Found Bárdos -> Axe');
+            return 'Axe';
+        }
+        if (text.includes('Kardforgató ') || text.includes('Kardforgató\n') || text.match(/\bKardforgató\b/)) {
+            log('DEBUG: Found Kardforgató -> Sword');
+            return 'Sword';
+        }
+        if (text.includes('Lándzsás ') || text.includes('Lándzsás\n') || text.match(/\bLándzsás\b/)) {
+            log('DEBUG: Found Lándzsás -> Spear');
+            return 'Spear';
+        }
+        if (text.includes('Nehéz lovas ') || text.includes('Nehéz lovas\n') || text.match(/\bNehéz lovas\b/)) {
+            log('DEBUG: Found Nehéz lovas -> Heavy');
+            return 'Heavy';
+        }
+        if (text.includes('Könnyű lovas ') || text.includes('Könnyű lovas\n') || text.match(/\bKönnyű lovas\b/) || 
+            text.includes('KLov ') || text.includes('KLov\n') || text.match(/\bKLov\b/)) {
+            log('DEBUG: Found Könnyű lovas/KLov -> Light');
+            return 'Light';
+        }
+        
+        // Check for other unit images in /unit/tiny/
+        const unitImages = cell.querySelectorAll('img[src*="/unit/tiny/"]');
+        log('DEBUG: Found ' + unitImages.length + ' unit tiny images');
+        
+        for (let img of unitImages) {
+            const src = img.src;
+            log('DEBUG: Unit image src: ' + src);
+            if (src.includes('ram.webp')) {
+                log('DEBUG: Found ram.webp -> Ram');
+                return 'Ram';
+            }
+            if (src.includes('spy.webp')) {
+                log('DEBUG: Found spy.webp -> Spy');
+                return 'Spy';
+            }
+            if (src.includes('axe.webp')) {
+                log('DEBUG: Found axe.webp -> Axe');
+                return 'Axe';
+            }
+            if (src.includes('sword.webp')) {
+                log('DEBUG: Found sword.webp -> Sword');
+                return 'Sword';
+            }
+            if (src.includes('spear.webp')) {
+                log('DEBUG: Found spear.webp -> Spear');
+                return 'Spear';
+            }
+            if (src.includes('archer.webp')) {
+                log('DEBUG: Found archer.webp -> Archer');
+                return 'Archer';
+            }
+            if (src.includes('heavy.webp')) {
+                log('DEBUG: Found heavy.webp -> Heavy');
+                return 'Heavy';
+            }
+            if (src.includes('light.webp')) {
+                log('DEBUG: Found light.webp -> Light');
+                return 'Light';
+            }
+            if (src.includes('catapult.webp')) {
+                log('DEBUG: Found catapult.webp -> Catapult');
+                return 'Catapult';
+            }
+        }
+        
+        log('DEBUG: No match found, returning Mixed');
+        return 'Mixed';
+    }
+    
+    function extractAttackSize(cell) {
+        if (!cell) return null;
+        
+        // Look for attack size hints from watchtower in data-icon-hint
+        const largeAttackHint = cell.querySelector('[data-icon-hint*="Nagy támadás (5000+ egység)"]');
+        if (largeAttackHint) {
+            log('DEBUG: Found large attack (5000+) via data-icon-hint');
+            return 'large';
+        }
+        
+        const mediumAttackHint = cell.querySelector('[data-icon-hint*="Közepes támadás (1000-5000 egység)"]');
+        if (mediumAttackHint) {
+            log('DEBUG: Found medium attack (1000-5000) via data-icon-hint');
+            return 'medium';
+        }
+        
+        const smallAttackHint = cell.querySelector('[data-icon-hint*="Kis támadás (1-1000 egység)"]');
+        if (smallAttackHint) {
+            log('DEBUG: Found small attack (1-1000) via data-icon-hint');
+            return 'small';
+        }
+        
+        // Also check data-title attribute (alternative format)
+        const largeAttackTitle = cell.querySelector('[data-title*="Nagy támadás (5000+ egység)"]');
+        if (largeAttackTitle) {
+            log('DEBUG: Found large attack (5000+) via data-title');
+            return 'large';
+        }
+        
+        const mediumAttackTitle = cell.querySelector('[data-title*="Közepes támadás (1000-5000 egység)"]');
+        if (mediumAttackTitle) {
+            log('DEBUG: Found medium attack (1000-5000) via data-title');
+            return 'medium';
+        }
+        
+        const smallAttackTitle = cell.querySelector('[data-title*="Kis támadás (1-1000 egység)"]');
+        if (smallAttackTitle) {
+            log('DEBUG: Found small attack (1-1000) via data-title');
+            return 'small';
+        }
+        
+        log('DEBUG: No attack size detected in cell');
+        return null; // No watchtower info available
+    }
+    
+    function getAttackSizeEmoji(attackSize) {
+        switch (attackSize) {
+            case 'large': return '<:attack_large:1166514222633590894>';
+            case 'medium': return '<:attack_medium:1166514224026095656>';
+            case 'small': return '<:attack_small:1166514225544429630>';
+            default: return '<:attack:1166514220263821354>'; // Default
+        }
+    }
+    
+    function cleanVillageName(villageText) {
+        if (!villageText) return villageText;
+        
+        // Keep village name and coordinates, remove only K## pattern
+        // Example: "FeKete (509|471) K45" -> "FeKete 509|471"
+        return villageText.replace(/\s*K\d+\s*$/, '').replace(/\s*\(([^)]*)\)\s*/, ' $1').trim();
+    }
+    
+    function cleanAttackerCoords(attackerText) {
+        if (!attackerText) return attackerText;
+        
+        // Extract only coordinates without parentheses and remove village name
+        // Example: "15. Camelot (564|544) K55" -> "564|544"
+        const coordMatch = attackerText.match(/\((\d+\|\d+)\)/);
+        return coordMatch ? coordMatch[1] : attackerText;
+    }
+    
+    function extractTargetCoordinates(villageText) {
+        if (!villageText) return '';
+        
+        // Extract coordinates from target village
+        // Example: "FeKete (509|471) K45" -> "509|471"
+        const coordMatch = villageText.match(/\((\d+\|\d+)\)/);
+        return coordMatch ? coordMatch[1] : '';
+    }
+    
+    function saveAttackSize(commandId, attackSize) {
+        if (!commandId || !attackSize) return;
+        
+        const attackSizes = getStorageData(STORAGE_KEYS.ATTACK_SIZES, {});
+        const now = new Date().getTime();
+        
+        attackSizes[commandId] = {
+            size: attackSize,
+            timestamp: now
+        };
+        
+        // Clean old entries (older than 8 hours)
+        const eightHours = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+        Object.keys(attackSizes).forEach(id => {
+            if (now - attackSizes[id].timestamp > eightHours) {
+                delete attackSizes[id];
+            }
+        });
+        
+        setStorageData(STORAGE_KEYS.ATTACK_SIZES, attackSizes);
+        log('DEBUG: Saved attack size ' + attackSize + ' for command ' + commandId);
+    }
+    
+    function getStoredAttackSize(commandId) {
+        if (!commandId) return null;
+        
+        const attackSizes = getStorageData(STORAGE_KEYS.ATTACK_SIZES, {});
+        const stored = attackSizes[commandId];
+        
+        if (!stored) return null;
+        
+        // Check if stored data is still valid (less than 8 hours old)
+        const now = new Date().getTime();
+        const eightHours = 8 * 60 * 60 * 1000;
+        
+        if (now - stored.timestamp > eightHours) {
+            log('DEBUG: Stored attack size for ' + commandId + ' is older than 8 hours, ignoring');
+            return null;
+        }
+        
+        log('DEBUG: Using stored attack size ' + stored.size + ' for command ' + commandId);
+        return stored.size;
+    }
+    
+    function extractCommandId(cell) {
+        if (!cell) return null;
+        
+        // Look for data-command-id attribute
+        const commandElement = cell.querySelector('[data-command-id]');
+        if (commandElement) {
+            const commandId = commandElement.getAttribute('data-command-id');
+            log('DEBUG: Found command ID: ' + commandId);
+            return commandId;
+        }
+        
+        return null;
+    }
+    
+    function getUnitEmoji(unitType) {
+        log('DEBUG: Getting emoji for unit type: ' + unitType);
+        switch (unitType) {
+            case 'Noble': return '<:unit_snob:1419105303319937075>';
+            case 'Ram': return '<:unit_ram:1419105300983582902>';
+            case 'Spy': return '<:unit_spy:1419105307165986826>';
+            case 'Axe': return '<:unit_axe:1419105290183250021>';
+            case 'Sword': return '<:unit_sword:1421029313519681537>';
+            case 'Spear': return '<:unit_spear:1421030091839901697>';
+            case 'Heavy': return '<:unit_heavy:1421029408713740370>';
+            case 'Light': return '<:unit_light:1421029411917922335>';
+            case 'Archer': return ':bow_and_arrow:';
+            case 'Catapult': return ':stone:';
+            default: return ':military_helmet:';
+        }
+    }
+    
+    function getVillageInfo() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const villageId = urlParams.get('village');
+        
+        // Try to get village name from page title
+        const titleElement = document.querySelector('title');
+        if (titleElement && titleElement.textContent.includes('(')) {
+            const titleMatch = titleElement.textContent.match(/([^(]+\([^)]+\))/);
+            if (titleMatch) {
+                return titleMatch[1].trim();
+            }
+        }
+        
+        // Try from menu area
+        const menuElement = document.querySelector('#menu_row2 .box-item');
+        if (menuElement) {
+            return menuElement.textContent.trim();
+        }
+        
+        // Try from attack table target
+        const table = document.getElementById('incomings_table');
+        if (table) {
+            const firstRow = table.querySelector('tbody tr');
+            if (firstRow) {
+                const cells = firstRow.querySelectorAll('td');
+                if (cells.length >= 2) {
+                    return cells[1].textContent.trim();
+                }
+            }
+        }
+        
+        return 'Village (' + villageId + ')';
+    }
+    
+    // =============================================================================
+    // CORE MONITORING LOGIC
+    // =============================================================================
+    
+    function processAttackMonitoring() {
+        const currentCount = getCurrentAttackCount();
+        const timestamp = new Date().toISOString();
+        const timeString = new Date().toLocaleString();
+        
+        // Get previous data
+        const monitorData = getStorageData(STORAGE_KEYS.MONITOR_DATA, {
+            count: 0,
+            lastTaggedCount: 0,
+            timestamp: timestamp,
+            timeString: timeString
+        });
+        
+        log('Current attacks: ' + currentCount + ' | Last: ' + monitorData.count + ' | Last tagged: ' + monitorData.lastTaggedCount);
+        
+        // Check current process state
+        const processState = getStorageData(STORAGE_KEYS.PROCESS_STATE, { state: PROCESS_STATES.MONITORING });
+        
+        // Handle different scenarios
+        if (processState.state === PROCESS_STATES.TAGGING_NEEDED) {
+            // We just refreshed after detecting increased attacks - start tagging
+            log('Post-refresh: Starting tagging process');
+            startTaggingProcess();
+            return;
+        }
+        
+        if (processState.state === PROCESS_STATES.POST_GAME_REFRESH && processState.action === 'process_decreased_attacks') {
+            // We just refreshed after attacks decreased - compare and update Discord
+            log('Post-refresh: Processing decreased attacks');
+            setTimeout(() => {
+                processDecreasedAttacks();
+            }, 3000); // Wait for page to fully load
+            return;
+        }
+        
+        if (processState.state === PROCESS_STATES.POST_GAME_REFRESH && processState.action === 'force_message_reset') {
+            // We just refreshed after forced message reset - extract fresh data and send new messages
+            log('Post-refresh: Processing forced message reset');
+            setTimeout(() => {
+                processForcedReset();
+            }, 3000); // Wait for page to fully load
+            return;
+        }
+        
+        if (processState.state === PROCESS_STATES.WAITING_FOR_GAME_REFRESH) {
+            // We are waiting for the game to complete tagging and refresh the page
+            log('Detected WAITING_FOR_GAME_REFRESH state - checking if tagging is complete');
+            
+            // Check if the page has been refreshed by the game (tagging is complete)
+            const now = new Date().getTime();
+            const stateTime = new Date(processState.timestamp).getTime();
+            const timePassed = now - stateTime;
+            
+            log('Time since tagging started: ' + Math.round(timePassed / 1000) + ' seconds');
+            
+            // If enough time has passed and we're still on the incomings page, tagging should be complete
+            if (timePassed > 8000) { // 8 seconds should be enough for the game to process
+                log('TAGGING PROCESS SHOULD BE COMPLETE - Starting data extraction');
+                
+                // NOW extract data and send to Discord (after everything is finished)
+                setTimeout(() => {
+                    log('=== TAGGING COMPLETE - EXTRACTING DATA ===');
+                    log('Current URL: ' + window.location.href);
+                    
+                    try {
+                        log('Starting data extraction...');
+                        const extractedData = extractAttackData();
+                        if (extractedData) {
+                            log('Data extracted successfully - ' + extractedData.count + ' attacks');
+                        }
+                    } catch (error) {
+                        log('ERROR in data extraction: ' + error);
+                    }
+                    
+                    // Send to Discord
+                    setTimeout(() => {
+                        log('=== SENDING TO DISCORD AFTER TAGGING COMPLETION ===');
+                        try {
+                            sendToDiscord();
+                            log('Discord send completed');
+                        } catch (error) {
+                            log('ERROR in Discord send: ' + error);
+                        }
+                        
+                        // Finish processing
+                        finishProcessing();
+                    }, 1000);
+                    
+                }, 5000); // Wait additional 5 seconds to make sure everything is stable
+                
+                // Update state to prevent re-processing
+                setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+                    state: PROCESS_STATES.PROCESSING,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            return; // Don't process other monitoring logic while waiting
+        }
+        
+        if (currentCount > monitorData.lastTaggedCount && !botProtectionDetected) {
+            // Attacks increased - need to tag
+            log('ATTACKS INCREASED! ' + monitorData.lastTaggedCount + ' -> ' + currentCount + ' - INITIATING TAGGING');
+            
+            // Update monitor data
+            setStorageData(STORAGE_KEYS.MONITOR_DATA, {
+                count: currentCount,
+                lastTaggedCount: currentCount,
+                timestamp: timestamp,
+                timeString: timeString
+            });
+            
+            // Set state for post-refresh
+            setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+                state: PROCESS_STATES.TAGGING_NEEDED,
+                timestamp: timestamp 
+            });
+            
+            // Refresh page to prepare for tagging
+            log('Refreshing page for tagging...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+            
+        } else if (currentCount > monitorData.lastTaggedCount && botProtectionDetected) {
+            log('ATTACKS INCREASED but BOT PROTECTION DETECTED - Skipping for safety');
+            sendBotProtectionAlert(currentCount);
+            
+        } else if (currentCount < monitorData.count) {
+            // Attacks decreased (some landed) - REFRESH PAGE and then update
+            log('ATTACKS DECREASED! ' + monitorData.count + ' -> ' + currentCount + ' - PREPARING FOR UPDATE');
+            
+            setStorageData(STORAGE_KEYS.MONITOR_DATA, {
+                count: currentCount,
+                lastTaggedCount: currentCount, // Keep this updated
+                timestamp: timestamp,
+                timeString: timeString
+            });
+            
+            // Set state to indicate we need to process decreased attacks after refresh
+            setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+                state: PROCESS_STATES.POST_GAME_REFRESH,
+                action: 'process_decreased_attacks',
+                timestamp: timestamp 
+            });
+            
+            // Refresh page to get updated DOM data
+            log('Refreshing page to get updated attack data...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+            
+        } else {
+            // Just update current count
+            setStorageData(STORAGE_KEYS.MONITOR_DATA, {
+                count: currentCount,
+                lastTaggedCount: monitorData.lastTaggedCount,
+                timestamp: timestamp,
+                timeString: timeString
+            });
+        }
+        
+        // Reset if no attacks
+        if (currentCount === 0) {
+            setStorageData(STORAGE_KEYS.MONITOR_DATA, {
+                count: 0,
+                lastTaggedCount: 0,
+                timestamp: timestamp,
+                timeString: timeString
+            });
+            setStorageData(STORAGE_KEYS.PROCESS_STATE, { state: PROCESS_STATES.MONITORING });
+            setStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+            setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
+            setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        }
+    }
+    
+    // =============================================================================
+    // TAGGING LOGIC
+    // =============================================================================
+    
+    function checkForUntaggedAttacks() {
+        log('=== CHECKING FOR UNTAGGED ATTACKS ===');
+        
+        // Look for "Támadás" labels (untagged attacks)
+        const allLabels = document.querySelectorAll('.quickedit-label');
+        let untaggedCount = 0;
+        
+        log('Scanning ' + allLabels.length + ' attack labels...');
+        
+        allLabels.forEach((label, index) => {
+            const labelText = label.textContent.trim();
+            if (labelText === 'Támadás') {
+                untaggedCount++;
+                log('Found untagged attack: "Támadás"');
+            }
+        });
+        
+        log('=== SCAN COMPLETE ===');
+        log('Untagged attacks (Támadás): ' + untaggedCount);
+        log('Total attacks: ' + allLabels.length);
+        
+        return untaggedCount > 0;
+    }
+    
+    function startTaggingProcess() {
+        log('=== STARTING TAGGING PROCESS ===');
+        
+        // Set processing state
+        setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+            state: PROCESS_STATES.PROCESSING,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Wait for page to fully load
+        setTimeout(() => {
+            const hasUntagged = checkForUntaggedAttacks();
+            
+            if (hasUntagged) {
+                log('UNTAGGED ATTACKS FOUND - STARTING AUTO-TAGGING');
+                performAutoTagging();
+            } else {
+                log('NO UNTAGGED ATTACKS FOUND - EXTRACTING DATA ONLY');
+                // Extract and send data immediately (no tagging needed)
+                setTimeout(() => {
+                    log('Extracting data without tagging...');
+                    try {
+                        extractAttackData();
+                        sendToDiscord();
+                        log('Data extracted and sent to Discord');
+                    } catch (error) {
+                        log('Error in data extraction/Discord: ' + error);
+                    }
+                    finishProcessing();
+                }, 1000);
+            }
+        }, 2000);
+    }
+    
+    function performAutoTagging() {
+        log('Performing auto-tagging...');
+        
+        // Click all selectAll checkboxes
+        document.querySelectorAll('input[type="checkbox"].selectAll').forEach(checkbox => {
+            checkbox.click();
+        });
+        
+        log('Clicked all selectAll checkboxes');
+        
+        // Submit the tagging form
+        setTimeout(() => {
+            const submitButton = document.querySelector('input[type="submit"][name="label"]');
+            if (submitButton) {
+                submitButton.click();
+                log('Clicked submit button - TAGGING INITIATED');
+                log('WAITING for game to complete tagging process and refresh page...');
+                
+                // Set state to indicate we are waiting for the tagging process to complete
+                setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+                    state: PROCESS_STATES.WAITING_FOR_GAME_REFRESH,
+                    timestamp: new Date().toISOString(),
+                    action: 'waiting_for_tagging_completion'
+                });
+                
+                // DO NOT extract data or send Discord here - wait for the game to finish!
+                
+            } else {
+                log('Submit button not found');
+                finishProcessing();
+            }
+        }, 2000);
+    }
+    
+    function processDecreasedAttacks() {
+        log('=== PROCESSING DECREASED ATTACKS ===');
+        
+        // Extract current attack data
+        const currentData = extractAttackData();
+        const lastData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        if (!currentData || !lastData.attacks) {
+            log('No valid data for comparison - extracting and sending current data');
+            if (currentData) {
+                sendToDiscord();
+            }
+            finishProcessing();
+            return;
+        }
+        
+        // Compare command IDs to find which attacks landed
+        const currentCommandIds = new Set(currentData.attacks.map(attack => attack.commandId).filter(id => id));
+        const lastCommandIds = new Set(lastData.attacks.map(attack => attack.commandId).filter(id => id));
+        
+        const landedCommandIds = [...lastCommandIds].filter(id => !currentCommandIds.has(id));
+        
+        log('Current attacks: ' + currentData.attacks.length);
+        log('Previous attacks: ' + lastData.attacks.length);
+        log('Landed attacks (command IDs): ' + landedCommandIds.join(', '));
+        
+        if (landedCommandIds.length > 0) {
+            log('Updating Discord messages to remove ' + landedCommandIds.length + ' landed attacks');
+            sendToDiscord(); // This will update with current data (removes landed attacks automatically)
+        } else {
+            log('No attacks detected as landed (might be command ID detection issue)');
+            sendToDiscord(); // Send current state anyway
+        }
+        
+        finishProcessing();
+    }
+    
+    function processForcedReset() {
+        log('=== PROCESSING FORCED MESSAGE RESET ===');
+        
+        // Extract current attack data and send as NEW messages
+        const currentData = extractAttackData();
+        
+        if (currentData && currentData.attacks.length > 0) {
+            log('Sending fresh Discord messages after reset - ' + currentData.attacks.length + ' attacks');
+            sendToDiscord(true); // FORCE NEW MESSAGES - ignore any existing message IDs
+        } else {
+            log('No attacks found after reset - no Discord messages to send');
+        }
+        
+        finishProcessing();
+    }
+    
+    function finishProcessing() {
+        log('=== PROCESSING COMPLETE ===');
+        
+        // Reset to monitoring state
+        setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+            state: PROCESS_STATES.MONITORING,
+            timestamp: new Date().toISOString()
+        });
+        
+        log('Returned to monitoring mode');
+    }
+    
+    // =============================================================================
+    // DATA EXTRACTION
+    // =============================================================================
+    
+    function extractAttackData() {
+        log('=== EXTRACTING ATTACK DATA ===');
+        
+        // Step 1: Check table
+        const table = document.getElementById('incomings_table');
+        log('Step 1 - Table check: ' + (table ? 'FOUND' : 'NOT FOUND'));
+        if (!table) {
+            log('ERROR: Attack table not found - cannot extract data');
+            return null;
+        }
+        
+        // Step 2: Get village info
+        log('Step 2 - Getting village info...');
+        const villageInfo = getVillageInfo();
+        log('Village info: ' + villageInfo);
+        
+        // Step 3: Get table rows
+        const rows = table.querySelectorAll('tbody tr');
+        log('Step 3 - Found ' + rows.length + ' table rows');
+        
+        const attacks = [];
+        
+        // Step 4: Process each row
+        rows.forEach((row, index) => {
+            const cells = row.querySelectorAll('td');
+            log('Row ' + (index + 1) + ': ' + cells.length + ' cells');
+            
+            if (cells.length >= 7) {
+                // Extract data from the first cell
+                const unitType = extractUnitType(cells[0]);
+                const cellText = cells[0] ? cells[0].textContent.trim() : '';
+                const commandId = extractCommandId(cells[0]);
+                
+                // Extract attack size (watchtower info)
+                const currentAttackSize = extractAttackSize(cells[0]);
+                
+                // Save attack size if detected
+                if (commandId && currentAttackSize) {
+                    saveAttackSize(commandId, currentAttackSize);
+                }
+                
+                // Try to get attack size (current or stored)
+                const attackSize = currentAttackSize || getStoredAttackSize(commandId);
+                
+                const attackData = {
+                    units: cellText,
+                    unitType: unitType,
+                    commandId: commandId,
+                    attackSize: attackSize, // Add attack size
+                    targetVillage: cells[1] ? cells[1].textContent.trim() : '',
+                    attackerVillage: cells[2] ? cells[2].textContent.trim() : '',
+                    attackerName: cells[3] ? cells[3].textContent.trim() : '',
+                    distance: cells[4] ? cells[4].textContent.trim() : '',
+                    arrivalTime: cells[5] ? cells[5].textContent.trim() : '',
+                    timeRemaining: cells[6] ? cells[6].textContent.trim() : ''
+                };
+                
+                log('Attack ' + (index + 1) + ': Cell text="' + cellText + '" -> Unit=' + attackData.unitType + ' Size=' + (attackSize || 'unknown') + ' from ' + attackData.attackerName + ' -> ' + attackData.targetVillage);
+                attacks.push(attackData);
+            } else {
+                log('Row ' + (index + 1) + ': Skipped (not enough cells)');
+            }
+        });
+        
+        // Step 5: Create final data
+        const extractedData = {
+            timestamp: new Date().toISOString(),
+            timeString: new Date().toLocaleString(),
+            attackedVillage: villageInfo,
+            count: attacks.length,
+            attacks: attacks
+        };
+        
+        log('Step 5 - Created data object with ' + attacks.length + ' attacks');
+        
+        // Step 6: Store for Discord
+        try {
+            setStorageData('norbion2_discord_data', extractedData);
+            log('Step 6 - Data stored successfully');
+        } catch (error) {
+            log('ERROR in Step 6 - Failed to store data: ' + error);
+        }
+        
+        log('=== DATA EXTRACTION COMPLETED ===');
+        log('Final result: ' + attacks.length + ' attacks extracted');
+        return extractedData;
+    }
+    
+    // =============================================================================
+    // DISCORD FUNCTIONALITY
+    // =============================================================================
+    
+    function sendToDiscord(forceNew = false) {
+        log('=== SENDING TO DISCORD ===');
+        
+        const discordData = getStorageData('norbion2_discord_data');
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const lastDiscordData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        const messageIds = getStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+        
+        if (!discordData.attacks || discordData.attacks.length === 0) {
+            log('No attack data found for Discord');
+            return;
+        }
+        
+        if (!settings.webhook) {
+            log('No webhook configured');
+            return;
+        }
+        
+        // Check if this is an update (we have existing message IDs) or first send
+        const isUpdate = messageIds.length > 0 && !forceNew;
+        log((isUpdate ? 'UPDATING' : 'SENDING NEW') + ' ' + discordData.attacks.length + ' attacks to Discord' + (forceNew ? ' (FORCED NEW)' : ''));
+        
+        // Save current data for future comparisons
+        setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, discordData);
+        
+        // Create Discord message chunks
+        const chunks = createDiscordChunks(discordData);
+        log('Created ' + chunks.length + ' Discord message chunks');
+        
+        // Send each chunk with delay
+        chunks.forEach((chunk, index) => {
+            setTimeout(() => {
+                log('Sending chunk ' + (index + 1) + '/' + chunks.length);
+                sendDiscordChunk(settings.webhook, chunk, index + 1, chunks.length, forceNew);
+            }, index * 2000);
+        });
+        
+        // Send nobles separately if nobles webhook is configured
+        if (settings.noblesWebhook) {
+            setTimeout(() => {
+                sendNoblesToSeparateWebhook(discordData, settings.noblesWebhook, forceNew);
+            }, chunks.length * 2000 + 1000); // Send after all main chunks
+        }
+    }
+    
+    function createDiscordChunks(discordData) {
+        const maxLength = 1900;
+        const chunks = [];
+        
+        // Group attacks by target village
+        const villageGroups = groupAttacksByVillage(discordData.attacks);
+        
+        // Get player name from settings
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const playerName = settings.playerName || 'Player';
+        
+        // Header only for first chunk
+        let baseHeader = '**Incoming Attacks Detected!**\n';
+        baseHeader += '**Player:** ' + playerName + '\n';
+        baseHeader += '**Time:** ' + discordData.timeString + '\n';
+        baseHeader += '**Total Attacks:** ' + discordData.count + '\n\n';
+        
+        let currentChunk = '';
+        let processedVillages = 0;
+        let isFirstChunk = true;
+        
+        villageGroups.forEach((villageGroup) => {
+            // Format village group with name and coordinates
+            const cleanedTargetVillage = cleanVillageName(villageGroup.targetVillage);
+            let villageText = '<:emoji_43:1419114390514569296> **' + cleanedTargetVillage + '**\n';
+            
+            villageGroup.attacks.forEach((attack) => {
+                const attackSizeEmoji = getAttackSizeEmoji(attack.attackSize);
+                const unitEmoji = getUnitEmoji(attack.unitType);
+                const cleanedAttackerCoords = cleanAttackerCoords(attack.attackerVillage);
+                const attackerName = attack.attackerName || 'Unknown';
+                villageText += '- ' + attackSizeEmoji + ' ' + unitEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + ' **' + attackerName + '**\n';
+            });
+            villageText += '\n';
+            
+            // Check if adding this village group would exceed the limit
+            const testMessage = currentChunk + villageText;
+            const fullMessage = baseHeader + testMessage;
+            
+            if (fullMessage.length > maxLength && currentChunk.length > 0) {
+                // Save current chunk and start new one
+                chunks.push(currentChunk);
+                currentChunk = villageText;
+            } else {
+                currentChunk += villageText;
+            }
+            
+            processedVillages++;
+        });
+        
+        // Add the last chunk
+        if (currentChunk.length > 0) {
+            chunks.push(currentChunk);
+        }
+        
+        // Create final messages with headers
+        return chunks.map((chunk, index) => {
+            const partHeader = chunks.length > 1 ? '**Part ' + (index + 1) + '/' + chunks.length + '**\n\n' : '';
+            // Only add baseHeader to first chunk
+            if (index === 0) {
+                return baseHeader + partHeader + chunk;
+            } else {
+                return partHeader + chunk;
+            }
+        });
+    }
+    
+    function groupAttacksByVillage(attacks) {
+        // Group attacks by target village
+        const villageMap = new Map();
+        
+        attacks.forEach(attack => {
+            const target = attack.targetVillage;
+            if (!villageMap.has(target)) {
+                villageMap.set(target, []);
+            }
+            villageMap.get(target).push(attack);
+        });
+        
+        // Convert to array and sort each village's attacks by arrival time
+        const villageGroups = [];
+        villageMap.forEach((attackList, targetVillage) => {
+            // Sort attacks within each village by arrival time
+            attackList.sort((a, b) => {
+                // Simple string comparison for time (assuming format is consistent)
+                return a.arrivalTime.localeCompare(b.arrivalTime);
+            });
+            
+            villageGroups.push({
+                targetVillage: targetVillage,
+                attacks: attackList,
+                hasNoble: attackList.some(attack => attack.unitType === 'Noble'),
+                earliestTime: attackList[0].arrivalTime
+            });
+        });
+        
+        // Sort village groups: nobles first, then by earliest attack time
+        villageGroups.sort((a, b) => {
+            // Nobles come first
+            if (a.hasNoble && !b.hasNoble) return -1;
+            if (!a.hasNoble && b.hasNoble) return 1;
+            
+            // If both have nobles or both don't have nobles, sort by earliest time
+            return a.earliestTime.localeCompare(b.earliestTime);
+        });
+        
+        log('Village groups created: ' + villageGroups.length + ' villages');
+        villageGroups.forEach((group, i) => {
+            log('Village ' + (i+1) + ': ' + group.targetVillage + ' (' + group.attacks.length + ' attacks, has noble: ' + group.hasNoble + ')');
+        });
+        
+        return villageGroups;
+    }
+    
+    function editDiscordMessage(webhook, messageId, message) {
+        return fetch(webhook + '/messages/' + messageId, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: message })
+        });
+    }
+
+    function sendDiscordChunk(webhook, message, partNum, totalParts, forceNew = false) {
+        // Get stored message IDs
+        const messageIds = getStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+        const existingMessageId = messageIds[partNum - 1];
+
+        if (existingMessageId && !forceNew) {
+            // Edit existing message
+            log('Editing Discord message part ' + partNum + '/' + totalParts);
+            editDiscordMessage(webhook, existingMessageId, message)
+                .then(response => {
+                    if (response.ok) {
+                        log('Discord Part ' + partNum + '/' + totalParts + ' edited successfully');
+                    } else {
+                        log('Discord Part ' + partNum + ' edit failed - HTTP ' + response.status + ', sending new message');
+                        // If edit fails, send new message
+                        sendNewDiscordMessage(webhook, message, partNum, totalParts);
+                    }
+                })
+                .catch(error => {
+                    log('Discord Part ' + partNum + ' edit error: ' + error + ', sending new message');
+                    // If edit fails, send new message
+                    sendNewDiscordMessage(webhook, message, partNum, totalParts);
+                });
+        } else {
+            // Send new message (either no existing ID or forced new)
+            if (forceNew && existingMessageId) {
+                log('Forcing NEW message for part ' + partNum + '/' + totalParts + ' (ignoring existing ID)');
+            }
+            sendNewDiscordMessage(webhook, message, partNum, totalParts);
+        }
+    }
+
+    function sendNewDiscordMessage(webhook, message, partNum, totalParts) {
+        fetch(webhook + '?wait=true', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: message })
+        })
+        .then(response => {
+            if (response.ok) {
+                log('Discord Part ' + partNum + '/' + totalParts + ' sent successfully');
+                return response.json();
+            } else {
+                log('Discord Part ' + partNum + ' failed - HTTP ' + response.status);
+                throw new Error('HTTP ' + response.status);
+            }
+        })
+        .then(data => {
+            // Store message ID
+            const messageIds = getStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+            messageIds[partNum - 1] = data.id;
+            setStorageData(STORAGE_KEYS.MESSAGE_IDS, messageIds);
+            log('Stored message ID for part ' + partNum + ': ' + data.id);
+        })
+        .catch(error => {
+            log('Discord Part ' + partNum + ' error: ' + error);
+        });
+    }
+    
+    function sendNoblesToSeparateWebhook(discordData, noblesWebhook, forceNew = false) {
+        log('=== PROCESSING NOBLES FOR SEPARATE WEBHOOK ===');
+        
+        // Filter only noble attacks
+        const nobleAttacks = discordData.attacks.filter(attack => attack.unitType === 'Noble');
+        const existingNoblesMessageId = getStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
+        
+        if (nobleAttacks.length === 0) {
+            log('No noble attacks found');
+            
+            // If we had nobles before but none now, update message to say "No nobles"
+            if (existingNoblesMessageId) {
+                log('Updating nobles message to show no nobles remaining');
+                const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+                const playerName = settings.playerName || 'Player';
+                const noNoblesMessage = '✅ **NO NOBLE ATTACKS** ✅\\n**Player:** ' + playerName + '\\n**Time:** ' + discordData.timeString + '\\n\\nAll noble attacks have landed or been resolved.';
+                
+                editDiscordMessage(noblesWebhook, existingNoblesMessageId, noNoblesMessage)
+                    .then(response => {
+                        log('Nobles message updated to show no nobles: ' + (response.ok ? 'Success' : 'Failed'));
+                    })
+                    .catch(error => {
+                        log('Error updating nobles message: ' + error);
+                    });
+            }
+            return;
+        }
+        
+        log('Found ' + nobleAttacks.length + ' noble attacks for separate webhook');
+        
+        // Get player name from settings
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const playerName = settings.playerName || 'Player';
+        
+        // Create nobles-only message
+        let noblesMessage = '🚨 **NOBLE ATTACKS DETECTED!** 🚨\n';
+        noblesMessage += '**Player:** ' + playerName + '\n';
+        noblesMessage += '**Time:** ' + discordData.timeString + '\n';
+        noblesMessage += '**Noble Attacks:** ' + nobleAttacks.length + '\n\n';
+        
+        // Group nobles by target village
+        const nobleVillageGroups = groupAttacksByVillage(nobleAttacks);
+        
+        nobleVillageGroups.forEach((villageGroup) => {
+            const cleanedTargetVillage = cleanVillageName(villageGroup.targetVillage);
+            noblesMessage += '<:emoji_43:1419114390514569296> **' + cleanedTargetVillage + '**\n';
+            
+            villageGroup.attacks.forEach((attack) => {
+                const attackSizeEmoji = getAttackSizeEmoji(attack.attackSize);
+                const nobleEmoji = getUnitEmoji('Noble');
+                const cleanedAttackerCoords = cleanAttackerCoords(attack.attackerVillage);
+                const attackerName = attack.attackerName || 'Unknown';
+                noblesMessage += '- ' + attackSizeEmoji + ' ' + nobleEmoji + ' ' + cleanedAttackerCoords + ' at ' + attack.arrivalTime + ' **' + attackerName + '**\n';
+            });
+            noblesMessage += '\n';
+        });
+        
+        // Send or edit nobles message
+        if (existingNoblesMessageId && !forceNew) {
+            // Edit existing nobles message
+            log('Editing existing nobles message');
+            editDiscordMessage(noblesWebhook, existingNoblesMessageId, noblesMessage)
+                .then(response => {
+                    if (response.ok) {
+                        log('Nobles message edited successfully');
+                    } else {
+                        log('Nobles message edit failed - HTTP ' + response.status + ', sending new message');
+                        sendNewNoblesMessage(noblesWebhook, noblesMessage);
+                    }
+                })
+                .catch(error => {
+                    log('Nobles message edit error: ' + error + ', sending new message');
+                    sendNewNoblesMessage(noblesWebhook, noblesMessage);
+                });
+        } else {
+            // Send new nobles message (either no existing ID or forced new)
+            if (forceNew && existingNoblesMessageId) {
+                log('Forcing NEW nobles message (ignoring existing ID)');
+            }
+            sendNewNoblesMessage(noblesWebhook, noblesMessage);
+        }
+    }
+    
+    function sendNewNoblesMessage(noblesWebhook, noblesMessage) {
+        log('Sending new nobles message');
+        fetch(noblesWebhook + '?wait=true', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: noblesMessage })
+        })
+        .then(response => {
+            if (response.ok) {
+                log('New nobles message sent successfully');
+                return response.json();
+            } else {
+                log('Nobles webhook failed - HTTP ' + response.status);
+                throw new Error('HTTP ' + response.status);
+            }
+        })
+        .then(data => {
+            // Store nobles message ID for future edits
+            setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, data.id);
+            log('Stored nobles message ID: ' + data.id);
+        })
+        .catch(error => {
+            log('Nobles webhook error: ' + error);
+        });
+    }
+    
+    // =============================================================================
+    // MESSAGE RESET SYSTEM
+    // =============================================================================
+    
+    function startMessageResetTimer() {
+        if (messageResetTimer) return;
+        
+        messageResetTimer = setInterval(() => {
+            checkMessageReset();
+        }, 60 * 60 * 1000); // Check every hour
+        
+        log('Message reset timer started - checking every hour');
+    }
+    
+    function stopMessageResetTimer() {
+        if (messageResetTimer) {
+            clearInterval(messageResetTimer);
+            messageResetTimer = null;
+            log('Message reset timer stopped');
+        }
+    }
+    
+    function checkMessageReset() {
+        const lastResetTime = getStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, 0);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8); // hours
+        const now = Date.now();
+        const timeSinceReset = now - lastResetTime;
+        const resetIntervalMs = resetInterval * 60 * 60 * 1000;
+        
+        log('Checking message reset: ' + Math.round(timeSinceReset / (60 * 60 * 1000)) + 'h since last reset, interval: ' + resetInterval + 'h');
+        
+        if (timeSinceReset > resetIntervalMs) {
+            log('=== TIME FOR MESSAGE RESET ===');
+            forceMessageReset();
+        }
+    }
+    
+    function forceMessageReset() {
+        log('=== FORCING MESSAGE RESET ===');
+        
+        // Clear all message IDs to force new messages
+        setStorageData(STORAGE_KEYS.MESSAGE_IDS, []);
+        setStorageData(STORAGE_KEYS.NOBLES_MESSAGE_ID, '');
+        setStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        // Update reset timestamp
+        setStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, Date.now());
+        
+        // Set state to refresh and extract fresh data
+        setStorageData(STORAGE_KEYS.PROCESS_STATE, { 
+            state: PROCESS_STATES.POST_GAME_REFRESH,
+            action: 'force_message_reset',
+            timestamp: new Date().toISOString()
+        });
+        
+        log('Message IDs cleared - refreshing page for fresh data extraction');
+        
+        // Refresh page to get current attack data
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+    
+    // =============================================================================
+    // BOT PROTECTION DETECTION
+    // =============================================================================
+    
+    function startBotDetection() {
+        if (botDetectionTimer) return;
+        
+        botDetectionTimer = setInterval(() => {
+            checkBotProtection();
+        }, 9000);
+        
+        log('Bot protection monitoring started');
+    }
+    
+    function stopBotDetection() {
+        if (botDetectionTimer) {
+            clearInterval(botDetectionTimer);
+            botDetectionTimer = null;
+            log('Bot protection monitoring stopped');
+        }
+    }
+    
+    function checkBotProtection() {
+        try {
+            const botElement = document.getElementById('botprotection_quest');
+            
+            if (botElement && !botProtectionDetected) {
+                log('=== BOT PROTECTION DETECTED ===');
+                botProtectionDetected = true;
+                log('Bot protection detected - auto-tagging disabled for safety');
+                sendBotProtectionAlert(0);
+                
+            } else if (!botElement && botProtectionDetected) {
+                log('Bot protection cleared - resuming normal operation');
+                botProtectionDetected = false;
+            }
+        } catch (error) {
+            log('Error checking bot protection: ' + error);
+        }
+    }
+    
+    function sendBotProtectionAlert(attackCount) {
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        
+        if (!settings.webhook) {
+            log('No Discord webhook configured for bot protection alert');
+            return;
+        }
+        
+        let message = '**BOT PROTECTION DETECTED!**\n';
+        message += '**Auto-Tagger Safety Mode Activated**\n\n';
+        message += '**Status:** Bot protection quest detected\n';
+        message += '**Action:** Auto-tagging disabled for safety\n';
+        
+        if (attackCount > 0) {
+            message += '**Pending Attacks:** ' + attackCount + ' attacks waiting\n';
+        }
+        
+        message += '\n**Next Steps:**\n';
+        message += '1. Solve the bot protection manually\n';
+        message += '2. Auto-tagger will resume when protection is cleared\n';
+        message += '3. Monitor console for "Bot protection cleared" message\n\n';
+        message += '**Time:** ' + new Date().toLocaleString();
+        
+        fetch(settings.webhook, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: message })
+        })
+        .then(response => {
+            log('Bot protection alert sent to Discord: ' + (response.ok ? 'Success' : 'Failed'));
+        })
+        .catch(error => {
+            log('Error sending bot protection alert: ' + error);
+        });
+    }
+    
+    // =============================================================================
+    // DISCORD UI
+    // =============================================================================
+    
+    function createDiscordUI() {
+        log('Creating Discord UI...');
+        
+        if (document.getElementById('norbion2-discord-btn')) {
+            log('Discord UI already exists');
+            return;
+        }
+        
+        // Create Discord button
+        const discordButton = document.createElement('div');
+        discordButton.id = 'norbion2-discord-btn';
+        discordButton.innerHTML = 'Discord';
+        discordButton.setAttribute('role', 'button');
+        discordButton.setAttribute('tabindex', '0');
+        discordButton.style.cssText = `
+            position: fixed;
+            top: 5px;
+            right: 5px;
+            display: inline-block;
+            padding: 3px 9px;
+            margin: 0 2px;
+            text-align: center;
+            font-family: Verdana, Arial;
+            font-size: 12px !important;
+            font-weight: bold;
+            line-height: normal;
+            cursor: pointer;
+            background: #6c4824;
+            background: linear-gradient(to bottom, #947a62 0%, #7b5c3d 22%, #6c4824 30%, #6c4824 100%);
+            border-radius: 5px;
+            border: 1px solid #000;
+            color: #fff;
+            white-space: nowrap;
+            z-index: 10000;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            user-select: none;
+            transition: all 0.1s ease;
+        `;
+        
+        // Add hover effects
+        discordButton.addEventListener('mouseenter', function() {
+            this.style.background = 'linear-gradient(to bottom, #a58968 0%, #8a6444 22%, #7a5129 30%, #7a5129 100%)';
+            this.style.transform = 'translateY(-1px)';
+        });
+        
+        discordButton.addEventListener('mouseleave', function() {
+            this.style.background = 'linear-gradient(to bottom, #947a62 0%, #7b5c3d 22%, #6c4824 30%, #6c4824 100%)';
+            this.style.transform = 'translateY(0px)';
+        });
+        
+        discordButton.addEventListener('mousedown', function() {
+            this.style.transform = 'translateY(1px)';
+            this.style.boxShadow = '1px 1px 2px rgba(0,0,0,0.3)';
+        });
+        
+        discordButton.addEventListener('mouseup', function() {
+            this.style.transform = 'translateY(-1px)';
+            this.style.boxShadow = '2px 2px 4px rgba(0,0,0,0.3)';
+        });
+        
+        // Click handler
+        discordButton.onclick = function() {
+            toggleDiscordPanel();
+            return false;
+        };
+        
+        // Create Discord settings panel
+        const discordPanel = document.createElement('div');
+        discordPanel.id = 'norbion2-discord-panel';
+        discordPanel.style.cssText = `
+            position: fixed;
+            top: 45px;
+            right: 5px;
+            width: 400px;
+            background: #f4e4bc;
+            border: 3px outset #7d510f;
+            border-radius: 8px;
+            padding: 0;
+            z-index: 10001;
+            display: none;
+            box-shadow: 3px 3px 8px rgba(0,0,0,0.4);
+            font-family: Verdana, Arial;
+            font-size: 11px;
+        `;
+        
+        discordPanel.innerHTML = `
+            <div style="background: linear-gradient(to bottom, #c1a264, #a08751); padding: 12px; border-bottom: 2px solid #603000; font-weight: bold; text-align: center; font-size: 14px; color: #2c1810; border-radius: 5px 5px 0 0;">
+                Norbion 2.0 - Discord Settings
+            </div>
+            <div style="padding: 15px;">
+                <table class="vis" style="width: 100%; margin-bottom: 15px;">
+                    <tr><th colspan="2" style="background: #c1a264;">Player Settings</th></tr>
+                    <tr>
+                        <td style="font-weight: bold; width: 30%;">Player Name:</td>
+                        <td>
+                            <input type="text" id="norbion2-player-name" placeholder="Your player name/ID" 
+                                   style="width: 100%; padding: 4px; border: 1px solid #603000; font-size: 11px;">
+                        </td>
+                    </tr>
+                </table>
+                
+                <table class="vis" style="width: 100%; margin-bottom: 15px;">
+                    <tr><th colspan="2" style="background: #c1a264;">Webhook Configuration</th></tr>
+                    <tr>
+                        <td style="font-weight: bold; width: 30%;">Main Webhook:</td>
+                        <td>
+                            <input type="text" id="norbion2-webhook" placeholder="https://discord.com/api/webhooks/..." 
+                                   style="width: 100%; padding: 4px; border: 1px solid #603000; font-size: 11px;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="font-weight: bold;">Nobles Webhook:</td>
+                        <td>
+                            <input type="text" id="norbion2-nobles-webhook" placeholder="Optional: Nobles-only webhook" 
+                                   style="width: 100%; padding: 4px; border: 1px solid #603000; font-size: 11px;">
+                            <br><small style="color: #666;">Leave empty to disable separate nobles alerts</small>
+                        </td>
+                    </tr>
+                </table>
+                
+                <table class="vis" style="width: 100%; margin-bottom: 15px;">
+                    <tr><th colspan="2" style="background: #c1a264;">Message Settings</th></tr>
+                    <tr>
+                        <td style="font-weight: bold;">Reset Interval:</td>
+                        <td>
+                            <select id="norbion2-reset-interval" style="width: 100%; padding: 4px; border: 1px solid #603000; font-size: 11px;">
+                                <option value="4">Every 4 hours</option>
+                                <option value="8" selected>Every 8 hours</option>
+                                <option value="12">Every 12 hours</option>
+                                <option value="24">Every 24 hours</option>
+                            </select>
+                            <br><small style="color: #666;">Fresh Discord messages at intervals</small>
+                        </td>
+                    </tr>
+                </table>
+                
+                <table class="vis" style="width: 100%; margin-bottom: 15px;">
+                    <tr><th colspan="2" style="background: #c1a264;">Single-Tab Mode</th></tr>
+                    <tr>
+                        <td style="font-weight: bold;">Status:</td>
+                        <td><span style="color: green; font-weight: bold;">ACTIVE</span><br>
+                            <small>Monitor, tag, and notify all in one tab</small></td>
+                    </tr>
+                </table>
+                
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <input type="button" value="Save Settings" id="norbion2-save" class="btn" style="flex: 1; padding: 8px;">
+                    <input type="button" value="Test Main" id="norbion2-test" class="btn" style="flex: 1; padding: 8px;">
+                    <input type="button" value="Test Nobles" id="norbion2-test-nobles" class="btn" style="flex: 1; padding: 8px;">
+                </div>
+                <div style="text-align: center;">
+                    <input type="button" value="Close" id="norbion2-close" class="btn" style="padding: 8px 20px;">
+                </div>
+                
+                <div id="norbion2-status" style="margin-top: 10px; padding: 8px; background: #fff; border: 1px inset #ccc; min-height: 20px; font-size: 10px; font-family: monospace;"></div>
+            </div>
+        `;
+        
+        document.body.appendChild(discordButton);
+        document.body.appendChild(discordPanel);
+        
+        // Set up event listeners with delay
+        setTimeout(() => {
+            setupDiscordEventListeners();
+            loadDiscordSettings();
+        }, 100);
+        
+        log('Discord UI created');
+    }
+    
+    function setupDiscordEventListeners() {
+        // Close button
+        const closeButton = document.getElementById('norbion2-close');
+        if (closeButton) {
+            closeButton.addEventListener('click', function() {
+                document.getElementById('norbion2-discord-panel').style.display = 'none';
+            });
+        }
+        
+        // Save settings
+        const saveButton = document.getElementById('norbion2-save');
+        if (saveButton) {
+            saveButton.addEventListener('click', saveDiscordSettings);
+        }
+        
+        // Test webhooks
+        const testButton = document.getElementById('norbion2-test');
+        if (testButton) {
+            testButton.addEventListener('click', testDiscordWebhook);
+        }
+        
+        const testNoblesButton = document.getElementById('norbion2-test-nobles');
+        if (testNoblesButton) {
+            testNoblesButton.addEventListener('click', testNoblesWebhook);
+        }
+    }
+    
+    function toggleDiscordPanel() {
+        const panel = document.getElementById('norbion2-discord-panel');
+        if (panel) {
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+                log('Discord panel opened');
+            } else {
+                panel.style.display = 'none';
+                log('Discord panel closed');
+            }
+        }
+    }
+    
+    function loadDiscordSettings() {
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8);
+        
+        const webhookElement = document.getElementById('norbion2-webhook');
+        const noblesWebhookElement = document.getElementById('norbion2-nobles-webhook');
+        const playerNameElement = document.getElementById('norbion2-player-name');
+        const resetIntervalElement = document.getElementById('norbion2-reset-interval');
+        
+        if (webhookElement && settings.webhook) {
+            webhookElement.value = settings.webhook;
+        }
+        if (noblesWebhookElement && settings.noblesWebhook) {
+            noblesWebhookElement.value = settings.noblesWebhook;
+        }
+        if (playerNameElement && settings.playerName) {
+            playerNameElement.value = settings.playerName;
+        }
+        if (resetIntervalElement) {
+            resetIntervalElement.value = resetInterval;
+        }
+        log('Discord settings loaded');
+    }
+    
+    function saveDiscordSettings() {
+        const webhook = document.getElementById('norbion2-webhook').value;
+        const noblesWebhook = document.getElementById('norbion2-nobles-webhook').value;
+        const playerName = document.getElementById('norbion2-player-name').value;
+        const resetInterval = document.getElementById('norbion2-reset-interval').value;
+        
+        setStorageData(STORAGE_KEYS.DISCORD_SETTINGS, { 
+            webhook: webhook,
+            noblesWebhook: noblesWebhook,
+            playerName: playerName
+        });
+        
+        setStorageData(STORAGE_KEYS.RESET_INTERVAL, parseInt(resetInterval));
+        
+        const status = document.getElementById('norbion2-status');
+        if (status) {
+            status.innerHTML = 'Settings saved successfully!';
+            status.style.color = 'green';
+        }
+        
+        log('Discord settings saved - Reset interval: ' + resetInterval + ' hours');
+    }
+    
+    function testDiscordWebhook() {
+        const webhook = document.getElementById('norbion2-webhook').value;
+        const status = document.getElementById('norbion2-status');
+        
+        if (!webhook) {
+            status.innerHTML = 'Please enter webhook URL first';
+            status.style.color = 'red';
+            return;
+        }
+        
+        status.innerHTML = 'Testing webhook...';
+        status.style.color = 'blue';
+        
+        const testMessage = {
+            content: "**Norbion Tagger 2.0 Test**\nWebhook connection successful!"
+        };
+        
+        fetch(webhook, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testMessage)
+        })
+        .then(response => {
+            if (response.ok) {
+                status.innerHTML = 'Webhook test successful!';
+                status.style.color = 'green';
+            } else {
+                status.innerHTML = 'Webhook test failed. Check URL and try again.';
+                status.style.color = 'red';
+            }
+        })
+        .catch(error => {
+            status.innerHTML = 'Webhook test failed: ' + error;
+            status.style.color = 'red';
+        });
+    }
+    
+    function testNoblesWebhook() {
+        const noblesWebhook = document.getElementById('norbion2-nobles-webhook').value;
+        const status = document.getElementById('norbion2-status');
+        
+        if (!noblesWebhook) {
+            status.innerHTML = 'Please enter nobles webhook URL first';
+            status.style.color = 'red';
+            return;
+        }
+        
+        status.innerHTML = 'Testing nobles webhook...';
+        status.style.color = 'blue';
+        
+        const testMessage = {
+            content: "**🚨 NOBLES ALERT TEST 🚨**\n<:unit_snob:1419105303319937075> **Noble Attack Detected!**\nThis is a test of the nobles-only webhook."
+        };
+        
+        fetch(noblesWebhook, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testMessage)
+        })
+        .then(response => {
+            if (response.ok) {
+                status.innerHTML = 'Nobles webhook test successful!';
+                status.style.color = 'green';
+            } else {
+                status.innerHTML = 'Nobles webhook test failed. Check URL and try again.';
+                status.style.color = 'red';
+            }
+        })
+        .catch(error => {
+            status.innerHTML = 'Nobles webhook test failed: ' + error;
+            status.style.color = 'red';
+        });
+    }
+    
+    // =============================================================================
+    // GLOBAL FUNCTIONS FOR DEBUGGING
+    // =============================================================================
+    
+    window.norbion2Status = function() {
+        const monitorData = getStorageData(STORAGE_KEYS.MONITOR_DATA);
+        const processState = getStorageData(STORAGE_KEYS.PROCESS_STATE);
+        const discordData = getStorageData('norbion2_discord_data');
+        
+        console.log('=== NORBION 2.0 STATUS ===');
+        console.log('Current attacks:', getCurrentAttackCount());
+        console.log('Monitor data:', monitorData);
+        console.log('Process state:', processState);
+        console.log('Discord data:', discordData.count ? discordData.count + ' attacks' : 'No attacks');
+        console.log('Bot protection:', botProtectionDetected ? 'DETECTED' : 'Clear');
+        
+        return { monitorData, processState, discordData, botProtection: botProtectionDetected };
+    };
+    
+    window.norbion2Reset = function() {
+        localStorage.removeItem(STORAGE_KEYS.MONITOR_DATA);
+        localStorage.removeItem(STORAGE_KEYS.PROCESS_STATE);
+        localStorage.removeItem(STORAGE_KEYS.MESSAGE_IDS);
+        localStorage.removeItem(STORAGE_KEYS.NOBLES_MESSAGE_ID);
+        localStorage.removeItem(STORAGE_KEYS.LAST_DISCORD_DATA);
+        localStorage.removeItem(STORAGE_KEYS.LAST_MESSAGE_RESET);
+        localStorage.removeItem(STORAGE_KEYS.RESET_INTERVAL);
+        localStorage.removeItem('norbion2_discord_data');
+        log('All data reset - please refresh page');
+    };
+    
+    window.clearCache = function() {
+        localStorage.removeItem(STORAGE_KEYS.MESSAGE_IDS);
+        localStorage.removeItem(STORAGE_KEYS.NOBLES_MESSAGE_ID);
+        localStorage.removeItem(STORAGE_KEYS.LAST_DISCORD_DATA);
+        localStorage.removeItem('norbion2_discord_data');
+        log('Discord cache cleared - next update will send fresh data');
+    };
+    
+    window.forceOpenDiscordPanel2 = function() {
+        log('Force opening Discord panel...');
+        const panel = document.getElementById('norbion2-discord-panel');
+        if (panel) {
+            panel.style.display = 'block';
+            panel.style.zIndex = '99999';
+            panel.style.position = 'fixed';
+            panel.style.top = '45px';
+            panel.style.right = '5px';
+            log('Discord panel force opened');
+        } else {
+            log('ERROR: Discord panel not found - creating it now');
+            createDiscordUI();
+            setTimeout(() => {
+                const retryPanel = document.getElementById('norbion2-discord-panel');
+                if (retryPanel) {
+                    retryPanel.style.display = 'block';
+                    retryPanel.style.zIndex = '99999';
+                    log('Discord panel created and opened');
+                }
+            }, 500);
+        }
+    };
+    
+    // Firefox-specific alternative
+    window.openDiscord = function() {
+        forceOpenDiscordPanel2();
+    };
+    
+    // Simple alternative for Firefox
+    window.discord = function() {
+        log('Opening Discord settings...');
+        const panel = document.getElementById('norbion2-discord-panel');
+        if (panel) {
+            panel.style.cssText = `
+                position: fixed !important;
+                top: 45px !important;
+                right: 5px !important;
+                width: 400px !important;
+                background: #f4e4bc !important;
+                border: 3px outset #7d510f !important;
+                border-radius: 8px !important;
+                padding: 0 !important;
+                z-index: 99999 !important;
+                display: block !important;
+                box-shadow: 3px 3px 8px rgba(0,0,0,0.4) !important;
+                font-family: Verdana, Arial !important;
+                font-size: 11px !important;
+            `;
+            log('Discord panel opened with forced CSS');
+        } else {
+            log('Panel not found - run createDiscordUI() first');
+            createDiscordUI();
+        }
+    };
+    
+    window.testExtractData = function() {
+        log('Manual data extraction test');
+        const data = extractAttackData();
+        console.log('Extracted data:', data);
+        return data;
+    };
+    
+    window.testSendDiscord = function() {
+        log('Manual Discord send test');
+        sendToDiscord();
+    };
+    
+    window.testFullProcess = function() {
+        log('Testing full extract + Discord process');
+        extractAttackData();
+        sendToDiscord();
+    };
+    
+    window.testEmojis = function() {
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        if (!settings.webhook) {
+            log('No webhook configured');
+            return;
+        }
+        
+        const testMessage = {
+            content: 'Emoji Test:\n<:unit_ram:1419105300983582902> Ram\n<:unit_snob:1419105303319937075> Noble\n<:unit_spy:1419105307165986826> Spy\n<:unit_axe:1419105294096535583> Axe'
+        };
+        
+        fetch(settings.webhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testMessage)
+        })
+        .then(response => log('Emoji test sent: ' + (response.ok ? 'Success' : 'Failed')))
+        .catch(error => log('Emoji test error: ' + error));
+    };
+    
+    window.testNewFormat = function() {
+        const settings = getStorageData(STORAGE_KEYS.DISCORD_SETTINGS);
+        if (!settings.webhook) {
+            log('No webhook configured');
+            return;
+        }
+        
+        const testMessage = {
+            content: '**Format Test**\n<:emoji_43:1419114390514569296> **A Medve nem Játék 513|576**\n- <:attack_large:1166514222633590894> <:unit_snob:1419105303319937075> 519|573 at 19:39:07:925 **A Medve nem Játék**\n- <:attack_medium:1166514224026095656> <:unit_light:1421029411917922335> 516|570 at 22:15:04:899 **Player Name**'
+        };
+        
+        fetch(settings.webhook, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testMessage)
+        })
+        .then(response => log('Format test sent: ' + (response.ok ? 'Success' : 'Failed')))
+        .catch(error => log('Format test error: ' + error));
+    };
+    
+    window.testComparison = function() {
+        log('=== TESTING COMPARISON LOGIC ===');
+        const currentData = extractAttackData();
+        const lastData = getStorageData(STORAGE_KEYS.LAST_DISCORD_DATA, {});
+        
+        if (!currentData) {
+            log('No current data extracted');
+            return;
+        }
+        
+        log('Current attacks: ' + currentData.attacks.length);
+        currentData.attacks.forEach((attack, i) => {
+            log('Attack ' + (i+1) + ': ID=' + attack.commandId + ' Unit=' + attack.unitType + ' From=' + attack.attackerName);
+        });
+        
+        if (lastData.attacks) {
+            log('Previous attacks: ' + lastData.attacks.length);
+            lastData.attacks.forEach((attack, i) => {
+                log('Previous ' + (i+1) + ': ID=' + attack.commandId + ' Unit=' + attack.unitType + ' From=' + attack.attackerName);
+            });
+            
+            // Show comparison
+            const currentCommandIds = new Set(currentData.attacks.map(attack => attack.commandId).filter(id => id));
+            const lastCommandIds = new Set(lastData.attacks.map(attack => attack.commandId).filter(id => id));
+            const landedCommandIds = [...lastCommandIds].filter(id => !currentCommandIds.has(id));
+            
+            log('Landed command IDs: ' + landedCommandIds.join(', '));
+        } else {
+            log('No previous data found');
+        }
+        
+        return { currentData, lastData };
+    };
+    
+    window.forceReset = function() {
+        log('Manual force reset triggered');
+        forceMessageReset();
+    };
+    
+    window.checkResetStatus = function() {
+        const lastResetTime = getStorageData(STORAGE_KEYS.LAST_MESSAGE_RESET, 0);
+        const resetInterval = getStorageData(STORAGE_KEYS.RESET_INTERVAL, 8);
+        const now = Date.now();
+        const timeSinceReset = now - lastResetTime;
+        const hoursLeft = resetInterval - (timeSinceReset / (60 * 60 * 1000));
+        
+        log('=== RESET STATUS ===');
+        log('Reset interval: ' + resetInterval + ' hours');
+        log('Time since last reset: ' + Math.round(timeSinceReset / (60 * 60 * 1000) * 100) / 100 + ' hours');
+        log('Time until next reset: ' + Math.round(Math.max(0, hoursLeft) * 100) / 100 + ' hours');
+        log('Last reset: ' + (lastResetTime ? new Date(lastResetTime).toLocaleString() : 'Never'));
+        
+        return { resetInterval, timeSinceReset, hoursLeft, lastResetTime };
+    };
+    
+    window.debugCurrentPage = function() {
+        log('=== DEBUG CURRENT PAGE ===');
+        log('URL: ' + window.location.href);
+        log('Title: ' + document.title);
+        log('Has incomings_table: ' + !!document.getElementById('incomings_table'));
+        log('Has incomings_amount: ' + !!document.getElementById('incomings_amount'));
+        
+        const table = document.getElementById('incomings_table');
+        if (table) {
+            const rows = table.querySelectorAll('tbody tr');
+            log('Table rows: ' + rows.length);
+            rows.forEach((row, i) => {
+                const cells = row.querySelectorAll('td');
+                log('Row ' + (i+1) + ': ' + cells.length + ' cells');
+            });
+        }
+        
+        const currentCount = getCurrentAttackCount();
+        log('Current attack count: ' + currentCount);
+        
+        return {
+            url: window.location.href,
+            hasTable: !!table,
+            tableRows: table ? table.querySelectorAll('tbody tr').length : 0,
+            attackCount: currentCount
+        };
+    };
+    
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
+    
+    function init() {
+        log('=== NORBION TAGGER 2.0 INITIALIZED ===');
+        log('Single-tab mode active');
+        log('Current URL: ' + window.location.href);
+        
+        // Always create Discord UI
+        createDiscordUI();
+        
+        // Start bot protection monitoring
+        startBotDetection();
+        
+        // Start message reset timer
+        startMessageResetTimer();
+        
+        // Start main monitoring loop
+        processAttackMonitoring();
+        setInterval(processAttackMonitoring, 10000); // Check every 10 seconds
+        
+        log('Monitoring started - check every 10 seconds');
+        log('Available functions: norbion2Status(), norbion2Reset(), clearCache(), forceReset(), checkResetStatus(), forceOpenDiscordPanel2(), openDiscord(), discord(), testExtractData(), testSendDiscord(), testFullProcess(), testNewFormat(), testComparison(), debugCurrentPage()');
+    }
+    
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    
+    log('Norbion Tagger 2.0 loaded successfully!');
+    
+})();
