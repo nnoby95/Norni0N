@@ -50,6 +50,140 @@
     }
     
     // =========================================================================
+    // BOT PROTECTION DETECTION - EMERGENCY STOP SYSTEM
+    // =========================================================================
+    
+    let botProtectionDetected = false;
+    let botDetectionInterval = null;
+    
+    function detectBotProtection() {
+        let isDetected = false;
+        let method = '';
+        
+        // Method 1: Direct ID check
+        const botElement = document.getElementById('botprotection_quest');
+        if (botElement) {
+            isDetected = true;
+            method = 'direct-id';
+        }
+        
+        // Method 2: Check quest elements for bot protection text
+        if (!isDetected) {
+            const questElements = document.querySelectorAll('div.quest, div.quest_new, .popup_box, .popup_content');
+            for (let element of questElements) {
+                const text = element.textContent.toLowerCase();
+                if (text.includes('bot protection') ||
+                    text.includes('bot védelem') ||
+                    text.includes('botvédelem') ||
+                    text.includes('játék folytatása előtt') ||
+                    text.includes('botvédelmi ellenőrzés')) {
+                    isDetected = true;
+                    method = 'quest-text';
+                    break;
+                }
+            }
+        }
+        
+        // Method 3: Check entire page text for specific keywords
+        if (!isDetected) {
+            const pageText = document.body.textContent.toLowerCase();
+            const keywords = [
+                'bot protection check must be passed',
+                'begin bot protection check',
+                'át kell esned egy botvédelmi ellenőrzésen'
+            ];
+            
+            for (let keyword of keywords) {
+                if (pageText.includes(keyword)) {
+                    isDetected = true;
+                    method = 'page-text';
+                    break;
+                }
+            }
+        }
+        
+        // Method 4: Check for bot-protection CSS class or row
+        if (!isDetected) {
+            const botRow = document.querySelector('td.bot-protection-row, .bot-protection-row');
+            if (botRow) {
+                isDetected = true;
+                method = 'css-class';
+            }
+        }
+        
+        return { isDetected, method };
+    }
+    
+    function handleBotProtectionDetected(method) {
+        if (botProtectionDetected) return; // Already handled
+        
+        botProtectionDetected = true;
+        
+        // Update bot protection flag for modules to check
+        if (typeof window !== 'undefined' && window.Norbi0N_QueueSystem) {
+            window.Norbi0N_QueueSystem.botProtectionDetected = true;
+        }
+        
+        log('🚨 =============================================');
+        log('🚨 BOT PROTECTION DETECTED!');
+        log(`🚨 Detection method: ${method}`);
+        log('🚨 EMERGENCY STOP: All modules paused!');
+        log('🚨 =============================================');
+        
+        // Stop all modules by disabling them
+        for (let moduleName in MASTER_CONFIG.modules) {
+            if (MASTER_CONFIG.modules[moduleName].enabled) {
+                MASTER_CONFIG.modules[moduleName].enabled = false;
+                log(`🛑 Stopped: ${moduleName}`);
+            }
+        }
+        saveMasterConfig();
+        
+        // Clear the task queue
+        TASK_QUEUE.currentTask = null;
+        TASK_QUEUE.queue = [];
+        TASK_QUEUE.locked = false;
+        TASK_QUEUE.updateQueueUI();
+        
+        // Update Master UI
+        updateMasterUI();
+        
+        // Show prominent alert
+        alert('🚨 BOT PROTECTION DETECTED!\n\n' +
+              '⚠️ All modules have been STOPPED for your safety.\n\n' +
+              '📝 Please solve the captcha manually.\n' +
+              '🔄 After solving, refresh the page to continue.\n\n' +
+              `Detection method: ${method}`);
+        
+        // Stop bot detection interval
+        if (botDetectionInterval) {
+            clearInterval(botDetectionInterval);
+            botDetectionInterval = null;
+        }
+        
+        // Update queue status to show emergency stop
+        const queueStatus = document.getElementById('queueStatus');
+        if (queueStatus) {
+            queueStatus.innerHTML = `
+                <strong style="color: #f44336;">🚨 EMERGENCY STOP</strong><br>
+                <span style="font-size: 10px; color: #ff9800;">Bot protection detected - solve captcha and refresh</span>
+            `;
+        }
+    }
+    
+    function startBotProtectionMonitoring() {
+        log('🛡️ Bot Protection Monitoring started (checking every 200ms)');
+        
+        botDetectionInterval = setInterval(() => {
+            const result = detectBotProtection();
+            
+            if (result.isDetected) {
+                handleBotProtectionDetected(result.method);
+            }
+        }, 200); // Check every 200ms
+    }
+    
+    // =========================================================================
     // QUEUE SYSTEM - PRIORITY TASK SCHEDULER
     // =========================================================================
     
@@ -263,6 +397,7 @@
                     queue: [],
                     currentTask: null,
                     locked: false,
+                    botProtectionDetected: false,  // Shared bot protection flag
                     
                     priorities: {
                         farm: 1,
@@ -992,6 +1127,9 @@
     async function init() {
         log('Master Control Panel initializing...');
         log(`Current config: ${JSON.stringify(MASTER_CONFIG.modules)}`);
+        
+        // Start bot protection monitoring
+        startBotProtectionMonitoring();
         
         // Create toggle button
         createMasterToggle();
