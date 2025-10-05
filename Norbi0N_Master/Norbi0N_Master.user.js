@@ -33,8 +33,16 @@
         },
         uiVisible: false,
         notifications: {
-            discord: '',
-            telegram: { token: '', chatId: '' }
+            discord: {
+                webhookUrl: '',
+                enabled: false
+            },
+            telegram: {
+                botToken: '',
+                chatId: '',
+                enabled: false,
+                messageCount: 1  // How many messages to send (1 second delay between each)
+            }
         }
     };
     
@@ -170,6 +178,9 @@
                 <span style="font-size: 10px; color: #ff9800;">Bot protection detected - solve captcha and refresh</span>
             `;
         }
+        
+        // Send notifications to Discord and Telegram
+        sendBotProtectionNotifications(method);
     }
     
     function startBotProtectionMonitoring() {
@@ -182,6 +193,131 @@
                 handleBotProtectionDetected(result.method);
             }
         }, 200); // Check every 200ms
+    }
+    
+    // =========================================================================
+    // NOTIFICATION SYSTEM - DISCORD & TELEGRAM
+    // =========================================================================
+    
+    async function sendDiscordNotification(method) {
+        if (!MASTER_CONFIG.notifications.discord.enabled || !MASTER_CONFIG.notifications.discord.webhookUrl) {
+            log('Discord notifications disabled or webhook URL not set');
+            return;
+        }
+        
+        const webhookUrl = MASTER_CONFIG.notifications.discord.webhookUrl;
+        
+        const message = {
+            embeds: [{
+                title: '🚨 BOT PROTECTION DETECTED!',
+                description: '⚠️ All automation modules have been stopped for safety.',
+                color: 15158332, // Red color
+                fields: [
+                    {
+                        name: '🔍 Detection Method',
+                        value: method,
+                        inline: true
+                    },
+                    {
+                        name: '⏰ Time',
+                        value: new Date().toLocaleString(),
+                        inline: true
+                    },
+                    {
+                        name: '📝 Action Required',
+                        value: 'Solve the captcha manually and refresh the page',
+                        inline: false
+                    }
+                ],
+                footer: {
+                    text: 'Norbi0N Master Control Panel'
+                },
+                timestamp: new Date().toISOString()
+            }]
+        };
+        
+        try {
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(message)
+            });
+            
+            if (response.ok) {
+                log('✅ Discord notification sent successfully');
+            } else {
+                log(`❌ Discord notification failed: ${response.status}`);
+            }
+        } catch (error) {
+            log(`❌ Discord notification error: ${error.message}`);
+        }
+    }
+    
+    async function sendTelegramNotification(method) {
+        if (!MASTER_CONFIG.notifications.telegram.enabled || 
+            !MASTER_CONFIG.notifications.telegram.botToken || 
+            !MASTER_CONFIG.notifications.telegram.chatId) {
+            log('Telegram notifications disabled or credentials not set');
+            return;
+        }
+        
+        const botToken = MASTER_CONFIG.notifications.telegram.botToken;
+        const chatId = MASTER_CONFIG.notifications.telegram.chatId;
+        const messageCount = MASTER_CONFIG.notifications.telegram.messageCount || 1;
+        
+        const messageText = `🚨 *BOT PROTECTION DETECTED!*\n\n` +
+                          `⚠️ All automation modules have been stopped for safety.\n\n` +
+                          `🔍 *Detection Method:* ${method}\n` +
+                          `⏰ *Time:* ${new Date().toLocaleString()}\n\n` +
+                          `📝 *Action Required:*\n` +
+                          `Solve the captcha manually and refresh the page.\n\n` +
+                          `🛡️ Norbi0N Master Control Panel`;
+        
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        
+        log(`📱 Sending ${messageCount} Telegram notification(s)...`);
+        
+        // Send multiple messages with 1 second delay between each
+        for (let i = 0; i < messageCount; i++) {
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: messageText,
+                        parse_mode: 'Markdown'
+                    })
+                });
+                
+                if (response.ok) {
+                    log(`✅ Telegram notification ${i + 1}/${messageCount} sent successfully`);
+                } else {
+                    log(`❌ Telegram notification ${i + 1}/${messageCount} failed: ${response.status}`);
+                }
+            } catch (error) {
+                log(`❌ Telegram notification ${i + 1}/${messageCount} error: ${error.message}`);
+            }
+            
+            // Wait 1 second before sending next message (except for the last one)
+            if (i < messageCount - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    }
+    
+    async function sendBotProtectionNotifications(method) {
+        log('📢 Sending bot protection notifications...');
+        
+        // Send to Discord (no delay)
+        if (MASTER_CONFIG.notifications.discord.enabled) {
+            await sendDiscordNotification(method);
+        }
+        
+        // Send to Telegram (with configurable message count)
+        if (MASTER_CONFIG.notifications.telegram.enabled) {
+            await sendTelegramNotification(method);
+        }
     }
     
     // =========================================================================
@@ -949,6 +1085,86 @@
                     </div>
                 </div>
                 
+                <!-- NOTIFICATION SETTINGS -->
+                <div style="background: rgba(255,152,0,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,152,0,0.3); font-size: 11px; color: #ddd; margin-top: 10px;">
+                    <h4 style="margin: 0 0 10px 0; color: #ff9800; font-size: 11px; font-weight: bold; text-transform: uppercase;">
+                        🔔 Bot Protection Notifications
+                    </h4>
+                    
+                    <!-- Discord Settings -->
+                    <div style="margin-bottom: 12px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                            <input type="checkbox" id="discord-enabled" style="margin-right: 8px;">
+                            <span style="font-weight: bold; color: #7289da;">📢 Discord Notifications</span>
+                        </label>
+                        <input type="text" id="discord-webhook" placeholder="Discord Webhook URL" style="
+                            width: 100%;
+                            padding: 6px;
+                            background: rgba(0,0,0,0.3);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 4px;
+                            color: #fff;
+                            font-size: 10px;
+                        ">
+                    </div>
+                    
+                    <!-- Telegram Settings -->
+                    <div style="padding: 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                        <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+                            <input type="checkbox" id="telegram-enabled" style="margin-right: 8px;">
+                            <span style="font-weight: bold; color: #0088cc;">📱 Telegram Notifications</span>
+                        </label>
+                        <input type="text" id="telegram-token" placeholder="Bot Token" style="
+                            width: 100%;
+                            padding: 6px;
+                            background: rgba(0,0,0,0.3);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 4px;
+                            color: #fff;
+                            font-size: 10px;
+                            margin-bottom: 6px;
+                        ">
+                        <input type="text" id="telegram-chatid" placeholder="Chat ID" style="
+                            width: 100%;
+                            padding: 6px;
+                            background: rgba(0,0,0,0.3);
+                            border: 1px solid rgba(255,255,255,0.2);
+                            border-radius: 4px;
+                            color: #fff;
+                            font-size: 10px;
+                            margin-bottom: 6px;
+                        ">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label style="color: #ddd; font-size: 10px; white-space: nowrap;">Messages to send:</label>
+                            <input type="number" id="telegram-count" min="1" max="100" value="1" style="
+                                width: 60px;
+                                padding: 4px;
+                                background: rgba(0,0,0,0.3);
+                                border: 1px solid rgba(255,255,255,0.2);
+                                border-radius: 4px;
+                                color: #fff;
+                                font-size: 10px;
+                            ">
+                            <span style="color: #888; font-size: 9px;">(1 sec delay each)</span>
+                        </div>
+                    </div>
+                    
+                    <button id="save-notifications-btn" style="
+                        width: 100%;
+                        margin-top: 10px;
+                        padding: 8px;
+                        background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+                        color: white;
+                        font-weight: bold;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 10px;
+                        box-shadow: 0 2px 6px rgba(76,175,80,0.4);
+                        transition: all 0.3s;
+                    ">💾 Save Notification Settings</button>
+                </div>
+                
                 <!-- INFO PANEL -->
                 <div style="margin-top: 15px; padding: 10px; background: rgba(255,215,0,0.1); border-left: 4px solid #ffd700; border-radius: 4px; font-size: 10px; color: #ddd; line-height: 1.4;">
                     <strong style="color: #ffd700;">💡 How it works:</strong><br>
@@ -1051,6 +1267,52 @@
             UI.SuccessMessage('All modules reloaded! Check quest bar.');
             log('🔄 Force reload complete');
         });
+        
+        // Notification settings save button
+        document.getElementById('save-notifications-btn')?.addEventListener('click', saveNotificationSettings);
+        
+        // Load existing notification settings
+        loadNotificationSettings();
+    }
+    
+    function saveNotificationSettings() {
+        // Discord settings
+        MASTER_CONFIG.notifications.discord.enabled = document.getElementById('discord-enabled')?.checked || false;
+        MASTER_CONFIG.notifications.discord.webhookUrl = document.getElementById('discord-webhook')?.value || '';
+        
+        // Telegram settings
+        MASTER_CONFIG.notifications.telegram.enabled = document.getElementById('telegram-enabled')?.checked || false;
+        MASTER_CONFIG.notifications.telegram.botToken = document.getElementById('telegram-token')?.value || '';
+        MASTER_CONFIG.notifications.telegram.chatId = document.getElementById('telegram-chatid')?.value || '';
+        MASTER_CONFIG.notifications.telegram.messageCount = parseInt(document.getElementById('telegram-count')?.value) || 1;
+        
+        saveMasterConfig();
+        
+        log('💾 Notification settings saved');
+        log(`Discord: ${MASTER_CONFIG.notifications.discord.enabled ? 'Enabled' : 'Disabled'}`);
+        log(`Telegram: ${MASTER_CONFIG.notifications.telegram.enabled ? 'Enabled' : 'Disabled'} (${MASTER_CONFIG.notifications.telegram.messageCount} messages)`);
+        
+        UI.SuccessMessage('Notification settings saved!');
+    }
+    
+    function loadNotificationSettings() {
+        // Discord settings
+        const discordEnabled = document.getElementById('discord-enabled');
+        const discordWebhook = document.getElementById('discord-webhook');
+        
+        if (discordEnabled) discordEnabled.checked = MASTER_CONFIG.notifications.discord.enabled || false;
+        if (discordWebhook) discordWebhook.value = MASTER_CONFIG.notifications.discord.webhookUrl || '';
+        
+        // Telegram settings
+        const telegramEnabled = document.getElementById('telegram-enabled');
+        const telegramToken = document.getElementById('telegram-token');
+        const telegramChatId = document.getElementById('telegram-chatid');
+        const telegramCount = document.getElementById('telegram-count');
+        
+        if (telegramEnabled) telegramEnabled.checked = MASTER_CONFIG.notifications.telegram.enabled || false;
+        if (telegramToken) telegramToken.value = MASTER_CONFIG.notifications.telegram.botToken || '';
+        if (telegramChatId) telegramChatId.value = MASTER_CONFIG.notifications.telegram.chatId || '';
+        if (telegramCount) telegramCount.value = MASTER_CONFIG.notifications.telegram.messageCount || 1;
     }
     
     async function toggleModule(moduleName) {
