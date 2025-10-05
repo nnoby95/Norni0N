@@ -844,42 +844,43 @@
             position: fixed;
             top: 80px;
             right: 20px;
-            width: 400px;
+            width: 420px;
             max-height: 85vh;
-            background: linear-gradient(135deg, #2b1d0e 0%, #1a1308 100%);
-            border: 3px solid #d4a574;
-            border-radius: 8px;
+            background: linear-gradient(to bottom, #f4e4bc, #e8d9b5);
+            border: 3px solid #7d510f;
+            border-radius: 10px;
             padding: 0;
             z-index: 99999;
             font-family: Verdana, Arial, sans-serif;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.9), inset 0 0 20px rgba(212, 165, 116, 0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
             display: none;
             overflow: hidden;
         ">
             <!-- HEADER -->
             <div style="
-                background: linear-gradient(to bottom, #d4a574 0%, #b8945f 100%);
+                background: linear-gradient(to bottom, #c1a264, #b09456);
                 padding: 12px 15px;
-                border-bottom: 2px solid #8b6f47;
+                border-radius: 7px 7px 0 0;
+                border-bottom: 2px solid #7d510f;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
             ">
                 <div>
-                    <h3 style="margin: 0; color: #2b1d0e; text-shadow: 0 1px 0 rgba(255,255,255,0.3); font-size: 16px; font-weight: bold;">
-                        🎮 Norbi0N Master Control
+                    <h3 style="margin: 0; color: #3d2817; text-shadow: 0 1px 0 rgba(255,255,255,0.3); font-size: 15px; font-weight: bold;">
+                        Norbi0N Master Control
                     </h3>
-                    <small style="color: #3d2817; font-weight: 600; font-size: 10px;">v1.0 - Unified Engine Manager</small>
+                    <small style="color: #5a3d1a; font-weight: 600; font-size: 10px;">v1.0 - Unified Engine Manager</small>
                 </div>
                 <button id="master-minimize-btn" 
-                        style="background: rgba(43,29,14,0.3); 
-                               border: 1px solid #3d2817; 
+                        style="background: rgba(255,255,255,0.3); 
+                               border: 1px solid #603000; 
                                border-radius: 3px; 
                                width: 24px; 
                                height: 24px; 
                                cursor: pointer; 
                                font-weight: bold; 
-                               color: #3d2817;
+                               color: #603000;
                                padding: 0;
                                line-height: 1;
                                font-size: 18px;
@@ -893,8 +894,8 @@
                 max-height: calc(85vh - 50px);
                 overflow-y: auto;
                 overflow-x: hidden;
-                padding: 15px;
-                background: linear-gradient(to bottom, rgba(26,19,8,0.5), rgba(43,29,14,0.3));
+                padding: 12px;
+                background: #f8f4e8;
             ">
             
                 <!-- MODULE GRID -->
@@ -1022,164 +1023,163 @@
                 </div>
                 
                 <!-- GLOBAL CONTROLS -->
-                <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,215,0,0.3); margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 10px 0; color: #ffd700; font-size: 12px; font-weight: bold; text-transform: uppercase;">
-                        🎛️ Global Controls
+                <div style="background: #fff5da; padding: 10px; border-radius: 5px; border: 1px solid #d4b98a; margin-bottom: 12px;">
+                    <h4 style="margin: 0 0 8px 0; color: #7d510f; font-size: 11px; font-weight: bold;">
+                        GLOBAL CONTROLS
                     </h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
                         <button id="enableAllModules" style="
-                            padding: 10px;
-                            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+                            padding: 8px;
+                            background: linear-gradient(to bottom, #71ad3e, #5a8d3d);
                             color: white;
                             font-weight: bold;
-                            border: none;
-                            border-radius: 6px;
+                            border: 1px solid #3a5a1d;
+                            border-radius: 4px;
                             cursor: pointer;
-                            font-size: 11px;
-                            box-shadow: 0 2px 8px rgba(76,175,80,0.4);
-                            transition: all 0.3s;
-                        ">▶ Enable All</button>
+                            font-size: 10px;
+                            text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+                            transition: all 0.2s;
+                        ">Enable All</button>
                         <button id="disableAllModules" style="
-                            padding: 10px;
-                            background: linear-gradient(135deg, #f44336 0%, #e53935 100%);
+                            padding: 8px;
+                            background: linear-gradient(to bottom, #c1443b, #a53931);
                             color: white;
                             font-weight: bold;
-                            border: none;
-                            border-radius: 6px;
+                            border: 1px solid #7a1a14;
+                            border-radius: 4px;
                             cursor: pointer;
-                            font-size: 11px;
-                            box-shadow: 0 2px 8px rgba(244,67,54,0.4);
-                            transition: all 0.3s;
-                        ">⏹ Disable All</button>
+                            font-size: 10px;
+                            text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+                            transition: all 0.2s;
+                        ">Disable All</button>
                     </div>
                     <button id="forceReloadModules" style="
                         width: 100%;
-                        padding: 10px;
-                        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-                        color: white;
+                        padding: 8px;
+                        background: linear-gradient(to bottom, #c1a264, #b09456);
+                        color: #3d2817;
                         font-weight: bold;
-                        border: none;
-                        border-radius: 6px;
+                        border: 1px solid #7d510f;
+                        border-radius: 4px;
                         cursor: pointer;
-                        font-size: 11px;
-                        box-shadow: 0 2px 8px rgba(255,152,0,0.4);
-                        transition: all 0.3s;
-                    ">🔄 Force Reload All</button>
+                        font-size: 10px;
+                        transition: all 0.2s;
+                    ">Force Reload All</button>
                 </div>
                 
                 <!-- STATUS SUMMARY -->
-                <div style="background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 4px; border: 1px solid #8b6f47; font-size: 10px; color: #b8945f;">
+                <div style="background: #fff5da; padding: 8px 10px; border-radius: 5px; border: 1px solid #d4b98a; font-size: 10px; color: #5a3d1a;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <span>Active Modules:</span>
-                        <span id="activeModulesCount" style="color: #5a8d3d; font-weight: bold;">0/4</span>
+                        <span id="activeModulesCount" style="color: #71ad3e; font-weight: bold;">0/4</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span>System Status:</span>
-                        <span id="systemStatus" style="color: #d4a574; font-weight: bold;">Ready</span>
+                        <span id="systemStatus" style="color: #7d510f; font-weight: bold;">Ready</span>
                     </div>
                 </div>
                 
                 <!-- QUEUE STATUS -->
-                <div style="background: rgba(212,165,116,0.15); padding: 10px; border-radius: 4px; border: 1px solid #8b6f47; font-size: 10px; color: #b8945f; margin-top: 10px;">
-                    <h4 style="margin: 0 0 6px 0; color: #d4a574; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-                        📋 Task Queue
+                <div style="background: #fff5da; padding: 10px; border-radius: 5px; border: 1px solid #d4b98a; font-size: 10px; color: #5a3d1a; margin-top: 10px;">
+                    <h4 style="margin: 0 0 6px 0; color: #7d510f; font-size: 11px; font-weight: bold;">
+                        TASK QUEUE
                     </h4>
-                    <div id="queueStatus" style="color: #b8945f;">
-                        <strong style="color: #8b6f47;">⏸️ System Idle</strong><br>
-                        <span style="font-size: 9px; color: #6a5a4a;">No modules running</span>
+                    <div id="queueStatus" style="color: #5a3d1a;">
+                        <strong style="color: #7d510f;">System Idle</strong><br>
+                        <span style="font-size: 9px; color: #8b6f47;">No modules running</span>
                     </div>
-                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(139,111,71,0.3); font-size: 9px; color: #6a5a4a;">
+                    <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #d4b98a; font-size: 9px; color: #8b6f47;">
                         <strong>Priorities:</strong> Farm(1) → Scav(2) → Builder(3) → Recruit(4)
                     </div>
                 </div>
                 
                 <!-- NOTIFICATION SETTINGS - COLLAPSIBLE -->
-                <div style="background: rgba(212,165,116,0.15); padding: 8px 12px; border-radius: 4px; border: 1px solid #8b6f47; margin-top: 10px;">
+                <div style="background: #fff5da; padding: 8px 12px; border-radius: 5px; border: 1px solid #d4b98a; margin-top: 10px;">
                     <div id="notifications-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
-                        <h4 style="margin: 0; color: #d4a574; font-size: 11px; font-weight: bold; text-transform: uppercase;">
-                            🔔 Bot Protection Alerts
+                        <h4 style="margin: 0; color: #7d510f; font-size: 11px; font-weight: bold;">
+                            BOT PROTECTION ALERTS
                         </h4>
-                        <span id="notifications-toggle" style="color: #d4a574; font-size: 16px; font-weight: bold; transition: transform 0.3s;">▼</span>
+                        <span id="notifications-toggle" style="color: #7d510f; font-size: 14px; font-weight: bold; transition: transform 0.3s;">▼</span>
                     </div>
                     
-                    <div id="notifications-content" style="display: none; margin-top: 10px; font-size: 10px;">
+                    <div id="notifications-content" style="display: none; margin-top: 8px; font-size: 10px;">
                         <!-- Discord Settings -->
-                        <div style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; border: 1px solid #8b6f47;">
-                            <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                        <div style="margin-bottom: 6px; padding: 6px 8px; background: #f4e4bc; border-radius: 4px; border: 1px solid #d4b98a;">
+                            <label style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
                                 <input type="checkbox" id="discord-enabled" style="margin-right: 6px;">
-                                <span style="font-weight: bold; color: #7289da; font-size: 10px;">📢 Discord</span>
+                                <span style="font-weight: bold; color: #7d510f; font-size: 10px;">Discord</span>
                             </label>
                             <input type="text" id="discord-webhook" placeholder="Webhook URL" style="
-                                width: calc(100% - 12px);
-                                padding: 5px;
-                                background: rgba(0,0,0,0.4);
-                                border: 1px solid #5a4a3a;
+                                width: calc(100% - 10px);
+                                padding: 4px;
+                                background: white;
+                                border: 1px solid #c1a264;
                                 border-radius: 3px;
-                                color: #d4a574;
+                                color: #5a3d1a;
                                 font-size: 9px;
                             ">
                         </div>
                         
                         <!-- Telegram Settings -->
-                        <div style="padding: 8px; background: rgba(0,0,0,0.3); border-radius: 3px; border: 1px solid #8b6f47; margin-bottom: 8px;">
-                            <label style="display: flex; align-items: center; margin-bottom: 6px; cursor: pointer;">
+                        <div style="padding: 6px 8px; background: #f4e4bc; border-radius: 4px; border: 1px solid #d4b98a; margin-bottom: 6px;">
+                            <label style="display: flex; align-items: center; margin-bottom: 4px; cursor: pointer;">
                                 <input type="checkbox" id="telegram-enabled" style="margin-right: 6px;">
-                                <span style="font-weight: bold; color: #0088cc; font-size: 10px;">📱 Telegram</span>
+                                <span style="font-weight: bold; color: #7d510f; font-size: 10px;">Telegram</span>
                             </label>
                             <input type="text" id="telegram-token" placeholder="Bot Token" style="
-                                width: calc(100% - 12px);
-                                padding: 5px;
-                                background: rgba(0,0,0,0.4);
-                                border: 1px solid #5a4a3a;
+                                width: calc(100% - 10px);
+                                padding: 4px;
+                                background: white;
+                                border: 1px solid #c1a264;
                                 border-radius: 3px;
-                                color: #d4a574;
+                                color: #5a3d1a;
                                 font-size: 9px;
-                                margin-bottom: 4px;
+                                margin-bottom: 3px;
                             ">
                             <input type="text" id="telegram-chatid" placeholder="Chat ID" style="
-                                width: calc(100% - 12px);
-                                padding: 5px;
-                                background: rgba(0,0,0,0.4);
-                                border: 1px solid #5a4a3a;
+                                width: calc(100% - 10px);
+                                padding: 4px;
+                                background: white;
+                                border: 1px solid #c1a264;
                                 border-radius: 3px;
-                                color: #d4a574;
+                                color: #5a3d1a;
                                 font-size: 9px;
-                                margin-bottom: 4px;
+                                margin-bottom: 3px;
                             ">
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <label style="color: #b8945f; font-size: 9px;">Msg count:</label>
+                                <label style="color: #7d510f; font-size: 9px;">Message count:</label>
                                 <input type="number" id="telegram-count" min="1" max="100" value="1" style="
                                     width: 50px;
                                     padding: 3px;
-                                    background: rgba(0,0,0,0.4);
-                                    border: 1px solid #5a4a3a;
+                                    background: white;
+                                    border: 1px solid #c1a264;
                                     border-radius: 3px;
-                                    color: #d4a574;
+                                    color: #5a3d1a;
                                     font-size: 9px;
                                 ">
-                                <span style="color: #6a5a4a; font-size: 8px;">(1s delay)</span>
+                                <span style="color: #8b6f47; font-size: 8px;">(1s delay)</span>
                             </div>
                         </div>
                         
                         <button id="save-notifications-btn" style="
                             width: 100%;
                             padding: 6px;
-                            background: linear-gradient(to bottom, #5a8d3d, #4a7a2d);
+                            background: linear-gradient(to bottom, #71ad3e, #5a8d3d);
                             color: #fff;
                             font-weight: bold;
                             border: 1px solid #3a5a1d;
-                            border-radius: 3px;
+                            border-radius: 4px;
                             cursor: pointer;
                             font-size: 10px;
                             text-shadow: 0 1px 0 rgba(0,0,0,0.5);
                             transition: all 0.2s;
-                        ">💾 Save Settings</button>
+                        ">Save Settings</button>
                     </div>
                 </div>
                 
                 <!-- INFO PANEL -->
-                <div style="margin-top: 15px; padding: 10px; background: rgba(255,215,0,0.1); border-left: 4px solid #ffd700; border-radius: 4px; font-size: 10px; color: #ddd; line-height: 1.4;">
-                    <strong style="color: #ffd700;">💡 How it works:</strong><br>
+                <div style="margin-top: 10px; padding: 8px 10px; background: #f4e4bc; border: 1px solid #d4b98a; border-radius: 5px; font-size: 9px; color: #7d510f; line-height: 1.4;">
+                    <strong>How it works:</strong><br>
                     Click on any module card to enable/disable it. Enabled modules will load their individual control panels. Use global controls to manage all modules at once.
                 </div>
             </div>
@@ -1188,47 +1188,49 @@
         <style>
             /* Scrollbar Styling - Tribal Wars Style */
             #masterControlPanel ::-webkit-scrollbar {
-                width: 8px;
+                width: 10px;
             }
             
             #masterControlPanel ::-webkit-scrollbar-track {
-                background: rgba(43,29,14,0.5);
-                border-radius: 4px;
+                background: #e8d9b5;
+                border-radius: 5px;
+                border: 1px solid #d4b98a;
             }
             
             #masterControlPanel ::-webkit-scrollbar-thumb {
-                background: linear-gradient(to bottom, #d4a574, #b8945f);
-                border-radius: 4px;
-                border: 1px solid #8b6f47;
+                background: linear-gradient(to bottom, #c1a264, #b09456);
+                border-radius: 5px;
+                border: 1px solid #7d510f;
             }
             
             #masterControlPanel ::-webkit-scrollbar-thumb:hover {
-                background: linear-gradient(to bottom, #e0b580, #c4a16b);
+                background: linear-gradient(to bottom, #d4a574, #c1a264);
             }
             
             .module-card:hover {
                 transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(0,0,0,0.6) !important;
+                box-shadow: 0 4px 12px rgba(125,81,15,0.4) !important;
             }
             
             .module-card.active {
-                border-color: #d4a574 !important;
-                box-shadow: 0 0 15px rgba(212,165,116,0.4) !important;
+                border-color: #7d510f !important;
+                box-shadow: 0 0 12px rgba(125,81,15,0.5) !important;
             }
             
             #enableAllModules:hover,
             #disableAllModules:hover,
             #forceReloadModules:hover {
-                transform: translateY(-1px);
                 opacity: 0.9;
+                transform: translateY(-1px);
             }
             
             #save-notifications-btn:hover {
                 opacity: 0.9;
+                transform: translateY(-1px);
             }
             
             #master-minimize-btn:hover {
-                background: rgba(43,29,14,0.5) !important;
+                background: rgba(255,255,255,0.5) !important;
             }
         </style>
         `;
