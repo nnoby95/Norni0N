@@ -3492,20 +3492,30 @@ function szem4_EPITO_csopToList(csoport){try{
 function szem4_EPITO_Wopen(){try{
 	/*Eredmény: faluID, teljes építendő lista, pointer a sorra*/
 	var TT=document.getElementById("epit_lista").rows;
-	var now=getServerTime();
+	var now=getServerTime().getTime();
 	let readyVillages = [];
 	let waitingVillages = [];
 	
 	for (var i=1;i<TT.length;i++) {
-		var datum=new Date(TT[i].cells[2].textContent);
 		let coord = TT[i].cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
 		
-		if (datum<now) {
+		// Use timestamp attribute for reliable comparison
+		var returnTimestamp = TT[i].cells[2].getAttribute('data-timestamp');
+		if (returnTimestamp) {
+			returnTimestamp = parseInt(returnTimestamp, 10);
+		} else {
+			// Fallback: try to parse text (less reliable)
+			var datum = new Date(TT[i].cells[2].textContent);
+			returnTimestamp = datum.getTime();
+			debug('szem4_EPITO_Wopen', `WARNING: No timestamp attribute for ${coord}, using text parsing (unreliable)`);
+		}
+		
+		if (returnTimestamp < now) {
 			var lista=szem4_EPITO_csopToList(TT[i].cells[1].getElementsByTagName("select")[0].value);
-			debug('szem4_EPITO_Wopen', `Village ${coord} is READY (Return: ${datum.toLocaleString()}, Now: ${now.toLocaleString()})`);
+			debug('szem4_EPITO_Wopen', `Village ${coord} is READY (Return: ${returnTimestamp}, Now: ${now}, Diff: ${Math.round((now-returnTimestamp)/1000)}s)`);
 			return [ KTID[coord], lista, TT[i] ];
 		} else {
-			let minutesUntil = Math.round((datum - now) / 60000);
+			let minutesUntil = Math.round((returnTimestamp - now) / 60000);
 			waitingVillages.push(`${coord} (${minutesUntil}m)`);
 		}
 	}
@@ -3529,8 +3539,10 @@ function szem4_EPITO_addIdo(sor, perc){try{
 		var d=getServerTime();
 		// FIX: Should add MINUTES, not set seconds to minutes!
 		d.setMinutes(d.getMinutes() + perc);
+		// Store timestamp for reliable comparison
+		sor.cells[2].setAttribute('data-timestamp', d.getTime());
 		sor.cells[2].innerHTML=d.toLocaleString();
-		debug('szem4_EPITO_addIdo', `Return time set to ${d.toLocaleString()} (in ${perc} minutes) for ${sor.cells[0].textContent}`);
+		debug('szem4_EPITO_addIdo', `Return time set to ${d.toLocaleString()} [${d.getTime()}] (in ${perc} minutes) for ${sor.cells[0].textContent}`);
 	}
 }catch(e){debug("epito_addIdo",e); return false;}}
 
