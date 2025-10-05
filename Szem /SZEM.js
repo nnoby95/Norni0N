@@ -3650,13 +3650,14 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		szem4_EPITO_infoCell(PMEP[2],"alap",`✅ Építési sor megtelt! / Build queue full! ${premiumBadge} (${buildList.length}/${maxQueueCapacity}). ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2],firstBuildTime);
 		
-		// Close builder window - no need to keep it open
+		// Keep window open but set title to show waiting status
 		if (EPIT_REF && !EPIT_REF.closed) {
-			EPIT_REF.close();
-			debug('szem4_EPITO_IntettiBuild', `Closing builder window - queue full (${buildList.length}/${maxQueueCapacity})`);
+			let nextCheck = new Date(parseInt(PMEP[2].cells[2].getAttribute('data-timestamp'), 10));
+			EPIT_REF.document.title = `⏳ Szem4/építő - Waiting until ${nextCheck.toLocaleTimeString()}`;
+			debug('szem4_EPITO_IntettiBuild', `Builder window kept open - queue full (${buildList.length}/${maxQueueCapacity}), waiting until ${nextCheck.toLocaleString()}`);
 		}
 		
-		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}. Next check: ${new Date(PMEP[2].cells[2].textContent).toLocaleString()}`);
+		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}. Next check: ${new Date(parseInt(PMEP[2].cells[2].getAttribute('data-timestamp'), 10)).toLocaleString()}`);
 		return;
 	}
 	
@@ -3831,10 +3832,10 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 				errorColor = 'alap';
 				retryTime = firstBuildTime > 0 ? firstBuildTime : 60;
 				
-				// Close builder window
+				// Keep window open but update title
 				if (EPIT_REF && !EPIT_REF.closed) {
-					EPIT_REF.close();
-					debug('szem4_EPITO_IntettiBuild', `Closing builder window - queue full at button check`);
+					EPIT_REF.document.title = `⏳ Szem4/építő - Queue full, waiting...`;
+					debug('szem4_EPITO_IntettiBuild', `Builder window kept open - queue full at button check (${buildList.length}/${queueLimit})`);
 				}
 				
 				debug('szem4_EPITO_IntettiBuild', `Queue full: ${buildList.length}/${queueLimit} (Premium: ${isPremium})`);
@@ -3888,14 +3889,28 @@ function szem4_EPITO_motor(){try{
 	switch (EPIT_LEPES) {
 		case 0: PMEP=szem4_EPITO_Wopen(); /*FaluID;lista;link_a_faluhoz*/
 				if (PMEP[0]) {
-					EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
+					// Village is ready - open or reuse window
+					if (!EPIT_REF || EPIT_REF.closed) {
+						EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
+						debug('szem4_EPITO_motor', `Opening NEW window for village: ${PMEP[0]}`);
+					} else {
+						// Reuse existing window, just navigate to new village
+						EPIT_REF.location.href = VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]);
+						debug('szem4_EPITO_motor', `Reusing window, navigating to village: ${PMEP[0]}`);
+					}
 					EPIT_LEPES=1;
-					debug('szem4_EPITO_motor', `Opening village for building: ${PMEP[0]}`);
 				} else {
-					// No village ready - close window and wait
+					// No village ready - keep window open but update title
 					if (EPIT_REF && !EPIT_REF.closed) {
-						EPIT_REF.close();
-						debug('szem4_EPITO_motor', 'No village ready, closing builder window');
+						if (MOBILE_MODE) {
+							// On mobile, close to save resources
+							EPIT_REF.close();
+							debug('szem4_EPITO_motor', 'No village ready, closing window (MOBILE_MODE)');
+						} else {
+							// On desktop, keep open for faster response
+							EPIT_REF.document.title = '💤 Szem4/építő - Várakozás / Waiting';
+							debug('szem4_EPITO_motor', 'No village ready, keeping window open but idle');
+						}
 					}
 					if (document.getElementById("epit_lista").rows.length==1) {
 						nexttime=5000;
@@ -3905,7 +3920,7 @@ function szem4_EPITO_motor(){try{
 						debug('szem4_EPITO_motor', 'Villages waiting for Return time, next check in 60s');
 					}
 				}
-				if (EPIT_REF && EPIT_REF.document) EPIT_REF.document.title = 'szem4/építő';
+				if (EPIT_REF && !EPIT_REF.closed && EPIT_LEPES == 1) EPIT_REF.document.title = '🔨 Szem4/építő - Építés / Building';
 				break;
 		case 1: if (isPageLoaded(EPIT_REF,PMEP[0],"screen=main", ['#buildings'])) {EPIT_HIBA=0; EPIT_GHIBA=0;
 					szem4_EPITO_IntettiBuild(PMEP[1]);
