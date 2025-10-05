@@ -46,8 +46,44 @@
         }
     };
     
+    // Load saved config with backwards compatibility
     const saved = GM_getValue('master_control_config');
-    if (saved) MASTER_CONFIG = JSON.parse(saved);
+    if (saved) {
+        try {
+            const savedConfig = JSON.parse(saved);
+            
+            // Merge with default config to ensure all fields exist
+            MASTER_CONFIG.modules = savedConfig.modules || MASTER_CONFIG.modules;
+            MASTER_CONFIG.uiVisible = savedConfig.uiVisible || false;
+            
+            // Handle backwards compatibility for notifications
+            if (savedConfig.notifications) {
+                // Discord settings
+                if (savedConfig.notifications.discord) {
+                    MASTER_CONFIG.notifications.discord = {
+                        webhookUrl: savedConfig.notifications.discord.webhookUrl || '',
+                        enabled: savedConfig.notifications.discord.enabled || false
+                    };
+                }
+                
+                // Telegram settings
+                if (savedConfig.notifications.telegram) {
+                    MASTER_CONFIG.notifications.telegram = {
+                        botToken: savedConfig.notifications.telegram.botToken || '',
+                        chatId: savedConfig.notifications.telegram.chatId || '',
+                        enabled: savedConfig.notifications.telegram.enabled || false,
+                        messageCount: savedConfig.notifications.telegram.messageCount || 1
+                    };
+                }
+            }
+            
+            log('Configuration loaded successfully');
+            log(`Discord enabled: ${MASTER_CONFIG.notifications.discord.enabled}`);
+            log(`Telegram enabled: ${MASTER_CONFIG.notifications.telegram.enabled}`);
+        } catch (e) {
+            log(`Failed to load config: ${e.message}`);
+        }
+    }
     
     function saveMasterConfig() {
         GM_setValue('master_control_config', JSON.stringify(MASTER_CONFIG));
@@ -1344,22 +1380,39 @@
         MASTER_CONFIG.notifications.telegram.chatId = document.getElementById('telegram-chatid')?.value || '';
         MASTER_CONFIG.notifications.telegram.messageCount = parseInt(document.getElementById('telegram-count')?.value) || 1;
         
+        // Save to storage
         saveMasterConfig();
         
-        log('💾 Notification settings saved');
-        log(`Discord: ${MASTER_CONFIG.notifications.discord.enabled ? 'Enabled' : 'Disabled'}`);
-        log(`Telegram: ${MASTER_CONFIG.notifications.telegram.enabled ? 'Enabled' : 'Disabled'} (${MASTER_CONFIG.notifications.telegram.messageCount} messages)`);
-        
-        UI.SuccessMessage('Notification settings saved!');
+        // Verify it was saved
+        const verification = GM_getValue('master_control_config');
+        if (verification) {
+            const verified = JSON.parse(verification);
+            log('Notification settings saved successfully');
+            log(`Discord: ${verified.notifications.discord.enabled ? 'Enabled' : 'Disabled'} - ${verified.notifications.discord.webhookUrl ? 'Webhook set' : 'No webhook'}`);
+            log(`Telegram: ${verified.notifications.telegram.enabled ? 'Enabled' : 'Disabled'} - ${verified.notifications.telegram.botToken ? 'Token set' : 'No token'} (${verified.notifications.telegram.messageCount} messages)`);
+            
+            UI.SuccessMessage('Notification settings saved! Will persist after refresh.');
+        } else {
+            log('Warning: Failed to verify saved settings');
+            UI.ErrorMessage('Failed to save notification settings!');
+        }
     }
     
     function loadNotificationSettings() {
+        log('Loading notification settings from config...');
+        
         // Discord settings
         const discordEnabled = document.getElementById('discord-enabled');
         const discordWebhook = document.getElementById('discord-webhook');
         
-        if (discordEnabled) discordEnabled.checked = MASTER_CONFIG.notifications.discord.enabled || false;
-        if (discordWebhook) discordWebhook.value = MASTER_CONFIG.notifications.discord.webhookUrl || '';
+        if (discordEnabled) {
+            discordEnabled.checked = MASTER_CONFIG.notifications.discord.enabled;
+            log(`Discord enabled: ${discordEnabled.checked}`);
+        }
+        if (discordWebhook) {
+            discordWebhook.value = MASTER_CONFIG.notifications.discord.webhookUrl;
+            log(`Discord webhook: ${discordWebhook.value ? 'Set (' + discordWebhook.value.substring(0, 30) + '...)' : 'Not set'}`);
+        }
         
         // Telegram settings
         const telegramEnabled = document.getElementById('telegram-enabled');
@@ -1367,10 +1420,24 @@
         const telegramChatId = document.getElementById('telegram-chatid');
         const telegramCount = document.getElementById('telegram-count');
         
-        if (telegramEnabled) telegramEnabled.checked = MASTER_CONFIG.notifications.telegram.enabled || false;
-        if (telegramToken) telegramToken.value = MASTER_CONFIG.notifications.telegram.botToken || '';
-        if (telegramChatId) telegramChatId.value = MASTER_CONFIG.notifications.telegram.chatId || '';
-        if (telegramCount) telegramCount.value = MASTER_CONFIG.notifications.telegram.messageCount || 1;
+        if (telegramEnabled) {
+            telegramEnabled.checked = MASTER_CONFIG.notifications.telegram.enabled;
+            log(`Telegram enabled: ${telegramEnabled.checked}`);
+        }
+        if (telegramToken) {
+            telegramToken.value = MASTER_CONFIG.notifications.telegram.botToken;
+            log(`Telegram token: ${telegramToken.value ? 'Set' : 'Not set'}`);
+        }
+        if (telegramChatId) {
+            telegramChatId.value = MASTER_CONFIG.notifications.telegram.chatId;
+            log(`Telegram chat ID: ${telegramChatId.value || 'Not set'}`);
+        }
+        if (telegramCount) {
+            telegramCount.value = MASTER_CONFIG.notifications.telegram.messageCount;
+            log(`Telegram message count: ${telegramCount.value}`);
+        }
+        
+        log('Notification settings loaded successfully');
     }
     
     async function toggleModule(moduleName) {
