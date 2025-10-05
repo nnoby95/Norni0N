@@ -3507,12 +3507,15 @@ function szem4_EPITO_Wopen(){try{
 function szem4_EPITO_addIdo(sor, perc){try{
 	if (perc == "del") {
 		document.getElementById("epit_lista").deleteRow(sor.rowIndex);
+		debug('szem4_EPITO_addIdo', `Village removed from builder list: ${sor.cells[0].textContent}`);
 	} else {
 		if (perc === 0) perc = 30;
 		if (isNaN(perc)) perc = 5;
 		var d=getServerTime();
-		d.setSeconds(d.getMinutes() + (perc * 60));
+		// FIX: Should add MINUTES, not set seconds to minutes!
+		d.setMinutes(d.getMinutes() + perc);
 		sor.cells[2].innerHTML=d.toLocaleString();
+		debug('szem4_EPITO_addIdo', `Return time set to ${d.toLocaleString()} (in ${perc} minutes) for ${sor.cells[0].textContent}`);
 	}
 }catch(e){debug("epito_addIdo",e); return false;}}
 
@@ -3550,20 +3553,26 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (!EPIT_REF.document.getElementById("buildqueue")) throw 'No queue';
 		var buildQueueRows=EPIT_REF.document.getElementById("buildqueue").rows;
 		for (var i=1;i<buildQueueRows.length;i++) {try{
+			// Skip rows without images (progress bars, separators)
+			var imgElement = buildQueueRows[i].cells[0].getElementsByTagName("img")[0];
+			if (!imgElement) continue;
+			
 			// Support both .png and .webp image formats
-			var imgSrc = buildQueueRows[i].cells[0].getElementsByTagName("img")[0].src;
+			var imgSrc = imgElement.src;
 			var buildingMatch = imgSrc.match(/[A-Za-z0-9]+\.(png|webp)/g);
 			if (buildingMatch) {
 				buildList += buildingMatch[0].replace(/[0-9]+/g,"").replace(".png","").replace(".webp","");
 				buildList += ";";
+				
+				// Calculate build times only for actual building rows
+				textTime=buildQueueRows[i].cells[1].textContent.split(":");
+				if (textTime.length >= 3) {
+					allBuildTime+=parseInt(textTime[0])*60+parseInt(textTime[1])+(parseInt(textTime[2])/60);
+					if (firstBuildTime==0) firstBuildTime=allBuildTime;
+				}
 			}
-			
-			// Calculate build times
-			textTime=buildQueueRows[i].cells[1].textContent.split(":");
-			allBuildTime+=parseInt(textTime[0])*60+parseInt(textTime[1])+(parseInt(textTime[2])/60);
-			if (firstBuildTime==0) firstBuildTime=allBuildTime;
 		}catch(e){
-			debug('szem4_EPITO_IntettiBuild', `Error reading queue row ${i}: ${e}`);
+			// Silently skip invalid rows (progress bars, etc.)
 		}}
 
 		allBuildTime = Math.round(allBuildTime);
