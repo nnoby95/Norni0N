@@ -1090,6 +1090,10 @@ function szunet(script,kep){try{
 			GYUJTO_PAUSE = !GYUJTO_PAUSE;
 			var sw = GYUJTO_PAUSE;
 			break;
+		case 'norbi0n_farm':
+			NORBI0N_FARM_PAUSE = !NORBI0N_FARM_PAUSE;
+			var sw = NORBI0N_FARM_PAUSE;
+			break;
 		default: {alert2("Sikertelen script megállatás. Nincs ilyen alscript: "+script);return;}
 	}
 	
@@ -4339,36 +4343,25 @@ var NORBI0N_FARM_REF;
 var NORBI0N_FARM_HIBA = 0;
 var NORBI0N_FARM_GHIBA = 0;
 var NORBI0N_FARM_PAUSE = true;
-var NORBI0N_FARM_CURRENT_VILL = null;
 var NORBI0N_FARM_LOOP_TIMER = null;
 
 var SZEM4_NORBI0N_FARM = {
-	ENABLED_VILLAGES: {},
-	VILLAGE_STATS: {},
 	OPTIONS: {
 		loopInterval: 10,
 		randomDelay: 3,
-		loopMode: false,
-		pauseOnConflict: true
+		loopMode: false
+	},
+	STATS: {
+		lastRun: 0,
+		totalRuns: 0
 	}
 };
 
 function norbi0n_farm_isAnyModuleBusy() {
-	if (!SZEM4_NORBI0N_FARM.OPTIONS.pauseOnConflict) return false;
 	if (!FARM_PAUSE && FARM_LEPES !== 0) return true;
 	if (!EPIT_PAUSE && EPIT_LEPES !== 0) return true;
 	if (!GYUJTO_PAUSE && GYUJTO_STATE !== 0) return true;
 	return false;
-}
-
-function norbi0n_farm_getNextVillage() {
-	for (const coord in KTID) {
-		const villId = KTID[coord];
-		if (SZEM4_NORBI0N_FARM.ENABLED_VILLAGES[villId]) {
-			return villId;
-		}
-	}
-	return null;
 }
 
 function norbi0n_farm_injectFarmGod(ref) {
@@ -4466,32 +4459,28 @@ function szem4_norbi0n_farm_motor() {
 			}
 			switch (NORBI0N_FARM_LEPES) {
 				case 0:
-					NORBI0N_FARM_CURRENT_VILL = norbi0n_farm_getNextVillage();
-					if (NORBI0N_FARM_CURRENT_VILL) {
-						const url = VILL1ST.replace(/village=[0-9]+/, `village=${NORBI0N_FARM_CURRENT_VILL}`).replace("screen=overview", "screen=am_farm");
-						if (!NORBI0N_FARM_REF || NORBI0N_FARM_REF.closed) {
-							NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
-							debug('Norbi0N_Farm', `Opening village ${NORBI0N_FARM_CURRENT_VILL}`);
-						} else {
-							NORBI0N_FARM_REF.location.href = url;
-							debug('Norbi0N_Farm', `Navigating to village ${NORBI0N_FARM_CURRENT_VILL}`);
-						}
-						NORBI0N_FARM_LEPES = 1;
-					} else { nexttime = 60000; debug('Norbi0N_Farm', 'No village enabled'); }
+					// Open CURRENT village's farm assistant
+					const url = VILL1ST.replace("screen=overview", "screen=am_farm");
+					if (!NORBI0N_FARM_REF || NORBI0N_FARM_REF.closed) {
+						NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
+						debug('Norbi0N_Farm', `Opening current village farm assistant`);
+					}
+					NORBI0N_FARM_LEPES = 1;
 					break;
 				case 1:
-					if (isPageLoaded(NORBI0N_FARM_REF, NORBI0N_FARM_CURRENT_VILL, 'screen=am_farm')) {
+					if (isPageLoaded(NORBI0N_FARM_REF, -1, 'screen=am_farm')) {
 						NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA = 0;
 						norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
 						NORBI0N_FARM_REF.document.title = '🚜 Norbi0N_Farm - Running';
-						naplo('Norbi0N_Farm', `🚜 FarmGod elindítva: ${ID_TO_INFO[NORBI0N_FARM_CURRENT_VILL].name}`);
+						naplo('Norbi0N_Farm', `🚜 FarmGod elindítva`);
 						NORBI0N_FARM_LEPES = 2;
 					} else { NORBI0N_FARM_HIBA++; }
 					break;
 				case 2:
 					if (NORBI0N_FARM_REF.closed) {
 						debug('Norbi0N_Farm', 'Window closed');
-						norbi0n_farm_markComplete();
+						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
+						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
 						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) norbi0n_farm_scheduleLoop();
 					} else {
@@ -4501,12 +4490,13 @@ function szem4_norbi0n_farm_motor() {
 								const data = JSON.parse(result);
 								if (data.status === 'success') {
 									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${data.presses} klikk, ${Math.round(data.duration/1000)}s`);
-									norbi0n_farm_markComplete();
+									SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
+									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
 									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) norbi0n_farm_scheduleLoop();
 								} else if (data.status === 'bot_detected') {
-									debug('Norbi0N_Farm', '🚨 Bot detected in farm window - already handled by BotvedelemBe()');
+									debug('Norbi0N_Farm', '🚨 Bot detected - BotvedelemBe() already called');
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
 								}
@@ -4525,52 +4515,14 @@ function szem4_norbi0n_farm_motor() {
 	catch(e) { setTimeout(function(){ szem4_norbi0n_farm_motor(); }, 3000); }
 }
 
-function norbi0n_farm_markComplete() {
-	if (NORBI0N_FARM_CURRENT_VILL) {
-		SZEM4_NORBI0N_FARM.VILLAGE_STATS[NORBI0N_FARM_CURRENT_VILL] = { lastRun: getServerTime().getTime() };
-		NORBI0N_FARM_CURRENT_VILL = null;
-	}
-}
-
 function norbi0n_farm_scheduleLoop() {
 	const interval = SZEM4_NORBI0N_FARM.OPTIONS.loopInterval;
 	const randomDelay = SZEM4_NORBI0N_FARM.OPTIONS.randomDelay;
 	const randomMs = (Math.random() * randomDelay * 2 - randomDelay) * 60000;
 	const totalMs = (interval * 60000) + randomMs;
-	debug('Norbi0N_Farm', `Loop mode: next run in ${Math.round(totalMs/60000)} minutes`);
+	const minutes = Math.round(totalMs/60000);
+	naplo('Norbi0N_Farm', `🔄 Loop mode: next run in ${minutes} minutes`);
 	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => { NORBI0N_FARM_LEPES = 0; szem4_norbi0n_farm_motor(); }, totalMs);
-}
-
-function norbi0n_farm_rebuildDOM() {
-	const table = document.getElementById('norbi0n_farm_table');
-	if (!table) return;
-	$("#norbi0n_farm_table tr:gt(0)").remove();
-	for (const coord in KTID) {
-		const villId = KTID[coord];
-		const row = table.insertRow(-1);
-		let c = row.insertCell(0); c.innerHTML = `${ID_TO_INFO[villId].name} (${coord})`;
-		c = row.insertCell(1); c.innerHTML = ID_TO_INFO[villId].point;
-		c = row.insertCell(2); c.innerHTML = ID_TO_INFO[villId].pop;
-		c = row.insertCell(3);
-		const isChecked = SZEM4_NORBI0N_FARM.ENABLED_VILLAGES[villId] ? 'checked' : '';
-		c.innerHTML = `<input type="checkbox" ${isChecked} onclick="norbi0n_farm_toggle(${villId}, this)">`;
-		c = row.insertCell(4);
-		const stats = SZEM4_NORBI0N_FARM.VILLAGE_STATS[villId];
-		c.innerHTML = stats?.lastRun ? new Date(stats.lastRun).toLocaleString() : '---';
-	}
-}
-
-function norbi0n_farm_toggle(villId, checkbox) {
-	SZEM4_NORBI0N_FARM.ENABLED_VILLAGES[villId] = checkbox.checked;
-	if (checkbox.checked) {
-		for (const coord in KTID) {
-			const vId = KTID[coord];
-			if (vId !== villId && SZEM4_NORBI0N_FARM.ENABLED_VILLAGES[vId]) {
-				SZEM4_NORBI0N_FARM.ENABLED_VILLAGES[vId] = false;
-			}
-		}
-		norbi0n_farm_rebuildDOM();
-	}
 }
 
 function norbi0n_farm_updateSettings() {
@@ -4578,32 +4530,49 @@ function norbi0n_farm_updateSettings() {
 	SZEM4_NORBI0N_FARM.OPTIONS.loopInterval = parseInt(form.loopInterval.value, 10);
 	SZEM4_NORBI0N_FARM.OPTIONS.randomDelay = parseInt(form.randomDelay.value, 10);
 	SZEM4_NORBI0N_FARM.OPTIONS.loopMode = form.loopMode.checked;
-	SZEM4_NORBI0N_FARM.OPTIONS.pauseOnConflict = form.pauseOnConflict.checked;
+}
+
+function norbi0n_farm_loadSettings() {
+	const form = document.getElementById('norbi0n_farm_settings');
+	if (!form) return;
+	form.loopInterval.value = SZEM4_NORBI0N_FARM.OPTIONS.loopInterval;
+	form.randomDelay.value = SZEM4_NORBI0N_FARM.OPTIONS.randomDelay;
+	form.loopMode.checked = SZEM4_NORBI0N_FARM.OPTIONS.loopMode;
+	if (SZEM4_NORBI0N_FARM.STATS.lastRun > 0) {
+		document.getElementById('norbi0n_last_run').innerHTML = new Date(SZEM4_NORBI0N_FARM.STATS.lastRun).toLocaleString();
+	}
+	if (SZEM4_NORBI0N_FARM.STATS.totalRuns > 0) {
+		document.getElementById('norbi0n_total_runs').innerHTML = SZEM4_NORBI0N_FARM.STATS.totalRuns;
+	}
 }
 
 ujkieg_hang("Norbi0N_Farm", "norbi0n_start;norbi0n_complete");
 ujkieg("norbi0n_farm", "Norbi0N Farming", `<tr><td>
 	<h2 align="center">🚜 Norbi0N Farming Engine</h2>
-	<h4 align="center">FarmGod Automation - Press ENTER Method</h4>
-	<p align="center"><i>Ez a modul a hivatalos FarmGod scriptet használja és automatizálja ENTER gomb nyomkodással.<br>This module uses the official FarmGod script and automates it by pressing ENTER.</i></p><br>
+	<h4 align="center">FarmGod Automation - Auto ENTER Press</h4>
+	<p align="center"><i>A hivatalos FarmGod scriptet használja az AKTUÁLIS faluban.<br>Uses official FarmGod script on CURRENT village.</i></p>
+	<p align="center"><b>🔴 Bot detektálás: 200ms | 🟢 ENTER nyomás: 100ms</b></p>
+	<br>
 	<form id="norbi0n_farm_settings" onchange="norbi0n_farm_updateSettings()">
-		<table class="vis" style="margin-bottom: 20px;">
-			<tr><th colspan="2" style="background: #c1a264;">⚙️ Beállítások / Settings</th></tr>
-			<tr><td style="width: 40%;">Loop mód intervallum:</td><td><input type="number" name="loopInterval" min="1" max="999" value="10" size="3"> perc</td></tr>
+		<table class="vis" style="margin: auto;">
+			<tr><th colspan="2" style="background: #c1a264;">⚙️ Loop Beállítások</th></tr>
+			<tr><td style="width: 50%;">Loop intervallum:</td><td><input type="number" name="loopInterval" min="1" max="999" value="10" size="3"> perc</td></tr>
 			<tr><td>Véletlen késleltetés:</td><td>± <input type="number" name="randomDelay" min="0" max="99" value="3" size="3"> perc</td></tr>
-			<tr><td>Loop mód:</td><td><input type="checkbox" name="loopMode"> Folyamatos ismétlés / Continuous loop</td></tr>
-			<tr><td>Koordináció:</td><td><input type="checkbox" name="pauseOnConflict" checked> Szünet ha más modul aktív</td></tr>
+			<tr><td><b>Loop mód:</b></td><td><input type="checkbox" name="loopMode"> Folyamatos ismétlés</td></tr>
 		</table>
 	</form>
-	<h3 align="center">📋 Farmolni ettől a falutól / Farm from this village</h3>
-	<p align="center" style="color: orange;"><b>⚠️ Csak 1 falu választható! / Only 1 village selectable!</b><br>Ez a modul arra a falura fut amire bepipáltad.<br>This module runs on the selected village.</p>
-	<table class="vis" id="norbi0n_farm_table">
-		<tr><th onclick="rendez('szoveg',false,this,'norbi0n_farm_table',0)">Falu</th><th onclick="rendez('szam',false,this,'norbi0n_farm_table',1)">Pont</th><th onclick="rendez('tanya',false,this,'norbi0n_farm_table',2)">Tanya</th><th>Farmolás?</th><th onclick="rendez('datum',false,this,'norbi0n_farm_table',4)">Utolsó futás</th></tr>
+	<br>
+	<table class="vis" style="margin: auto;">
+		<tr><th colspan="2" style="background: #c1a264;">📊 Statisztikák</th></tr>
+		<tr><td style="width: 50%;">Összes futás:</td><td id="norbi0n_total_runs">0</td></tr>
+		<tr><td>Utolsó futás:</td><td id="norbi0n_last_run">---</td></tr>
 	</table>
+	<br>
+	<p align="center"><i>⚠️ Klikk a ▶️ gombra a menüben az indításhoz!</i></p>
 </td></tr>`);
 
 szem4_norbi0n_farm_motor();
-norbi0n_farm_rebuildDOM();
+setTimeout(() => norbi0n_farm_loadSettings(), 500);
 
 /*-----------------Adatmentő kezelő--------------------*/
 function szem4_ADAT_saveNow(tipus) {
@@ -4649,7 +4618,7 @@ function szem4_ADAT_loadNow(tipus) {try{
 			break;
 		case "norbi0n_farm":
 			SZEM4_NORBI0N_FARM = Object.assign({}, SZEM4_NORBI0N_FARM, dataObj);
-			norbi0n_farm_rebuildDOM();
+			norbi0n_farm_loadSettings();
 			break;
 		default: debug('szem4_ADAT_loadNow', `Nincs ilyen típus: ${tipus}`);
 	}
