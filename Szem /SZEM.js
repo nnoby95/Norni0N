@@ -3620,51 +3620,30 @@ async function szem4_EPITO_collectRewards(ref, buildingType, resNeed, villageRow
 		rewardsTab.click();
 		await new Promise(resolve => setTimeout(resolve, 1000));
 		
-		// Step 3: Claim rewards
+		// Step 3: Claim ALL rewards until storage warning
 		let claimedCount = 0;
-		const minRewards = 2;
-		const maxIterations = 10;
+		const maxIterations = 100; // High limit to collect everything
 		
 		for (let i = 0; i < maxIterations; i++) {
 			const claimButton = ref.document.querySelector('#reward-system-rewards .reward-system-claim-button:not([disabled])');
 			
 			if (!claimButton) {
-				debug('szem4_EPITO_collectRewards', 'No more rewards available');
+				debug('szem4_EPITO_collectRewards', `No more rewards available. Total collected: ${claimedCount}`);
 				break;
 			}
 			
-			// Check storage warning
+			// Check storage warning BEFORE clicking
 			const buttonRow = claimButton.closest('tr');
 			const warning = buttonRow ? buttonRow.querySelector('.small.warn') : null;
 			if (warning && (warning.textContent.includes('túl kevés a hely') || warning.textContent.includes('not enough space'))) {
-				debug('szem4_EPITO_collectRewards', 'Storage full, stopping');
+				debug('szem4_EPITO_collectRewards', `Storage warning detected. Stopping. Collected: ${claimedCount}`);
 				break;
 			}
 			
 			claimButton.click();
 			claimedCount++;
-			debug('szem4_EPITO_collectRewards', `Claimed reward ${claimedCount}`);
 			
-			await new Promise(resolve => setTimeout(resolve, 300));
-			
-			// Check resources after minimum claims
-			if (claimedCount >= minRewards && claimedCount % 2 === 0) {
-				// Refresh game_data by reading from page
-				if (ref.game_data && ref.game_data.village) {
-					const hasEnough = ref.game_data.village.wood >= resNeed.wood && 
-									  ref.game_data.village.stone >= resNeed.stone && 
-									  ref.game_data.village.iron >= resNeed.iron;
-					
-					if (hasEnough) {
-						debug('szem4_EPITO_collectRewards', `Resources sufficient after ${claimedCount} rewards!`);
-						// Close dialog
-						const closeBtn = ref.document.querySelector('.popup_box_close');
-						if (closeBtn) closeBtn.click();
-						naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve! Nyersanyag elegendő! / ${claimedCount} rewards collected! Resources sufficient!`);
-						return true;
-					}
-				}
-			}
+			await new Promise(resolve => setTimeout(resolve, 250));
 		}
 		
 		// Close dialog
@@ -3675,12 +3654,20 @@ async function szem4_EPITO_collectRewards(ref, buildingType, resNeed, villageRow
 			debug('szem4_EPITO_collectRewards', 'Closed rewards dialog');
 		}
 		
-		if (claimedCount > 0) {
-			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve, de még hiány / ${claimedCount} rewards collected, but still shortage`);
-			debug('szem4_EPITO_collectRewards', `Collected ${claimedCount} rewards but still not enough`);
+		// Return result based on how many rewards collected
+		if (claimedCount >= 2) {
+			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve! Builder újraellenőrzés 1 percen belül / ${claimedCount} rewards collected! Builder recheck within 1 minute`);
+			debug('szem4_EPITO_collectRewards', `Collected ${claimedCount} rewards - quick recheck enabled`);
+			return true; // Signal: collected enough to warrant quick recheck
+		} else if (claimedCount > 0) {
+			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve / ${claimedCount} reward collected (kevés / few)`);
+			debug('szem4_EPITO_collectRewards', `Only ${claimedCount} reward collected - not enough for quick recheck`);
+			return false;
+		} else {
+			debug('szem4_EPITO_collectRewards', 'No rewards collected');
+			return false;
 		}
 		
-		return false;
 	} catch(e) {
 		debug('szem4_EPITO_collectRewards', `Error: ${e}`);
 		// Try to close any open dialog
@@ -3903,15 +3890,39 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		const hasQuestRewards = questButton && questButton.style.display !== 'none';
 		
 		if (hasQuestRewards) {
-			// Try to collect quest rewards to get resources
-			szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! 🎁 Jutalmak gyűjtése... / Resource shortage! Collecting rewards... ${nextToBuild}`);
-			debug('szem4_EPITO_IntettiBuild', `Resource shortage. Attempting reward collection. Missing: ${missing.join(', ')}`);
+			// Try to collect ALL quest rewards to get resources
+			szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! 🎁 Összes jutalom gyűjtése... / Resource shortage! Collecting ALL rewards... ${nextToBuild}`);
+			debug('szem4_EPITO_IntettiBuild', `Resource shortage. Collecting ALL available rewards. Missing: ${missing.join(', ')}`);
 			
-			// Set short return time - reward collection will handle it
-			szem4_EPITO_addIdo(PMEP[2], 2); // 2 minutes for reward collection + recheck
+			// Start async reward collection and handle result
+			szem4_EPITO_collectRewards(EPIT_REF, nextToBuild, resNeed, PMEP[2]).then((collectedEnough) => {
+				// Get fresh reference to village row (PMEP might be stale)
+				const allRows = document.getElementById("epit_lista").rows;
+				let targetRow = null;
+				for (let i = 1; i < allRows.length; i++) {
+					if (allRows[i].cells[0].textContent === PMEP[2].cells[0].textContent) {
+						targetRow = allRows[i];
+						break;
+					}
+				}
+				
+				if (targetRow) {
+					if (collectedEnough) {
+						// Collected >= 2 rewards → Quick recheck in 1 minute
+						szem4_EPITO_addIdo(targetRow, 1);
+						szem4_EPITO_infoCell(targetRow, "yellow", `🎁 Jutalmak gyűjtve! Újraellenőrzés 1 percen belül / Rewards collected! Recheck in 1 min`);
+						debug('szem4_EPITO_collectRewards', 'Quick recheck scheduled (1 minute)');
+					} else {
+						// Collected < 2 or none → Normal waiting
+						szem4_EPITO_addIdo(targetRow, firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+						szem4_EPITO_infoCell(targetRow, "yellow", `⚠️ Kevés jutalom. Normál várakozás / Few rewards. Normal wait`);
+						debug('szem4_EPITO_collectRewards', 'Normal wait time scheduled');
+					}
+				}
+			});
 			
-			// Start async reward collection (doesn't block)
-			szem4_EPITO_collectRewards(EPIT_REF, nextToBuild, resNeed, PMEP[2]);
+			// Set initial return time (will be updated by callback)
+			szem4_EPITO_addIdo(PMEP[2], 2);
 		} else {
 			// No quest rewards - wait for production
 			szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}. ` + writeAllBuildTime(allBuildTime));
