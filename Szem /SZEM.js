@@ -3428,7 +3428,15 @@ function szem4_EPITO_ujFalu() {
 			var ZR = Z.insertRow(-1);
 			var ZC = ZR.insertCell(0); ZC.innerHTML = `${ID_TO_INFO[KTID[faluCoord[i]]].name} (${faluCoord[i]})`; ZC.setAttribute("ondblclick", "sortorol(this)");
 			ZC = ZR.insertCell(1); ZC.innerHTML = lista; ZC.getElementsByTagName("select")[0].value = adat.getElementsByTagName("select")[0].value;
-			ZC = ZR.insertCell(2); ZC.style.fontSize = "x-small"; var d = getServerTime(); ZC.innerHTML = d.toLocaleString(); ZC.setAttribute("ondblclick", "szem4_EPITO_most(this)");
+			ZC = ZR.insertCell(2); 
+				ZC.style.fontSize = "x-small"; 
+				ZC.style.cursor = "pointer";
+				ZC.style.backgroundColor = "#e8f5e9";
+				var d = getServerTime(); 
+				ZC.setAttribute('data-timestamp', d.getTime());
+				ZC.innerHTML = `⏰ ${d.toLocaleString()}`;
+				ZC.setAttribute("ondblclick", "szem4_EPITO_forceReturn(this.parentNode)");
+				ZC.setAttribute("title", "Dupla klikk: Return MOST! / Double click: Return NOW!");
 			ZC = ZR.insertCell(3); ZC.innerHTML = "<i>Feldolgozás alatt...</i>" + ' <a href="' + VILL1ST.replace(/(village=)[0-9]+/g, "village=" + KTID[faluCoord[i]]).replace('screen=overview', 'screen=main') + '" target="_BLANK"><img alt="Nyit" title="Falu megnyitása" src="' + pic("link.png") + '"></a>';; ZC.setAttribute("ondblclick", 'szem4_EPITO_infoCell(this.parentNode,\'alap\',"")');
 		}
 		if (str != "") alert2("Dupla megadások/nem létező faluk kiszűrve: " + str);
@@ -3566,6 +3574,103 @@ function szem4_EPITO_getBuildLink(ref, type) {
 		if (patt.test(allItem[i].id)) {
 		return allItem[i];
 		}
+	}
+}
+
+/**
+ * Collects quest rewards when resources are needed
+ * @param {Window} ref - Builder window reference
+ * @param {string} buildingType - Building that needs resources
+ * @param {Object} resNeed - Required resources {wood, stone, iron}
+ * @param {HTMLElement} villageRow - Village row in builder table
+ * @returns {Promise<boolean>} True if rewards collected and resources now sufficient
+ */
+async function szem4_EPITO_collectRewards(ref, buildingType, resNeed, villageRow) {
+	try {
+		debug('szem4_EPITO_collectRewards', `Attempting to collect rewards for ${buildingType}`);
+		
+		// Navigate to quest page
+		const questUrl = VILL1ST.replace("screen=overview", "screen=quest");
+		ref.location.href = questUrl;
+		
+		// Wait for page to load
+		await new Promise(resolve => setTimeout(resolve, 2000));
+		
+		// Check if quest page loaded
+		if (!ref.document.querySelector('#reward-system-rewards')) {
+			debug('szem4_EPITO_collectRewards', 'Quest page not found or not loaded');
+			return false;
+		}
+		
+		let claimedCount = 0;
+		const minRewards = 2;
+		const maxIterations = 10;
+		
+		for (let i = 0; i < maxIterations; i++) {
+			// Find claimable reward buttons
+			const claimButton = ref.document.querySelector('#reward-system-rewards .reward-system-claim-button:not([disabled])');
+			
+			if (!claimButton) break;
+			
+			// Check for storage warning
+			const buttonRow = claimButton.closest('tr');
+			const warning = buttonRow ? buttonRow.querySelector('.small.warn') : null;
+			if (warning && warning.textContent.includes('túl kevés a hely')) {
+				debug('szem4_EPITO_collectRewards', 'Storage full warning detected, stopping');
+				break;
+			}
+			
+			// Claim reward
+			claimButton.click();
+			claimedCount++;
+			debug('szem4_EPITO_collectRewards', `Claimed reward ${claimedCount}`);
+			
+			await new Promise(resolve => setTimeout(resolve, 300));
+			
+			// After minimum rewards, check if we have enough resources now
+			if (claimedCount >= minRewards) {
+				// Navigate back to main screen to check resources
+				const mainUrl = VILL1ST.replace("screen=overview", "screen=main").replace(/village=[0-9]+/, "village=" + ref.game_data.village.id);
+				ref.location.href = mainUrl;
+				await new Promise(resolve => setTimeout(resolve, 2000));
+				
+				// Check if resources are now sufficient
+				if (ref.game_data.village.wood >= resNeed.wood && 
+					ref.game_data.village.stone >= resNeed.stone && 
+					ref.game_data.village.iron >= resNeed.iron) {
+					naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve! / ${claimedCount} rewards collected! Nyersanyag most elegendő! / Resources now sufficient!`);
+					debug('szem4_EPITO_collectRewards', `Resources now sufficient after ${claimedCount} rewards`);
+					return true;
+				}
+			}
+		}
+		
+		// Go back to main screen
+		const mainUrl = VILL1ST.replace("screen=overview", "screen=main").replace(/village=[0-9]+/, "village=" + ref.game_data.village.id);
+		ref.location.href = mainUrl;
+		
+		if (claimedCount > 0) {
+			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve / ${claimedCount} rewards collected, de még mindig hiány / but still shortage`);
+			debug('szem4_EPITO_collectRewards', `Collected ${claimedCount} rewards but resources still insufficient`);
+		}
+		
+		return false;
+	} catch(e) {
+		debug('szem4_EPITO_collectRewards', `Error: ${e}`);
+		return false;
+	}
+}
+
+function szem4_EPITO_forceReturn(villageRow) {
+	try {
+		const now = getServerTime();
+		villageRow.cells[2].setAttribute('data-timestamp', now.getTime());
+		villageRow.cells[2].innerHTML = now.toLocaleString();
+		naplo('Építő', `⚡ Kényszerített Return: ${villageRow.cells[0].textContent} - Azonnal újraellenőrzés / Forced Return - Immediate recheck`);
+		debug('szem4_EPITO_forceReturn', `Forced return for ${villageRow.cells[0].textContent}`);
+		alert2('✅ Return idő azonnal beállítva! / Return time set to NOW!');
+	} catch(e) {
+		debug('szem4_EPITO_forceReturn', `Error: ${e}`);
 	}
 }
 
@@ -3761,9 +3866,22 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (EPIT_REF.game_data.village.wood < resNeed.wood) missing.push(`🪵 ${resNeed.wood - EPIT_REF.game_data.village.wood}`);
 		if (EPIT_REF.game_data.village.stone < resNeed.stone) missing.push(`🧱 ${resNeed.stone - EPIT_REF.game_data.village.stone}`);
 		if (EPIT_REF.game_data.village.iron < resNeed.iron) missing.push(`⚒️ ${resNeed.iron - EPIT_REF.game_data.village.iron}`);
-		szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}. ` + writeAllBuildTime(allBuildTime));
-		szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?Math.min(firstBuildTime, 60):20);
-		debug('szem4_EPITO_IntettiBuild', `Resource shortage for ${nextToBuild}. Missing: ${missing.join(', ')}`);
+		
+		// Try to collect quest rewards to get resources
+		szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! Jutalmak gyűjtése... / Collecting rewards... ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}`);
+		
+		szem4_EPITO_collectRewards(EPIT_REF, nextToBuild, resNeed, PMEP[2]).then((success) => {
+			if (success) {
+				// Rewards collected, resources might be available now - recheck immediately
+				debug('szem4_EPITO_IntettiBuild', `Rewards collected, rechecking resources for ${nextToBuild}`);
+				szem4_EPITO_addIdo(PMEP[2], 0); // Return NOW (will be 30s)
+			} else {
+				// No rewards or still not enough - wait for production
+				szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}. ` + writeAllBuildTime(allBuildTime));
+				szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+				debug('szem4_EPITO_IntettiBuild', `Resource shortage for ${nextToBuild}. Missing: ${missing.join(', ')}. Waiting for production.`);
+			}
+		});
 		return;
 	} 
 
@@ -3943,7 +4061,7 @@ try{
 }catch(e){debug('epit', 'Worker engine error: ' + e);setTimeout(function(){szem4_EPITO_motor();}, 3000);}}
 
 ujkieg_hang("Építő","epites;falu_kesz;kritikus_hiba");
-ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr><tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"Rendezhető. Ekkor fogom újranézni a falut, hogy lehet e már építeni.<br>Dupla klikk=idő azonnalira állítása.")\'>Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről. Sárga hátterű szöveg orvosolható; kék jelentése hogy nem tud haladni; piros pedig kritikus hibát jelöl; a szín nélküli a normális működést jelzi.<br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a></p></td></tr>');
+ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr><tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"⏰ Return idő = Ekkor nézi újra a falut<br><br>🎁 AUTOMATIKUS: Nyersanyag hiány esetén jutalmakat próbál gyűjteni!<br><br>⚡ MANUÁLIS: Dupla klikk = Return MOST! (azonnal újraellenőrzés)")\'>⏰ Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről.<br><br>Színek:<br>🟢 Alap = Normális működés<br>🟡 Sárga = Orvosolható (vár nyersre/építésre)<br>🔴 Piros = Kritikus hiba (beavatkozás kell)<br><br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a></p></td></tr>');
 
 var EPIT_LEPES=0;
 var EPIT_REF; var EPIT_HIBA=0; var EPIT_GHIBA=0;
