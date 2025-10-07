@@ -4345,6 +4345,7 @@ var NORBI0N_FARM_GHIBA = 0;
 var NORBI0N_FARM_PAUSE = true;
 var NORBI0N_FARM_LOOP_TIMER = null;
 var NORBI0N_FARM_SHOULD_RUN = false; // NEW: Flag to control when to actually run
+var NORBI0N_FARM_WAIT_COUNTER = 0; // Counter for waiting after injection
 
 var SZEM4_NORBI0N_FARM = {
 	OPTIONS: {
@@ -4433,21 +4434,34 @@ function norbi0n_farm_injectFarmGod(ref) {
 					console.log('🚜 Loading FarmGod script...');
 					$.getScript('https://media.innogamescdn.com/com_DS_HU/scripts/farmgod.js')
 						.done(() => {
-							console.log('🚜 FarmGod loaded successfully');
+							console.log('🚜 FarmGod loaded successfully, waiting 4s for UI...');
 							setTimeout(() => {
-								const planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
-								console.log('🚜 Plan button:', planButton ? 'FOUND' : 'NOT FOUND');
+								// Try multiple button selectors
+								let planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
+								if (!planButton) planButton = document.querySelector('input[value="Farm megtervezése"]');
+								if (!planButton) planButton = document.querySelector('input.optionButton');
+								if (!planButton) {
+									const allButtons = document.querySelectorAll('input.btn, input[type="button"]');
+									console.log('🚜 All buttons found:', allButtons.length);
+									allButtons.forEach((btn, i) => console.log(\`  Button \${i}: value="\${btn.value}", class="\${btn.className}"\`));
+								}
+								console.log('🚜 Plan button:', planButton ? 'FOUND ✅' : 'NOT FOUND ❌');
 								if (planButton) { 
 									planButton.click(); 
-									console.log('🚜 Plan button clicked, starting in 3s...');
-									setTimeout(() => FarmHandler.start(), 3000); 
+									console.log('🚜 Plan button clicked, starting automation in 3s...');
+									setTimeout(() => {
+										console.log('🚜 Starting FarmHandler...');
+										FarmHandler.start();
+									}, 3000); 
+								} else {
+									console.error('🚜 CRITICAL: Plan button not found after FarmGod load!');
 								}
-							}, 2000);
+							}, 4000);
 						})
 						.fail((jqxhr, settings, exception) => {
 							console.error('🚜 Failed to load FarmGod:', exception);
 						});
-				}, 2000);
+				}, 3000);
 			};
 			if (document.readyState === 'complete') {
 				console.log('🚜 Page already loaded, starting immediately');
@@ -4481,6 +4495,7 @@ function szem4_norbi0n_farm_motor() {
 						if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) NORBI0N_FARM_REF.close();
 					}
 					NORBI0N_FARM_LEPES = 0;
+					NORBI0N_FARM_WAIT_COUNTER = 0;
 					NORBI0N_FARM_SHOULD_RUN = false;
 				}
 				switch (NORBI0N_FARM_LEPES) {
@@ -4497,13 +4512,17 @@ function szem4_norbi0n_farm_motor() {
 						// Inject ONCE - check if already injected
 						if (!NORBI0N_FARM_REF.NorbiFarmHandler) {
 							norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
-							debug('Norbi0N_Farm', `FarmGod injected for first time`);
-						} else {
-							debug('Norbi0N_Farm', `FarmGod already injected, skipping`);
+							NORBI0N_FARM_WAIT_COUNTER = 0; // Reset counter
+							debug('Norbi0N_Farm', `FarmGod injected, waiting 15 cycles (~7.5s) for initialization`);
 						}
-						NORBI0N_FARM_REF.document.title = '🚜 Norbi0N_Farm - Running';
-						naplo('Norbi0N_Farm', `🚜 FarmGod elindítva`);
-						NORBI0N_FARM_LEPES = 2;
+						// Wait for injection to initialize (15 cycles × 500ms = 7.5s)
+						NORBI0N_FARM_WAIT_COUNTER++;
+						if (NORBI0N_FARM_WAIT_COUNTER >= 15) {
+							NORBI0N_FARM_REF.document.title = '🚜 Norbi0N_Farm - Running';
+							naplo('Norbi0N_Farm', `🚜 FarmGod elindítva`);
+							NORBI0N_FARM_WAIT_COUNTER = 0;
+							NORBI0N_FARM_LEPES = 2;
+						}
 					} else { NORBI0N_FARM_HIBA++; }
 					break;
 				case 2:
@@ -4512,6 +4531,7 @@ function szem4_norbi0n_farm_motor() {
 						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
+						NORBI0N_FARM_WAIT_COUNTER = 0;
 						NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 							debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
@@ -4530,6 +4550,7 @@ function szem4_norbi0n_farm_motor() {
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
+									NORBI0N_FARM_WAIT_COUNTER = 0;
 									NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 										debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
@@ -4541,6 +4562,7 @@ function szem4_norbi0n_farm_motor() {
 									debug('Norbi0N_Farm', '🚨 Bot detected - BotvedelemBe() already called');
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
+									NORBI0N_FARM_WAIT_COUNTER = 0;
 									NORBI0N_FARM_SHOULD_RUN = false;
 								}
 							}
@@ -4550,10 +4572,11 @@ function szem4_norbi0n_farm_motor() {
 					break;
 				default: 
 					NORBI0N_FARM_LEPES = 0;
+					NORBI0N_FARM_WAIT_COUNTER = 0;
 				}
 			}
 		}
-	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_SHOULD_RUN = false; }
+	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_WAIT_COUNTER = 0; NORBI0N_FARM_SHOULD_RUN = false; }
 	var inga = 100/((Math.random()*40)+80);
 	nexttime = Math.round(nexttime*inga);
 	try { worker.postMessage({'id': 'norbi0n_farm', 'time': nexttime}); } 
