@@ -4344,6 +4344,7 @@ var NORBI0N_FARM_HIBA = 0;
 var NORBI0N_FARM_GHIBA = 0;
 var NORBI0N_FARM_PAUSE = true;
 var NORBI0N_FARM_LOOP_TIMER = null;
+var NORBI0N_FARM_SHOULD_RUN = false; // NEW: Flag to control when to actually run
 
 var SZEM4_NORBI0N_FARM = {
 	OPTIONS: {
@@ -4449,28 +4450,37 @@ function szem4_norbi0n_farm_motor() {
 		if (BOT || NORBI0N_FARM_PAUSE || USER_ACTIVITY) { nexttime = 5000; } 
 		else if (norbi0n_farm_isAnyModuleBusy()) { nexttime = 3000; } 
 		else {
-			if (NORBI0N_FARM_HIBA > 10) {
-				NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA++;
-				if (NORBI0N_FARM_GHIBA > 3) {
-					naplo("Norbi0N_Farm", "Folyamatos hiba");
-					if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) NORBI0N_FARM_REF.close();
-				}
-				NORBI0N_FARM_LEPES = 0;
-			}
-			switch (NORBI0N_FARM_LEPES) {
-				case 0:
-					// Open CURRENT village's farm assistant
-					const url = VILL1ST.replace("screen=overview", "screen=am_farm");
-					if (!NORBI0N_FARM_REF || NORBI0N_FARM_REF.closed) {
-						NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
-						debug('Norbi0N_Farm', `Opening current village farm assistant`);
+			// Only run if explicitly triggered
+			if (!NORBI0N_FARM_SHOULD_RUN) {
+				nexttime = 5000;
+			} else {
+				if (NORBI0N_FARM_HIBA > 10) {
+					NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA++;
+					if (NORBI0N_FARM_GHIBA > 3) {
+						naplo("Norbi0N_Farm", "Folyamatos hiba");
+						if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) NORBI0N_FARM_REF.close();
 					}
-					NORBI0N_FARM_LEPES = 1;
-					break;
+					NORBI0N_FARM_LEPES = 0;
+					NORBI0N_FARM_SHOULD_RUN = false;
+				}
+				switch (NORBI0N_FARM_LEPES) {
+					case 0:
+						// Open CURRENT village's farm assistant (ONCE)
+						const url = VILL1ST.replace("screen=overview", "screen=am_farm");
+						NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
+						debug('Norbi0N_Farm', `Opening farm assistant - SHOULD_RUN triggered`);
+						NORBI0N_FARM_LEPES = 1;
+						break;
 				case 1:
 					if (isPageLoaded(NORBI0N_FARM_REF, -1, 'screen=am_farm')) {
 						NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA = 0;
-						norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
+						// Inject ONCE - check if already injected
+						if (!NORBI0N_FARM_REF.NorbiFarmHandler) {
+							norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
+							debug('Norbi0N_Farm', `FarmGod injected for first time`);
+						} else {
+							debug('Norbi0N_Farm', `FarmGod already injected, skipping`);
+						}
 						NORBI0N_FARM_REF.document.title = '🚜 Norbi0N_Farm - Running';
 						naplo('Norbi0N_Farm', `🚜 FarmGod elindítva`);
 						NORBI0N_FARM_LEPES = 2;
@@ -4482,11 +4492,12 @@ function szem4_norbi0n_farm_motor() {
 						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
+						NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 							debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
 							norbi0n_farm_scheduleLoop();
 						} else {
-							debug('Norbi0N_Farm', `Loop mode DISABLED - not scheduling`);
+							debug('Norbi0N_Farm', `Loop mode DISABLED - stopping`);
 						}
 					} else {
 						try {
@@ -4499,26 +4510,30 @@ function szem4_norbi0n_farm_motor() {
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
+									NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 										debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
 										norbi0n_farm_scheduleLoop();
 									} else {
-										debug('Norbi0N_Farm', `Loop mode DISABLED - not scheduling`);
+										debug('Norbi0N_Farm', `Loop mode DISABLED - stopping`);
 									}
 								} else if (data.status === 'bot_detected') {
 									debug('Norbi0N_Farm', '🚨 Bot detected - BotvedelemBe() already called');
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
+									NORBI0N_FARM_SHOULD_RUN = false;
 								}
 							}
 						} catch(e) {}
 						NORBI0N_FARM_HIBA++;
 					}
 					break;
-				default: NORBI0N_FARM_LEPES = 0;
+				default: 
+					NORBI0N_FARM_LEPES = 0;
+				}
 			}
 		}
-	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; }
+	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_SHOULD_RUN = false; }
 	var inga = 100/((Math.random()*40)+80);
 	nexttime = Math.round(nexttime*inga);
 	try { worker.postMessage({'id': 'norbi0n_farm', 'time': nexttime}); } 
@@ -4532,7 +4547,22 @@ function norbi0n_farm_scheduleLoop() {
 	const totalMs = (interval * 60000) + randomMs;
 	const minutes = Math.round(totalMs/60000);
 	naplo('Norbi0N_Farm', `🔄 Loop mode: next run in ${minutes} minutes`);
-	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => { NORBI0N_FARM_LEPES = 0; szem4_norbi0n_farm_motor(); }, totalMs);
+	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => { 
+		NORBI0N_FARM_SHOULD_RUN = true; // Set flag for next run
+		NORBI0N_FARM_LEPES = 0; 
+		debug('Norbi0N_Farm', `Loop timer triggered - SHOULD_RUN set to true`);
+	}, totalMs);
+}
+
+function norbi0n_farm_runNow() {
+	if (!NORBI0N_FARM_PAUSE) {
+		NORBI0N_FARM_SHOULD_RUN = true;
+		NORBI0N_FARM_LEPES = 0;
+		debug('Norbi0N_Farm', `Manual trigger - SHOULD_RUN set to true`);
+		naplo('Norbi0N_Farm', `⚡ Manuális indítás / Manual start`);
+	} else {
+		alert2('⚠️ Norbi0N_Farming szünetel! Indítsd el először a ▶️ gombbal a menüben!<br>Module is paused! Start it first with ▶️ button in menu!');
+	}
 }
 
 function norbi0n_farm_updateSettings() {
@@ -4573,13 +4603,20 @@ ujkieg("norbi0n_farm", "Norbi0N Farming", `<tr><td>
 		</table>
 	</form>
 	<br>
+	<p align="center">
+		<input type="button" value="🚀 FARMOLÁS MOST! / RUN NOW!" onclick="norbi0n_farm_runNow()" style="font-size:14px; padding:10px 20px;">
+	</p>
+	<p align="center" style="font-size:10px; color:#666;">
+		<i>1. Klikk ▶️ a menüben (modul aktiválása)<br>
+		2. Loop mód BE: Automatikus futás X percenként<br>
+		3. Loop mód KI: Klikk "RUN NOW!" gombra manuális futtatáshoz</i>
+	</p>
+	<br>
 	<table class="vis" style="margin: auto;">
 		<tr><th colspan="2" style="background: #c1a264;">📊 Statisztikák</th></tr>
 		<tr><td style="width: 50%;">Összes futás:</td><td id="norbi0n_total_runs">0</td></tr>
 		<tr><td>Utolsó futás:</td><td id="norbi0n_last_run">---</td></tr>
 	</table>
-	<br>
-	<p align="center"><i>⚠️ Klikk a ▶️ gombra a menüben az indításhoz!</i></p>
 </td></tr>`);
 
 szem4_norbi0n_farm_motor();
