@@ -4529,6 +4529,12 @@ function szem4_norbi0n_farm_motor() {
 				switch (NORBI0N_FARM_LEPES) {
 				case 0:
 					// Open CURRENT village's farm assistant (ONCE)
+					// Safety check: if window is already open and farming, don't refresh it!
+					if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) {
+						debug('Norbi0N_Farm', 'Window already open, skipping case 0 to prevent refresh');
+						NORBI0N_FARM_LEPES = 1; // Skip to next case
+						break;
+					}
 					NORBI0N_FARM_INJECTED = false; // Reset injection flag
 					const url = VILL1ST.replace("screen=overview", "screen=am_farm");
 					NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
@@ -4628,7 +4634,12 @@ function norbi0n_farm_scheduleLoop() {
 	const totalMs = (interval * 60000) + randomMs;
 	const minutes = Math.round(totalMs/60000);
 	naplo('Norbi0N_Farm', `🔄 Loop mode: next run in ${minutes} minutes`);
-	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => { 
+	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => {
+		if (NORBI0N_FARM_LEPES !== 0) {
+			debug('Norbi0N_Farm', `Loop timer fired but farming still running (LEPES=${NORBI0N_FARM_LEPES}), rescheduling...`);
+			norbi0n_farm_scheduleLoop(); // Reschedule for next interval
+			return;
+		}
 		NORBI0N_FARM_SHOULD_RUN = true; // Set flag for next run
 		NORBI0N_FARM_LEPES = 0; 
 		debug('Norbi0N_Farm', `Loop timer triggered - SHOULD_RUN set to true`);
@@ -4637,6 +4648,10 @@ function norbi0n_farm_scheduleLoop() {
 
 function norbi0n_farm_runNow() {
 	if (!NORBI0N_FARM_PAUSE) {
+		if (NORBI0N_FARM_LEPES !== 0) {
+			alert2('⚠️ Norbi0N_Farming már fut! Várj amíg befejeződik!<br>Farming already running! Wait for completion!');
+			return;
+		}
 		NORBI0N_FARM_SHOULD_RUN = true;
 		NORBI0N_FARM_LEPES = 0;
 		debug('Norbi0N_Farm', `Manual trigger - SHOULD_RUN set to true`);
