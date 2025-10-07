@@ -108,6 +108,15 @@ try{ /*Rendszeradatok*/
 			default: debug('worker','Ismeretlen ID', JSON.stringify(worker_message))
 		}
 	};
+	
+	// Listen for bot detection messages from farm tab
+	window.addEventListener('message', (event) => {
+		if (event.data && event.data.source === 'norbi_farm_bot_detection') {
+			debug('Norbi0N_Farm', '🚨 Received bot detection message from farm tab');
+			BotvedelemBe();
+		}
+	});
+	
 	function createWorker(main){
 		var blob = new Blob(
 			["(" + main.toString() + ")(self)"],
@@ -4372,35 +4381,62 @@ function norbi0n_farm_injectFarmGod(ref) {
 		script.textContent = `(function() {
 			console.log('🚜 Norbi0N FarmGod automation initializing...');
 			const FarmHandler = {
-				pressTimer: null, progressTimer: null, botCheckTimer: null,
+				pressTimer: null, progressTimer: null, botDetectionTimer: null,
 				totalPresses: 0, isRunning: false, startTime: null,
-				start: function() {
+				startFarming: function() {
+					console.log('Starting continuous farming...');
 					this.isRunning = true; this.totalPresses = 0; this.startTime = Date.now();
 					const self = this;
-					this.botCheckTimer = setInterval(() => self.checkBotProtection(), 200);
 					this.pressTimer = setInterval(() => self.pressEnter(), 100);
-					this.progressTimer = setInterval(() => self.checkProgress(), 200);
-					console.log('🚜 FarmGod automation started - Bot check: 200ms, Progress: 200ms, Enter press: 100ms');
+					this.progressTimer = setInterval(() => self.monitorProgress(), 100);
+					this.botDetectionTimer = setInterval(() => self.checkBotProtection(), 80);
 				},
 				checkBotProtection: function() {
 					if (!this.isRunning) return;
-					const botDetected = document.getElementById('botprotection_quest') || document.getElementById('bot_check') || document.getElementById('popup_box_bot_protection') || document.querySelector('.bot-protection-row') || document.querySelector('td.bot-protection-row') || document.title === "Bot védelem";
-					if (botDetected) {
-						console.error('🚨 BOT PROTECTION DETECTED in FarmGod window!');
-						this.stop();
+					const botElement = document.getElementById('botprotection_quest');
+					if (botElement) {
+						console.log('BOT PROTECTION DETECTED IN FARM TAB!');
+						this.stopFarming();
 						if (window.opener) {
-							try { window.opener.BotvedelemBe(); } catch(e) {}
+							window.opener.postMessage({
+								source: 'norbi_farm_bot_detection',
+								message: 'Bot detected while farming - farming stopped',
+								detectionMethod: 'botprotection_quest',
+								totalPresses: this.totalPresses,
+								timestamp: Date.now()
+							}, '*');
 						}
-						localStorage.setItem('norbi_farm_result', JSON.stringify({status: 'bot_detected', message: 'Bot protection appeared', totalPresses: this.totalPresses, timestamp: Date.now()}));
+						localStorage.setItem('norbi_farm_result', JSON.stringify({
+							status: 'error',
+							message: 'Bot detected while farming',
+							error: 'Bot protection quest appeared',
+							totalPresses: this.totalPresses,
+							timestamp: Date.now()
+						}));
 					}
 				},
 				pressEnter: function() {
 					if (!this.isRunning) return;
-					const evt = new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true});
-					document.dispatchEvent(evt);
+					const createKeyEvent = (type) => new KeyboardEvent(type, {
+						key: 'Enter',
+						code: 'Enter',
+						keyCode: 13,
+						which: 13,
+						bubbles: true,
+						cancelable: true
+					});
+					document.dispatchEvent(createKeyEvent('keydown'));
+					document.dispatchEvent(createKeyEvent('keyup'));
+					if (document.activeElement) {
+						document.activeElement.dispatchEvent(createKeyEvent('keydown'));
+						document.activeElement.dispatchEvent(createKeyEvent('keyup'));
+					}
 					this.totalPresses++;
+					if (this.totalPresses % 50 === 0) {
+						console.log(\`Enter pressed \${this.totalPresses} times\`);
+					}
 				},
-				checkProgress: function() {
+				monitorProgress: function() {
 					if (!this.isRunning) return;
 					const progressBar = document.getElementById('FarmGodProgessbar');
 					if (!progressBar) return;
@@ -4414,12 +4450,10 @@ function norbi0n_farm_injectFarmGod(ref) {
 					const current = parseInt(currentStr);
 					const total = parseInt(totalStr);
 					if (isNaN(current) || isNaN(total)) return;
-					if (this.totalPresses % 50 === 0) {
-						console.log(\`🚜 Progress: \${current}/\${total} villages (\${this.totalPresses} presses)\`);
-					}
+					const percentage = total > 0 ? (current / total) * 100 : 0;
 					if (current >= total) {
-						console.log('🚜 Farming completed!');
-						this.stop();
+						console.log('Farming completed!');
+						this.stopFarming();
 						const durationMs = Date.now() - this.startTime;
 						const minutes = Math.floor(durationMs / 60000);
 						const seconds = Math.floor((durationMs % 60000) / 1000);
@@ -4427,8 +4461,8 @@ function norbi0n_farm_injectFarmGod(ref) {
 							status: 'success',
 							message: 'Farming completed successfully',
 							villages: total,
-							presses: this.totalPresses,
-							duration: durationMs,
+							totalPresses: this.totalPresses,
+							finalProgress: cleanText,
 							timeMinutes: minutes,
 							timeSeconds: seconds,
 							timestamp: Date.now()
@@ -4436,67 +4470,32 @@ function norbi0n_farm_injectFarmGod(ref) {
 						setTimeout(() => window.close(), 3000);
 					}
 				},
-				stop: function() {
+				stopFarming: function() {
 					this.isRunning = false;
-					clearInterval(this.pressTimer); clearInterval(this.progressTimer); clearInterval(this.botCheckTimer);
-					console.log(\`🚜 Stopped. Presses: \${this.totalPresses}\`);
+					clearInterval(this.pressTimer); clearInterval(this.progressTimer); clearInterval(this.botDetectionTimer);
+					console.log(\`Stopped. Total presses: \${this.totalPresses}\`);
 				}
 			};
-			const initFarmGod = () => {
-				console.log('🚜 Initializing FarmGod...');
-				setTimeout(() => {
-					if (typeof $ === 'undefined') {
-						console.error('🚜 jQuery not found!');
-						return;
-					}
-					console.log('🚜 Loading FarmGod script...');
-					$.getScript('https://media.innogamescdn.com/com_DS_HU/scripts/farmgod.js')
-						.done(() => {
-							console.log('🚜 FarmGod loaded successfully, waiting 4s for UI...');
-							setTimeout(() => {
-								if (FarmHandler.isRunning) {
-									console.log('🚜 Already running, skipping initialization');
-									return;
-								}
-								// Try multiple button selectors
-								let planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
-								if (!planButton) planButton = document.querySelector('input[value="Farm megtervezése"]');
-								if (!planButton) planButton = document.querySelector('input.optionButton');
-								if (!planButton) {
-									const allButtons = document.querySelectorAll('input.btn, input[type="button"]');
-									console.log('🚜 All buttons found:', allButtons.length);
-									allButtons.forEach((btn, i) => console.log(\`  Button \${i}: value="\${btn.value}", class="\${btn.className}"\`));
-								}
-								console.log('🚜 Plan button:', planButton ? 'FOUND ✅' : 'NOT FOUND ❌');
-								if (planButton) { 
-									planButton.click(); 
-									console.log('🚜 Plan button clicked! Waiting 4 seconds before starting automation...');
-									setTimeout(() => {
-										if (FarmHandler.isRunning) {
-											console.log('🚜 Already running, skipping start');
-											return;
-										}
-										console.log('🚜 Starting FarmHandler NOW...');
-										FarmHandler.start();
-									}, 4000); 
-								} else {
-									console.error('🚜 CRITICAL: Plan button not found after FarmGod load!');
-								}
-							}, 4000);
-						})
-						.fail((jqxhr, settings, exception) => {
-							console.error('🚜 Failed to load FarmGod:', exception);
-						});
-				}, 3000);
-			};
-			if (document.readyState === 'complete') {
-				console.log('🚜 Page already loaded, starting immediately');
-				initFarmGod();
-			} else {
-				console.log('🚜 Waiting for page load...');
-				window.addEventListener('load', initFarmGod);
-			}
-			window.NorbiFarmHandler = FarmHandler;
+			setTimeout(() => {
+				if (typeof window.$ === 'undefined') {
+					console.error('jQuery not available');
+					return;
+				}
+				window.$.getScript('https://media.innogamescdn.com/com_DS_HU/scripts/farmgod.js')
+					.done(() => {
+						console.log('FarmGod loaded');
+						setTimeout(() => {
+							const planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
+							if (planButton) {
+								planButton.click();
+								setTimeout(() => FarmHandler.startFarming(), 3000);
+							} else {
+								console.error('Farm button not found');
+							}
+						}, 2000);
+					})
+					.fail(() => console.error('FarmGod failed to load'));
+			}, 3000);
 		})();`;
 		ref.document.head.appendChild(script);
 		debug('Norbi0N_Farm', 'FarmGod automation injected');
@@ -4572,7 +4571,7 @@ function szem4_norbi0n_farm_motor() {
 								const data = JSON.parse(result);
 								if (data.status === 'success') {
 									const timeMsg = data.timeMinutes > 0 ? `${data.timeMinutes}m ${data.timeSeconds}s` : `${data.timeSeconds}s`;
-									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.presses} klikk`);
+									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.totalPresses} klikk`);
 									SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
@@ -4585,8 +4584,11 @@ function szem4_norbi0n_farm_motor() {
 									} else {
 										debug('Norbi0N_Farm', `Loop mode DISABLED - stopping`);
 									}
-								} else if (data.status === 'bot_detected') {
-									debug('Norbi0N_Farm', '🚨 Bot detected - BotvedelemBe() already called');
+								} else if (data.status === 'error') {
+									naplo('Norbi0N_Farm', `❌ Hiba: ${data.message}`);
+									if (data.error === 'Bot protection quest appeared') {
+										debug('Norbi0N_Farm', '🚨 Bot detected in farm tab');
+									}
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
 									NORBI0N_FARM_WAIT_COUNTER = 0;
