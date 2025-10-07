@@ -4403,40 +4403,37 @@ function norbi0n_farm_injectFarmGod(ref) {
 				checkProgress: function() {
 					if (!this.isRunning) return;
 					const progressBar = document.getElementById('FarmGodProgessbar');
-					if (!progressBar) {
-						// Try alternative selectors
-						const altBar = document.querySelector('[id*="rogress"], .progress, #plunder_list');
-						if (!altBar && this.totalPresses === 1) {
-							console.warn('🚜 Progress bar not found! Looking for alternatives...');
-							const allDivs = document.querySelectorAll('div[id], div.progress');
-							console.log('🚜 Divs with IDs or progress class:', allDivs.length);
-							allDivs.forEach(d => { if (d.id) console.log('  - ' + d.id); });
-						}
-						return;
+					if (!progressBar) return;
+					const labelSpan = progressBar.querySelector('span.label');
+					if (!labelSpan) return;
+					const cleanText = labelSpan.innerText || labelSpan.textContent;
+					const parts = cleanText.split(' / ');
+					if (parts.length !== 2) return;
+					let currentStr = parts[0].trim().replace(/\\./g, '');
+					let totalStr = parts[1].trim().replace(/\\./g, '');
+					const current = parseInt(currentStr);
+					const total = parseInt(totalStr);
+					if (isNaN(current) || isNaN(total)) return;
+					if (this.totalPresses % 50 === 0) {
+						console.log(\`🚜 Progress: \${current}/\${total} villages (\${this.totalPresses} presses)\`);
 					}
-					const label = progressBar.querySelector('span.label');
-					if (!label) {
-						if (this.totalPresses === 1) console.warn('🚜 Progress label not found in bar');
-						return;
-					}
-					const text = label.textContent;
-					const parts = text.split(' / ');
-					if (parts.length === 2) {
-						const current = parseInt(parts[0].replace(/\\./g, '').replace(/,/g, ''));
-						const total = parseInt(parts[1].replace(/\\./g, '').replace(/,/g, ''));
-						if (!isNaN(current) && !isNaN(total)) {
-							if (this.totalPresses % 50 === 0) {
-								console.log(\`🚜 Progress: \${current}/\${total} villages (\${this.totalPresses} presses)\`);
-							}
-							if (current >= total) {
-								console.log('🚜 ✅ FarmGod COMPLETED!');
-								this.stop();
-								localStorage.setItem('norbi_farm_result', JSON.stringify({status: 'success', villages: total, presses: this.totalPresses, duration: Date.now() - this.startTime}));
-								setTimeout(() => window.close(), 2000);
-							}
-						}
-					} else if (this.totalPresses === 1) {
-						console.warn(\`🚜 Progress format unexpected: "\${text}"\`);
+					if (current >= total) {
+						console.log('🚜 Farming completed!');
+						this.stop();
+						const durationMs = Date.now() - this.startTime;
+						const minutes = Math.floor(durationMs / 60000);
+						const seconds = Math.floor((durationMs % 60000) / 1000);
+						localStorage.setItem('norbi_farm_result', JSON.stringify({
+							status: 'success',
+							message: 'Farming completed successfully',
+							villages: total,
+							presses: this.totalPresses,
+							duration: durationMs,
+							timeMinutes: minutes,
+							timeSeconds: seconds,
+							timestamp: Date.now()
+						}));
+						setTimeout(() => window.close(), 3000);
 					}
 				},
 				stop: function() {
@@ -4574,7 +4571,8 @@ function szem4_norbi0n_farm_motor() {
 							if (result) {
 								const data = JSON.parse(result);
 								if (data.status === 'success') {
-									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${data.presses} klikk, ${Math.round(data.duration/1000)}s`);
+									const timeMsg = data.timeMinutes > 0 ? `${data.timeMinutes}m ${data.timeSeconds}s` : `${data.timeSeconds}s`;
+									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.presses} klikk`);
 									SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
