@@ -4379,8 +4379,8 @@ function norbi0n_farm_injectFarmGod(ref) {
 					const self = this;
 					this.botCheckTimer = setInterval(() => self.checkBotProtection(), 200);
 					this.pressTimer = setInterval(() => self.pressEnter(), 100);
-					this.progressTimer = setInterval(() => self.checkProgress(), 500);
-					console.log('🚜 FarmGod automation started with 200ms bot detection');
+					this.progressTimer = setInterval(() => self.checkProgress(), 200);
+					console.log('🚜 FarmGod automation started - Bot check: 200ms, Progress: 200ms, Enter press: 100ms');
 				},
 				checkBotProtection: function() {
 					if (!this.isRunning) return;
@@ -4403,19 +4403,40 @@ function norbi0n_farm_injectFarmGod(ref) {
 				checkProgress: function() {
 					if (!this.isRunning) return;
 					const progressBar = document.getElementById('FarmGodProgessbar');
-					if (!progressBar) return;
-					const label = progressBar.querySelector('span.label');
-					if (!label) return;
-					const parts = label.textContent.split(' / ');
-					if (parts.length === 2) {
-						const current = parseInt(parts[0].replace(/\\./g, ''));
-						const total = parseInt(parts[1].replace(/\\./g, ''));
-						if (!isNaN(current) && !isNaN(total) && current >= total) {
-							console.log('🚜 FarmGod completed!');
-							this.stop();
-							localStorage.setItem('norbi_farm_result', JSON.stringify({status: 'success', villages: total, presses: this.totalPresses, duration: Date.now() - this.startTime}));
-							setTimeout(() => window.close(), 2000);
+					if (!progressBar) {
+						// Try alternative selectors
+						const altBar = document.querySelector('[id*="rogress"], .progress, #plunder_list');
+						if (!altBar && this.totalPresses === 1) {
+							console.warn('🚜 Progress bar not found! Looking for alternatives...');
+							const allDivs = document.querySelectorAll('div[id], div.progress');
+							console.log('🚜 Divs with IDs or progress class:', allDivs.length);
+							allDivs.forEach(d => { if (d.id) console.log('  - ' + d.id); });
 						}
+						return;
+					}
+					const label = progressBar.querySelector('span.label');
+					if (!label) {
+						if (this.totalPresses === 1) console.warn('🚜 Progress label not found in bar');
+						return;
+					}
+					const text = label.textContent;
+					const parts = text.split(' / ');
+					if (parts.length === 2) {
+						const current = parseInt(parts[0].replace(/\\./g, '').replace(/,/g, ''));
+						const total = parseInt(parts[1].replace(/\\./g, '').replace(/,/g, ''));
+						if (!isNaN(current) && !isNaN(total)) {
+							if (this.totalPresses % 50 === 0) {
+								console.log(\`🚜 Progress: \${current}/\${total} villages (\${this.totalPresses} presses)\`);
+							}
+							if (current >= total) {
+								console.log('🚜 ✅ FarmGod COMPLETED!');
+								this.stop();
+								localStorage.setItem('norbi_farm_result', JSON.stringify({status: 'success', villages: total, presses: this.totalPresses, duration: Date.now() - this.startTime}));
+								setTimeout(() => window.close(), 2000);
+							}
+						}
+					} else if (this.totalPresses === 1) {
+						console.warn(\`🚜 Progress format unexpected: "\${text}"\`);
 					}
 				},
 				stop: function() {
@@ -4436,6 +4457,10 @@ function norbi0n_farm_injectFarmGod(ref) {
 						.done(() => {
 							console.log('🚜 FarmGod loaded successfully, waiting 4s for UI...');
 							setTimeout(() => {
+								if (FarmHandler.isRunning) {
+									console.log('🚜 Already running, skipping initialization');
+									return;
+								}
 								// Try multiple button selectors
 								let planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
 								if (!planButton) planButton = document.querySelector('input[value="Farm megtervezése"]');
@@ -4448,11 +4473,15 @@ function norbi0n_farm_injectFarmGod(ref) {
 								console.log('🚜 Plan button:', planButton ? 'FOUND ✅' : 'NOT FOUND ❌');
 								if (planButton) { 
 									planButton.click(); 
-									console.log('🚜 Plan button clicked, starting automation in 3s...');
+									console.log('🚜 Plan button clicked! Waiting 4 seconds before starting automation...');
 									setTimeout(() => {
-										console.log('🚜 Starting FarmHandler...');
+										if (FarmHandler.isRunning) {
+											console.log('🚜 Already running, skipping start');
+											return;
+										}
+										console.log('🚜 Starting FarmHandler NOW...');
 										FarmHandler.start();
-									}, 3000); 
+									}, 4000); 
 								} else {
 									console.error('🚜 CRITICAL: Plan button not found after FarmGod load!');
 								}
