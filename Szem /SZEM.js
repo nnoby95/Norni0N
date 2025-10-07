@@ -4355,6 +4355,7 @@ var NORBI0N_FARM_PAUSE = true;
 var NORBI0N_FARM_LOOP_TIMER = null;
 var NORBI0N_FARM_SHOULD_RUN = false; // NEW: Flag to control when to actually run
 var NORBI0N_FARM_WAIT_COUNTER = 0; // Counter for waiting after injection
+var NORBI0N_FARM_INJECTED = false; // Flag to prevent multiple injections
 
 var SZEM4_NORBI0N_FARM = {
 	OPTIONS: {
@@ -4496,6 +4497,7 @@ function norbi0n_farm_injectFarmGod(ref) {
 					})
 					.fail(() => console.error('FarmGod failed to load'));
 			}, 3000);
+			window.NorbiFarmHandler = FarmHandler;
 		})();`;
 		ref.document.head.appendChild(script);
 		debug('Norbi0N_Farm', 'FarmGod automation injected');
@@ -4521,22 +4523,25 @@ function szem4_norbi0n_farm_motor() {
 					}
 					NORBI0N_FARM_LEPES = 0;
 					NORBI0N_FARM_WAIT_COUNTER = 0;
+					NORBI0N_FARM_INJECTED = false;
 					NORBI0N_FARM_SHOULD_RUN = false;
 				}
 				switch (NORBI0N_FARM_LEPES) {
-					case 0:
-						// Open CURRENT village's farm assistant (ONCE)
-						const url = VILL1ST.replace("screen=overview", "screen=am_farm");
-						NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
-						debug('Norbi0N_Farm', `Opening farm assistant - SHOULD_RUN triggered`);
-						NORBI0N_FARM_LEPES = 1;
-						break;
+				case 0:
+					// Open CURRENT village's farm assistant (ONCE)
+					NORBI0N_FARM_INJECTED = false; // Reset injection flag
+					const url = VILL1ST.replace("screen=overview", "screen=am_farm");
+					NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
+					debug('Norbi0N_Farm', `Opening farm assistant - SHOULD_RUN triggered`);
+					NORBI0N_FARM_LEPES = 1;
+					break;
 				case 1:
 					if (isPageLoaded(NORBI0N_FARM_REF, -1, 'screen=am_farm')) {
 						NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA = 0;
 						// Inject ONCE - check if already injected
-						if (!NORBI0N_FARM_REF.NorbiFarmHandler) {
+						if (!NORBI0N_FARM_INJECTED && !NORBI0N_FARM_REF.NorbiFarmHandler) {
 							norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
+							NORBI0N_FARM_INJECTED = true; // Mark as injected
 							NORBI0N_FARM_WAIT_COUNTER = 0; // Reset counter
 							debug('Norbi0N_Farm', `FarmGod injected, waiting 15 cycles (~7.5s) for initialization`);
 						}
@@ -4557,6 +4562,7 @@ function szem4_norbi0n_farm_motor() {
 						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
 						NORBI0N_FARM_WAIT_COUNTER = 0;
+						NORBI0N_FARM_INJECTED = false;
 						NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 							debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
@@ -4577,6 +4583,7 @@ function szem4_norbi0n_farm_motor() {
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
 									NORBI0N_FARM_WAIT_COUNTER = 0;
+									NORBI0N_FARM_INJECTED = false;
 									NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
 									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
 										debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
@@ -4592,6 +4599,7 @@ function szem4_norbi0n_farm_motor() {
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
 									NORBI0N_FARM_WAIT_COUNTER = 0;
+									NORBI0N_FARM_INJECTED = false;
 									NORBI0N_FARM_SHOULD_RUN = false;
 								}
 							}
@@ -4602,10 +4610,11 @@ function szem4_norbi0n_farm_motor() {
 				default: 
 					NORBI0N_FARM_LEPES = 0;
 					NORBI0N_FARM_WAIT_COUNTER = 0;
+					NORBI0N_FARM_INJECTED = false;
 				}
 			}
 		}
-	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_WAIT_COUNTER = 0; NORBI0N_FARM_SHOULD_RUN = false; }
+	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_WAIT_COUNTER = 0; NORBI0N_FARM_INJECTED = false; NORBI0N_FARM_SHOULD_RUN = false; }
 	var inga = 100/((Math.random()*40)+80);
 	nexttime = Math.round(nexttime*inga);
 	try { worker.postMessage({'id': 'norbi0n_farm', 'time': nexttime}); } 
