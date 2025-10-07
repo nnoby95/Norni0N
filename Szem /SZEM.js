@@ -4423,19 +4423,39 @@ function norbi0n_farm_injectFarmGod(ref) {
 					console.log(\`🚜 Stopped. Presses: \${this.totalPresses}\`);
 				}
 			};
-			window.addEventListener('load', () => {
+			const initFarmGod = () => {
+				console.log('🚜 Initializing FarmGod...');
 				setTimeout(() => {
-					if (typeof $ === 'undefined') return;
+					if (typeof $ === 'undefined') {
+						console.error('🚜 jQuery not found!');
+						return;
+					}
+					console.log('🚜 Loading FarmGod script...');
 					$.getScript('https://media.innogamescdn.com/com_DS_HU/scripts/farmgod.js')
 						.done(() => {
-							console.log('🚜 FarmGod loaded');
+							console.log('🚜 FarmGod loaded successfully');
 							setTimeout(() => {
 								const planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
-								if (planButton) { planButton.click(); setTimeout(() => FarmHandler.start(), 3000); }
+								console.log('🚜 Plan button:', planButton ? 'FOUND' : 'NOT FOUND');
+								if (planButton) { 
+									planButton.click(); 
+									console.log('🚜 Plan button clicked, starting in 3s...');
+									setTimeout(() => FarmHandler.start(), 3000); 
+								}
 							}, 2000);
+						})
+						.fail((jqxhr, settings, exception) => {
+							console.error('🚜 Failed to load FarmGod:', exception);
 						});
 				}, 2000);
-			});
+			};
+			if (document.readyState === 'complete') {
+				console.log('🚜 Page already loaded, starting immediately');
+				initFarmGod();
+			} else {
+				console.log('🚜 Waiting for page load...');
+				window.addEventListener('load', initFarmGod);
+			}
 			window.NorbiFarmHandler = FarmHandler;
 		})();`;
 		ref.document.head.appendChild(script);
