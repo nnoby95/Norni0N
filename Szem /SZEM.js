@@ -4513,8 +4513,9 @@ function szem4_norbi0n_farm_motor() {
 		else {
 			// Only run if explicitly triggered
 			if (!NORBI0N_FARM_SHOULD_RUN) {
-				nexttime = 5000;
+				nexttime = 5000; // Idle - waiting for trigger
 			} else {
+				debug('Norbi0N_Farm', `Motor running: SHOULD_RUN=true, LEPES=${NORBI0N_FARM_LEPES}`);
 				if (NORBI0N_FARM_HIBA > 10) {
 					NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA++;
 					if (NORBI0N_FARM_GHIBA > 3) {
@@ -4563,18 +4564,20 @@ function szem4_norbi0n_farm_motor() {
 					break;
 				case 2:
 					if (NORBI0N_FARM_REF.closed) {
-						debug('Norbi0N_Farm', 'Window closed');
+						debug('Norbi0N_Farm', 'Window closed - farm completed by user or completion');
 						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
 						NORBI0N_FARM_WAIT_COUNTER = 0;
 						NORBI0N_FARM_INJECTED = false;
 						NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
+						NORBI0N_FARM_REF = null; // Clear window reference
+						debug('Norbi0N_Farm', `Loop mode check: ${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}`);
 						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
-							debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
+							debug('Norbi0N_Farm', `✅ Loop mode ENABLED - scheduling next run`);
 							norbi0n_farm_scheduleLoop();
 						} else {
-							debug('Norbi0N_Farm', `Loop mode DISABLED - stopping`);
+							debug('Norbi0N_Farm', `❌ Loop mode DISABLED - stopping`);
 						}
 					} else {
 						try {
@@ -4591,11 +4594,13 @@ function szem4_norbi0n_farm_motor() {
 									NORBI0N_FARM_WAIT_COUNTER = 0;
 									NORBI0N_FARM_INJECTED = false;
 									NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
+									// Window will close automatically in 3 seconds, don't close it here
+									debug('Norbi0N_Farm', `Loop mode check: ${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}`);
 									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
-										debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
+										debug('Norbi0N_Farm', `✅ Loop mode ENABLED - scheduling next run`);
 										norbi0n_farm_scheduleLoop();
 									} else {
-										debug('Norbi0N_Farm', `Loop mode DISABLED - stopping`);
+										debug('Norbi0N_Farm', `❌ Loop mode DISABLED - stopping`);
 									}
 								} else if (data.status === 'error') {
 									naplo('Norbi0N_Farm', `❌ Hiba: ${data.message}`);
@@ -4633,8 +4638,18 @@ function norbi0n_farm_scheduleLoop() {
 	const randomMs = (Math.random() * randomDelay * 2 - randomDelay) * 60000;
 	const totalMs = (interval * 60000) + randomMs;
 	const minutes = Math.round(totalMs/60000);
-	naplo('Norbi0N_Farm', `🔄 Loop mode: next run in ${minutes} minutes`);
+	const nextRunTime = new Date(Date.now() + totalMs);
+	naplo('Norbi0N_Farm', `🔄 Loop: következő futás ${minutes} perc múlva (${nextRunTime.toLocaleTimeString()})`);
+	debug('Norbi0N_Farm', `Scheduling loop: interval=${interval}min, random=${randomDelay}min, total=${minutes}min`);
+	
+	// Clear any existing timer
+	if (NORBI0N_FARM_LOOP_TIMER) {
+		clearTimeout(NORBI0N_FARM_LOOP_TIMER);
+		debug('Norbi0N_Farm', 'Cleared existing loop timer');
+	}
+	
 	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => {
+		debug('Norbi0N_Farm', `⏰ Loop timer FIRED! Current LEPES: ${NORBI0N_FARM_LEPES}`);
 		if (NORBI0N_FARM_LEPES !== 0) {
 			debug('Norbi0N_Farm', `Loop timer fired but farming still running (LEPES=${NORBI0N_FARM_LEPES}), rescheduling...`);
 			norbi0n_farm_scheduleLoop(); // Reschedule for next interval
@@ -4642,7 +4657,8 @@ function norbi0n_farm_scheduleLoop() {
 		}
 		NORBI0N_FARM_SHOULD_RUN = true; // Set flag for next run
 		NORBI0N_FARM_LEPES = 0; 
-		debug('Norbi0N_Farm', `Loop timer triggered - SHOULD_RUN set to true`);
+		debug('Norbi0N_Farm', `✅ Loop timer triggered - SHOULD_RUN = true, LEPES = 0`);
+		naplo('Norbi0N_Farm', `🚜 Loop: új farmolás indítása...`);
 	}, totalMs);
 }
 
