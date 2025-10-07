@@ -4482,7 +4482,12 @@ function szem4_norbi0n_farm_motor() {
 						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 						NORBI0N_FARM_LEPES = 0;
-						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) norbi0n_farm_scheduleLoop();
+						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+							debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
+							norbi0n_farm_scheduleLoop();
+						} else {
+							debug('Norbi0N_Farm', `Loop mode DISABLED - not scheduling`);
+						}
 					} else {
 						try {
 							const result = NORBI0N_FARM_REF.localStorage.getItem('norbi_farm_result');
@@ -4494,7 +4499,12 @@ function szem4_norbi0n_farm_motor() {
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
 									NORBI0N_FARM_LEPES = 0;
-									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) norbi0n_farm_scheduleLoop();
+									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+										debug('Norbi0N_Farm', `Loop mode ENABLED - scheduling next run`);
+										norbi0n_farm_scheduleLoop();
+									} else {
+										debug('Norbi0N_Farm', `Loop mode DISABLED - not scheduling`);
+									}
 								} else if (data.status === 'bot_detected') {
 									debug('Norbi0N_Farm', '🚨 Bot detected - BotvedelemBe() already called');
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
@@ -4530,6 +4540,7 @@ function norbi0n_farm_updateSettings() {
 	SZEM4_NORBI0N_FARM.OPTIONS.loopInterval = parseInt(form.loopInterval.value, 10);
 	SZEM4_NORBI0N_FARM.OPTIONS.randomDelay = parseInt(form.randomDelay.value, 10);
 	SZEM4_NORBI0N_FARM.OPTIONS.loopMode = form.loopMode.checked;
+	debug('Norbi0N_Farm', `Settings updated: Loop=${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}, Interval=${SZEM4_NORBI0N_FARM.OPTIONS.loopInterval}min, Random=±${SZEM4_NORBI0N_FARM.OPTIONS.randomDelay}min`);
 }
 
 function norbi0n_farm_loadSettings() {
