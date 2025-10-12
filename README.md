@@ -144,3 +144,9 @@ This project is for educational and personal use. Please respect the terms of se
 - **2captcha API**: [https://2captcha.com](https://2captcha.com)
 - **CapSolver API**: [https://capsolver.com](https://capsolver.com)
 - **Tribal Wars**: [https://tribalwars.net](https://tribalwars.net)
+
+---
+
+## 📚 Other Projects in This Repository
+
+This repository also contains other Tribal Wars automation scripts and tools. The Chrome extension is the latest and most advanced solution for hCaptcha solving.

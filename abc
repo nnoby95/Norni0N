@@ -1,0 +1,321 @@
+javascript:(function(){
+    // Check if UI already exists
+    if (document.getElementById('farmingUI')) {
+        document.getElementById('farmingUI').remove();
+    }
+    
+    // Create the UI
+    var uiHTML = `
+        <div id="farmingUI" style="
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, 0);
+            background: #f4e4bc url('https://dshu.innogamescdn.com/graphic/index/main_bg.jpg') repeat;
+            border: 2px solid #7d510f;
+            border-radius: 8px;
+            padding: 0;
+            z-index: 99999;
+            font-family: Verdana, Arial, sans-serif;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 380px;
+        ">
+            <!-- Header -->
+            <div style="
+                background: linear-gradient(to bottom, #c1a264, #8b7355);
+                border-bottom: 1px solid #7d510f;
+                padding: 8px 15px;
+                border-radius: 6px 6px 0 0;
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            ">Auto Farming</div>
+            
+            <!-- Main Content -->
+            <div style="padding: 15px;">
+                <div style="margin-bottom: 15px; font-weight: bold; color: #4a3728; text-align: center;">
+                    Choose Attack Type:
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: 5px; margin-bottom: 15px;">
+                    <button id="farmA" style="
+                        direction: ltr;
+                        border-collapse: collapse;
+                        border-spacing: 0;
+                        display: inline-block;
+                        margin: 0 2px;
+                        text-align: center;
+                        font-family: Verdana, Arial;
+                        font-size: 12px !important;
+                        font-weight: bold;
+                        line-height: normal;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        border: 1px solid #000;
+                        color: #fff;
+                        white-space: nowrap;
+                        padding: 3px 9px 3px 25px;
+                        background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #947a62 0%,#7b5c3d 22%,#6c4824 30%,#6c4824 100%);
+                        margin-bottom: 5px;
+                    ">A</button>
+                    
+                    <button id="farmB" style="
+                        direction: ltr;
+                        border-collapse: collapse;
+                        border-spacing: 0;
+                        display: inline-block;
+                        margin: 0 2px;
+                        text-align: center;
+                        font-family: Verdana, Arial;
+                        font-size: 12px !important;
+                        font-weight: bold;
+                        line-height: normal;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        border: 1px solid #000;
+                        color: #fff;
+                        white-space: nowrap;
+                        padding: 3px 9px 3px 25px;
+                        background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #947a62 0%,#7b5c3d 22%,#6c4824 30%,#6c4824 100%);
+                        margin-bottom: 5px;
+                    ">B</button>
+                    
+                    <button id="farmC" style="
+                        direction: ltr;
+                        border-collapse: collapse;
+                        border-spacing: 0;
+                        display: inline-block;
+                        margin: 0 2px;
+                        text-align: center;
+                        font-family: Verdana, Arial;
+                        font-size: 12px !important;
+                        font-weight: bold;
+                        line-height: normal;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        border: 1px solid #000;
+                        color: #fff;
+                        white-space: nowrap;
+                        padding: 3px 9px 3px 25px;
+                        background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #947a62 0%,#7b5c3d 22%,#6c4824 30%,#6c4824 100%);
+                        margin-bottom: 5px;
+                    ">C</button>
+                </div>
+                
+                <!-- Info Box -->
+                <div style="
+                    background: rgba(255,255,255,0.8);
+                    border: 1px solid #ccc;
+                    padding: 8px;
+                    margin-bottom: 15px;
+                    border-radius: 3px;
+                    font-size: 11px;
+                    color: #4a3728;
+                ">
+                    <div>250ms delay between clicks</div>
+                    <div>Auto-stops on bot detection</div>
+                    <div>Auto-stops when no units</div>
+                </div>
+                
+                <!-- Log Area -->
+                <div id="farmLog" style="
+                    background: #2a2a2a;
+                    color: #00ff00;
+                    border: 1px solid #555;
+                    padding: 8px;
+                    margin-bottom: 15px;
+                    border-radius: 3px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 10px;
+                    height: 120px;
+                    overflow-y: auto;
+                    display: none;
+                ">
+                    <div>Auto Farming Log:</div>
+                    <div>----------------</div>
+                </div>
+                
+                <!-- Progress -->
+                <div id="farmProgress" style="
+                    background: rgba(255,255,255,0.9);
+                    border: 1px solid #7d510f;
+                    padding: 10px;
+                    border-radius: 3px;
+                    display: none;
+                    font-weight: bold;
+                    color: #4a3728;
+                    text-align: center;
+                "></div>
+                
+                <!-- Cancel Button -->
+                <div style="text-align: center;">
+                    <button id="closeUI" style="
+                        direction: ltr;
+                        border-collapse: collapse;
+                        border-spacing: 0;
+                        display: inline-block;
+                        margin: 0 2px;
+                        text-align: center;
+                        font-family: Verdana, Arial;
+                        font-size: 12px !important;
+                        font-weight: bold;
+                        line-height: normal;
+                        cursor: pointer;
+                        border-radius: 5px;
+                        border: 1px solid #000;
+                        color: #fff;
+                        white-space: nowrap;
+                        padding: 3px 9px 3px 25px;
+                        background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #947a62 0%,#7b5c3d 22%,#6c4824 30%,#6c4824 100%);
+                        margin-bottom: 5px;
+                    ">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+            button:hover {
+                background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #a8916f 0%,#8b6b4a 22%,#7a5530 30%,#7a5530 100%) !important;
+            }
+            button:active {
+                background: url('https://dshu.innogamescdn.com/asset/afa3a1fb/graphic/btn/buttons.webp') no-repeat 3px -74px, linear-gradient(to bottom, #6c4824 0%,#5a3a1f 22%,#4a2f18 30%,#4a2f18 100%) !important;
+                transform: translateY(1px);
+            }
+        </style>
+    `;
+    
+    // Add UI to page
+    document.body.insertAdjacentHTML('beforeend', uiHTML);
+    
+    // Farming function
+    function startFarming(attackType) {
+        // Show log and hide buttons
+        document.querySelector('#farmingUI > div:nth-child(2) > div:nth-child(2)').style.display = 'none';
+        document.getElementById('farmLog').style.display = 'block';
+        document.getElementById('farmProgress').style.display = 'block';
+        document.getElementById('closeUI').style.display = 'none';
+        
+        var progressElm = document.getElementById('farmProgress');
+        var logElm = document.getElementById('farmLog');
+        var aButtons = document.querySelectorAll('.farm_icon_' + attackType);
+        
+        // Log function with max 10 lines
+        var logLines = ['Auto Farming Log:', '----------------'];
+        function addLog(message) {
+            var timestamp = new Date().toLocaleTimeString();
+            logLines.push('[' + timestamp + '] ' + message);
+            if (logLines.length > 12) logLines.splice(2, 1); // Keep header + max 10 lines
+            logElm.innerHTML = logLines.join('<br>');
+            logElm.scrollTop = logElm.scrollHeight;
+        }
+        
+        if (aButtons.length === 0) {
+            progressElm.innerHTML = "No " + attackType.toUpperCase() + " buttons found!";
+            progressElm.style.background = "#ffcccc";
+            addLog("ERROR: No " + attackType.toUpperCase() + " attack buttons found");
+            return;
+        }
+        
+        var total = aButtons.length;
+        var stopped = false;
+        var currentIndex = 0;
+        
+        progressElm.innerHTML = "Starting " + attackType.toUpperCase() + " attacks... Found " + total + " targets";
+        addLog("Starting " + attackType.toUpperCase() + " farming");
+        addLog("Found " + total + " targets");
+        
+        var clickNext = function() {
+            if (currentIndex >= total || stopped) {
+                var finalMsg = stopped ? "STOPPED!" : "Completed " + total + " " + attackType.toUpperCase() + " attacks!";
+                progressElm.innerHTML = finalMsg;
+                addLog(finalMsg);
+                if (!stopped) {
+                    progressElm.style.background = "#ccffcc";
+                    addLog("Farming completed successfully");
+                }
+                
+                // Add restart button
+                setTimeout(function() {
+                    progressElm.innerHTML += '<br><button onclick="document.getElementById(\'farmingUI\').remove()" style="margin-top:10px;padding:6px 15px;background:linear-gradient(to bottom, #007bff, #0056b3);color:white;border:1px solid #004085;border-radius:3px;cursor:pointer;font-weight:bold;">Start New</button>';
+                }, 1000);
+                return;
+            }
+            
+            try {
+                aButtons[currentIndex].click();
+                var progress = (currentIndex + 1) + " / " + total + " " + attackType.toUpperCase() + " attacks sent";
+                progressElm.innerHTML = progress;
+                
+                // Log every 10th attack or last attack
+                if ((currentIndex + 1) % 10 === 0 || currentIndex + 1 === total) {
+                    addLog("Sent " + (currentIndex + 1) + "/" + total + " attacks");
+                }
+                
+                currentIndex++;
+                setTimeout(clickNext, 250);
+            } catch (e) {
+                addLog("ERROR: Click failed at index " + currentIndex);
+                console.log("Click error:", e);
+                currentIndex++;
+                setTimeout(clickNext, 250);
+            }
+        };
+        
+        var checkForProblems = function() {
+            try {
+                // Check for bot protection
+                var botElement = document.getElementById('botprotection_quest');
+                var hasBotQuest = botElement !== null;
+                
+                // Check for units dialog
+                var hasUnitsDialog = Array.from(document.querySelectorAll('*')).some(function(el) {
+                    var text = el.textContent || '';
+                    return text.indexOf("Nem áll rendelkezésre elegendő egység") !== -1 ||
+                           text.indexOf("Not enough units available") !== -1 ||
+                           text.indexOf("Não há unidades suficientes") !== -1;
+                });
+                
+                if (hasBotQuest) {
+                    stopped = true;
+                    progressElm.innerHTML = "STOPPED - BOT PROTECTION DETECTED!";
+                    progressElm.style.background = "red";
+                    progressElm.style.color = "white";
+                    addLog("CRITICAL: Bot protection detected!");
+                    addLog("Script stopped for safety");
+                    console.log("BOTPROTECTION_QUEST DETECTED - STOPPING IMMEDIATELY");
+                    alert("BOT PROTECTION DETECTED! Script stopped! Refresh page manually!");
+                    return;
+                }
+                
+                if (hasUnitsDialog) {
+                    stopped = true;
+                    progressElm.innerHTML = "STOPPED - Not enough units!";
+                    progressElm.style.background = "#ffeb3b";
+                    addLog("STOPPED: Not enough units available");
+                    console.log("Not enough units dialog detected - stopping");
+                    return;
+                }
+                
+                if (!stopped) setTimeout(checkForProblems, 200);
+            } catch (e) {
+                if (!stopped) setTimeout(checkForProblems, 200);
+            }
+        };
+        
+        addLog("Monitoring for bot protection...");
+        console.log("Starting " + attackType.toUpperCase() + " farming with " + total + " targets");
+        checkForProblems();
+        clickNext();
+    }
+    
+    // Event listeners
+    document.getElementById('farmA').onclick = function() { startFarming('a'); };
+    document.getElementById('farmB').onclick = function() { startFarming('b'); };
+    document.getElementById('farmC').onclick = function() { startFarming('c'); };
+    document.getElementById('closeUI').onclick = function() { 
+        document.getElementById('farmingUI').remove(); 
+    };
+    
+    console.log("Farming UI loaded! Choose your attack type.");
+})();

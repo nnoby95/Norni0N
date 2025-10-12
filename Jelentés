@@ -1,0 +1,610 @@
+javascript: (function () {
+    // == Auto notes from report (Hungarian version) ==
+    // == v2.1 ==
+    // == Last Update: 2021-03-07 ==
+    // == Author: xdam98 (translated to Hungarian by norbertnagy95) ==
+    // == Contact: Xico#7941 (Discord) ==
+    
+    // A szkript csak a Klánháború (Tribal Wars) jelentésképernyőjén fut!
+    
+    var LS_prefix = "xd";
+
+    // Egyetlen, teljesen magyar fordítási táblázat
+    var huTranslation = {
+      unknown: "Ismeretlen",
+      verifyReportPage: "Ezt a szkriptet csak egy jelentés képernyőn lehet futtatni.",
+      offensive: "Támadó",
+      defensive: "Védő",
+      probOffensive: "Valószínűleg támadó",
+      probDefensive: "Valószínűleg védő",
+      noSurvivors: "Nem maradtak túlélő csapatok",
+      watchtower: "Őrtorony",
+      wall: "Fal",
+      firstChurch: "Első templom",
+      church: "Templom",
+      defensiveNukes: "védő nukek",
+      noteCreated: "Jegyzet létrehozva",
+      addReportTo: "Melyik faluba szeretnéd hozzáadni a jelentést:",
+      ramDamage: "Faltörő kos",
+      catapultDamage: "Katapult",
+      damageTo: "rombolás"
+    };
+
+      // Egyszerű fordítófüggvény: mindig magyar szöveggel tér vissza
+    function _t(key) {
+      return huTranslation[key] || key;
+    }
+
+    // Épület nevének átalakítása BBCode azonosítóra
+    function getBuildingBBCode(buildingName) {
+      var buildingMap = {
+        "Fal": "wall",
+        "falat": "wall",
+        "Főépület": "main",
+        "Főhadiszállás": "main",
+        "Kaszárnya": "barracks",
+        "Barakk": "barracks", 
+        "Műhely": "garage",
+        "Istálló": "stable",
+        "Akadémia": "snob",
+        "Őrtorony": "watchtower",
+        "Kovács": "smith",
+        "Kovácsműhely": "smith",
+        "Szobor": "statue",
+        "Gyülekezőtér": "place",
+        "Gyülekezőhely": "place",
+        "Piac": "market",
+        "Fafeldolgozó": "wood",
+        "Fatelep": "wood",
+        "Agyagbánya": "stone",
+        "Vasbánya": "iron",
+        "Gazdaság": "farm",
+        "Tanya": "farm",
+        "Raktár": "storage",
+        "Búvóhely": "hide"
+      };
+      return buildingMap[buildingName] || "wall"; // Alapértelmezett: fal
+    }
+
+    var CriarRelatorioNotas = {
+      dados: {
+        player: {
+          nomePlayer: game_data.player.name,
+          playerEstaAtacar: false,      // Játékos támad?
+          playerEstaDefender: false,    // Játékos védekezik?
+          playerQuerInfoAtacante: false,
+          playerQuerInfoDefensor: false
+        },
+          aldeia: {
+            ofensiva: {
+              idAldeia: "-1",
+              tipoAldeia: _t("unknown"),
+              tropas: {
+                totais: [],
+                ofensivas: 0,
+                defensivas: 0
+              }
+            },
+            defensiva: {
+              idAldeia: "-1",
+              tipoAldeia: _t("unknown"),
+              tropas: {
+                visiveis: false,
+                totais: [],
+                fora: {
+                  visiveis: false,
+                  ofensivas: 0,
+                  defensivas: 0,
+                  totais: []
+                },
+                dentro: {
+                  ofensivas: 0,
+                  defensivas: 0,
+                  totais: []
+                },
+                apoios: 0
+              },
+              edificios: {
+                edificiosVisiveis: false,
+                torre: [false, 0],
+                igrejaPrincipal: [false, 0],
+                igreja: [false, 0],
+                muralha: [false, 0]
+              },
+              danos: {
+                danosVisiveis: false,
+                faltoreroKos: {
+                  presente: false,
+                  edificio: "",
+                  nivelAnterior: 0,
+                  nivelAtual: 0
+                },
+                katapult: {
+                  presente: false,
+                  edificio: "",
+                  nivelAnterior: 0,
+                  nivelAtual: 0
+                }
+              }
+            }
+          },
+        mundo: {
+          fazendaPorTropa: [],
+          arqueirosAtivos: false
+        }
+      },
+
+      configs: {
+        esconderTropas: false
+      },
+
+      // Ellenőrzi, hogy jelentésoldalon vagyunk-e
+      verificarPagina: function () {
+        var matchArray = window.location.href.match(/(screen\=report){1}|(view\=){1}\w+/g);
+        if (!matchArray || matchArray.length !== 2) {
+          UI.ErrorMessage(_t("verifyReportPage"), 5000);
+          return false;
+        }
+        return true;
+      },
+
+      initConfigs: function () {
+        this.configs.esconderTropas = this.loadLSConfig("esconderTropas", false);
+      },
+
+      loadLSConfig: function (key, defaultValue) {
+        var stored = localStorage.getItem(LS_prefix + "_" + key);
+        return stored === null ? defaultValue : stored;
+      },
+
+      initDadosScript: function () {
+        var self = this;
+        // Ellenőrzi, van-e íjász a világon
+        this.dados.mundo.arqueirosAtivos = game_data.units.includes("archer");
+
+        // Tábla inicializálása íjászok függvényében
+        if (this.dados.mundo.arqueirosAtivos) {
+          // 10 egység (spear, sword, axe, archer, spy, light, marcher, heavy, ram, catapult)
+          this.dados.aldeia.ofensiva.tropas.totais = new Array(10).fill(0);
+          this.dados.aldeia.defensiva.tropas.totais = new Array(10).fill(0);
+          this.dados.aldeia.defensiva.tropas.fora.totais = new Array(10).fill(0);
+          this.dados.aldeia.defensiva.tropas.dentro.totais = new Array(10).fill(0);
+          // Farmkövetelmények
+          this.dados.mundo.fazendaPorTropa = [1, 1, 1, 1, 2, 4, 5, 6, 5, 8];
+        } else {
+          // 8 egység (spear, sword, axe, spy, light, heavy, ram, catapult)
+          this.dados.aldeia.ofensiva.tropas.totais = new Array(8).fill(0);
+          this.dados.aldeia.defensiva.tropas.totais = new Array(8).fill(0);
+          this.dados.aldeia.defensiva.tropas.fora.totais = new Array(8).fill(0);
+          this.dados.aldeia.defensiva.tropas.dentro.totais = new Array(8).fill(0);
+          // Farmkövetelmények
+          this.dados.mundo.fazendaPorTropa = [1, 1, 1, 2, 4, 6, 5, 8];
+        }
+
+        // Megkapja a támadó és védő játékosneveket
+        var nomeAtacante = $("#attack_info_att > tbody > tr:nth-child(1) > th:nth-child(2) > a").text(),
+            nomeDefensor = $("#attack_info_def > tbody > tr:nth-child(1) > th:nth-child(2) > a").text(),
+            indexURL = 3;
+
+        // Ha figyelünk másik fiókot (sitter), akkor eggyel magasabb index
+        if (game_data.player.sitter !== "0") {
+          indexURL = 4;
+        }
+
+        // Támadó falu ID
+        self.dados.aldeia.ofensiva.idAldeia = $("#attack_info_att > tbody > tr:nth-child(2) > td:nth-child(2) > span > a:nth-child(1)")
+          .url()
+          .split("=")[indexURL];
+
+        // Védő falu ID
+        self.dados.aldeia.defensiva.idAldeia = $("#attack_info_def > tbody > tr:nth-child(2) > td:nth-child(2) > span > a:nth-child(1)")
+          .url()
+          .split("=")[indexURL];
+
+        // Megállapítja, ki kicsoda
+        if (nomeDefensor === this.dados.player.nomePlayer) {
+          this.dados.player.playerEstaDefender = true;
+        } else if (nomeAtacante === this.dados.player.nomePlayer) {
+          this.dados.player.playerEstaAtacar = true;
+        }
+
+        // Kintlévő csapatok -> #attack_spy_away
+        if ($("#attack_spy_away > tbody > tr:nth-child(1) > th").length) {
+          this.dados.aldeia.defensiva.tropas.fora.visiveis = true;
+
+          if (this.dados.mundo.arqueirosAtivos) {
+            $("#attack_spy_away > tbody > tr:nth-child(2) > td > table > tbody > tr:nth-child(2) > td").each(function (idx, elem) {
+              var qtd = parseInt(elem.textContent);
+              if (idx < self.dados.aldeia.defensiva.tropas.totais.length) {
+                self.dados.aldeia.defensiva.tropas.fora.totais[idx] = qtd;
+              }
+              // Off vagy deff (farmköltés alapján)                    
+              if (idx === 2 || idx === 5 || idx === 6 || idx === 8) {
+                self.dados.aldeia.defensiva.tropas.fora.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              } else if (idx === 0 || idx === 1 || idx === 3 || idx === 7 || idx === 9) {
+                self.dados.aldeia.defensiva.tropas.fora.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              }
+            });
+          } else {
+            $("#attack_spy_away > tbody > tr:nth-child(2) > td > table > tbody > tr:nth-child(2) > td").each(function (idx, elem) {
+              var qtd = parseInt(elem.textContent);
+              if (idx < self.dados.aldeia.defensiva.tropas.totais.length) {
+                self.dados.aldeia.defensiva.tropas.fora.totais[idx] = qtd;
+              }
+              if (idx === 2 || idx === 4 || idx === 6) {
+                self.dados.aldeia.defensiva.tropas.fora.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              } else if (idx === 0 || idx === 1 || idx === 5 || idx === 7) {
+                self.dados.aldeia.defensiva.tropas.fora.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              }
+            });
+          }
+        }
+
+        // Bentlévő csapatok -> #attack_info_def_units
+        if ($("#attack_info_def_units > tbody > tr:nth-child(2) > td").length) {
+          this.dados.aldeia.defensiva.tropas.visiveis = true;
+        }
+
+        // Védői csapatok (támadó és védő oldalon) => "arkeiros" külön
+        if (this.dados.mundo.arqueirosAtivos) {
+          // Védőnél
+          if (this.dados.aldeia.defensiva.tropas.visiveis) {
+            $("#attack_info_def_units > tbody > tr:nth-child(2) > td.unit-item").each(function (idx, elem) {
+              var qtd = parseInt(elem.textContent);
+              if (idx < self.dados.aldeia.defensiva.tropas.totais.length) {
+                self.dados.aldeia.defensiva.tropas.dentro.totais[idx] = qtd;
+              }
+              if (idx === 2 || idx === 5 || idx === 6 || idx === 8) {
+                self.dados.aldeia.defensiva.tropas.dentro.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              } else if (idx === 0 || idx === 1 || idx === 3 || idx === 7 || idx === 9) {
+                self.dados.aldeia.defensiva.tropas.dentro.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              }
+            });
+          }
+          // Támadónál
+          $("#attack_info_att_units > tbody > tr:nth-child(2) > td.unit-item").each(function (idx, elem) {
+            var qtd = parseInt(elem.textContent);
+            if (idx < self.dados.aldeia.ofensiva.tropas.totais.length) {
+              self.dados.aldeia.ofensiva.tropas.totais[idx] = qtd;
+            }
+            if (idx === 2 || idx === 5 || idx === 6) {
+              self.dados.aldeia.ofensiva.tropas.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+            } else if (idx === 0 || idx === 1 || idx === 3 || idx === 7 || idx === 9) {
+              self.dados.aldeia.ofensiva.tropas.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+            }
+          });
+        } else {
+          // Nincs íjász
+          if (this.dados.aldeia.defensiva.tropas.visiveis) {
+            $("#attack_info_def_units > tbody > tr:nth-child(2) > td.unit-item").each(function (idx, elem) {
+              var qtd = parseInt(elem.textContent);
+              if (idx < self.dados.aldeia.defensiva.tropas.totais.length) {
+                self.dados.aldeia.defensiva.tropas.dentro.totais[idx] = qtd;
+              }
+              if (idx === 2 || idx === 4 || idx === 6) {
+                self.dados.aldeia.defensiva.tropas.dentro.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              } else if (idx === 0 || idx === 1 || idx === 5 || idx === 7) {
+                self.dados.aldeia.defensiva.tropas.dentro.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+              }
+            });
+          }
+          // Támadónál
+          $("#attack_info_att_units > tbody > tr:nth-child(2) > td.unit-item").each(function (idx, elem) {
+            var qtd = parseInt(elem.textContent);
+            if (idx < self.dados.aldeia.ofensiva.tropas.totais.length) {
+              self.dados.aldeia.ofensiva.tropas.totais[idx] = qtd;
+            }
+            if (idx === 2 || idx === 4 || idx === 6) {
+              self.dados.aldeia.ofensiva.tropas.ofensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+            } else if (idx === 0 || idx === 1 || idx === 5 || idx === 7) {
+              self.dados.aldeia.ofensiva.tropas.defensivas += qtd * self.dados.mundo.fazendaPorTropa[idx];
+            }
+          });
+        }
+
+        // Látható épületek -> #attack_spy_buildings_left
+        if ($("#attack_spy_buildings_left > tbody > tr:nth-child(1) > th:nth-child(1)").length) {
+          this.dados.aldeia.defensiva.edificios.edificiosVisiveis = true;
+          $("table[id^='attack_spy_buildings_'] > tbody > tr:gt(0) > td > img").each(function (idx, elem) {
+            var srcName = elem.src.split("/")[7].replace(".png", ""),
+                lvl = parseInt(elem.parentNode.parentNode.childNodes[3].textContent);
+            if (srcName === "watchtower") {
+              self.dados.aldeia.defensiva.edificios.torre = [true, lvl];
+            } else if (srcName === "church_f") {
+              self.dados.aldeia.defensiva.edificios.igrejaPrincipal = [true, lvl];
+            } else if (srcName === "church") {
+              self.dados.aldeia.defensiva.edificios.igreja = [true, lvl];
+            } else if (srcName === "wall") {
+              self.dados.aldeia.defensiva.edificios.muralha = [true, lvl];
+            }
+          });
+        }
+
+        // Épületkárok -> #attack_results
+        if ($("#attack_results > tbody > tr").length) {
+          this.dados.aldeia.defensiva.danos.danosVisiveis = true;
+          
+          // Faltörő kos károk
+          $("#attack_results > tbody > tr").each(function (idx, elem) {
+            var headerText = $(elem).find("th").text();
+            var damageText = $(elem).find("td").text();
+            
+            if (headerText.includes("Faltörő kosok által okozott rombolás")) {
+              // Ram damage: "A falat találat érte és 8. szintről 0 szintre sérült"
+              var matches = damageText.match(/A\s+(\w+)\s+találat.*?(\d+).*?szintről.*?(\d+).*?szintre/);
+              if (matches) {
+                self.dados.aldeia.defensiva.danos.faltoreroKos = {
+                  presente: true,
+                  edificio: matches[1] || "falat",
+                  nivelAnterior: parseInt(matches[2]) || 0,
+                  nivelAtual: parseInt(matches[3]) || 0
+                };
+              }
+            } else if (headerText.includes("Katapultok által okozott rombolás")) {
+              // Catapult damage: "A(z) Kovácsműhely megrongálódott, és 15. szintről 10. szintre sérült"
+              var matches = damageText.match(/A\(z\)\s+([^\s,]+).*?(\d+).*?szintről.*?(\d+).*?szintre/);
+              if (matches) {
+                self.dados.aldeia.defensiva.danos.katapult = {
+                  presente: true,
+                  edificio: matches[1] || "Épület",
+                  nivelAnterior: parseInt(matches[2]) || 0,
+                  nivelAtual: parseInt(matches[3]) || 0
+                };
+              }
+            }
+          });
+        }
+      },
+
+      getTipoAldeia: function () {
+        // Milyen típusú a védekező falu?
+        if (this.dados.aldeia.defensiva.tropas.visiveis) {
+          var defInside = this.dados.aldeia.defensiva.tropas.dentro;
+          if (defInside.ofensivas > 3000) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("offensive");
+          } else if (defInside.ofensivas > 500) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("probOffensive");
+          } else if (defInside.defensivas > 1000) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("defensive");
+          } else if (defInside.defensivas > 500) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("probDefensive");
+          }
+          this.dados.aldeia.defensiva.tropas.apoios = Math.round(
+            (defInside.defensivas / 20000) * 10
+          ) / 10;
+        } else {
+          // Ha nem látható, akkor nincs túlélő
+          if (!this.dados.aldeia.defensiva.tropas.visiveis) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("noSurvivors");
+          }
+        }
+
+        // Kintlévők
+        if (this.dados.aldeia.defensiva.tropas.fora.visiveis) {
+          var defFora = this.dados.aldeia.defensiva.tropas.fora;
+          if (defFora.ofensivas > 3000) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("offensive");
+          } else if (defFora.ofensivas > 1000) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("probOffensive");
+          } else if (defFora.defensivas > 1000) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("defensive");
+          } else if (defFora.defensivas > 500) {
+            this.dados.aldeia.defensiva.tipoAldeia = _t("probDefensive");
+          } else if (defFora.defensivas + defFora.ofensivas > 1000) {
+            if (defFora.ofensivas > defFora.defensivas) {
+              this.dados.aldeia.defensiva.tipoAldeia = _t("probOffensive");
+            } else {
+              this.dados.aldeia.defensiva.tipoAldeia = _t("probDefensive");
+            }
+          }
+          this.dados.aldeia.defensiva.tropas.apoios += Math.round(
+            (defFora.defensivas / 20000) * 10
+          ) / 10;
+        }
+
+        // Támadó falu típus
+        if (
+          this.dados.aldeia.ofensiva.tropas.ofensivas >
+          this.dados.aldeia.ofensiva.tropas.defensivas
+        ) {
+          this.dados.aldeia.ofensiva.tipoAldeia = _t("offensive");
+        } else if (
+          this.dados.aldeia.ofensiva.tropas.ofensivas <
+          this.dados.aldeia.ofensiva.tropas.defensivas
+        ) {
+          this.dados.aldeia.ofensiva.tipoAldeia = _t("defensive");
+        }
+      },
+
+      geraTextoNota: function () {
+        var tipoEscolhido,
+            reportBBCode = $("#report_export_code").text(),
+            // Kifejezetten a jelentés címe vagy valami információ
+            infoRapida = $("#content_value > table > tbody > tr > td:nth-child(2) > table > tbody > tr > td > table:nth-child(2) > tbody > tr:nth-child(2)")
+              .text()
+              .replace(/\s+/g, " ")
+              .replace(/.{5}$/g, ""),
+            s = "";
+
+        // Eldöntjük, védő vagy támadó falu információját írjuk-e be
+        if (this.dados.player.playerEstaAtacar || this.dados.player.playerQuerInfoDefensor) {
+          tipoEscolhido = this.dados.aldeia.defensiva.tipoAldeia;
+        }
+
+        if (this.dados.player.playerEstaAtacar && !this.dados.player.playerQuerInfoAtacante) {
+          // Marad a védő
+        } else {
+          // Ha a játékos a támadó faluról kér infót, esetleg
+          tipoEscolhido = this.dados.aldeia.ofensiva.tipoAldeia;
+        }
+
+        if (!this.dados.player.playerEstaAtacar && this.dados.player.playerQuerInfoDefensor) {
+          tipoEscolhido = this.dados.aldeia.defensiva.tipoAldeia;
+        }
+
+        // Szín + Off/Deff
+        s +=
+          " | [color=#" +
+          (tipoEscolhido === _t("offensive") || tipoEscolhido === _t("probOffensive") ? "ff0000" : "0eae0e") +
+          "][b]" +
+          tipoEscolhido +
+          "[/b][/color] | ";
+
+        // Épület-információ, ha mi vagyunk a támadók vagy védőt nézzük
+        if (this.dados.player.playerEstaAtacar || this.dados.player.playerQuerInfoDefensor) {
+          var defEd = this.dados.aldeia.defensiva.edificios;
+          if (defEd.torre[0]) {
+            s += "[building]watchtower[/building] " + _t("watchtower") + defEd.torre[1] + " | ";
+          }
+          if (defEd.muralha[0]) {
+            s += "[building]wall[/building][color=#5c3600][b] " + _t("wall") + defEd.muralha[1] + "[/b][/color] | ";
+          }
+          if (defEd.igrejaPrincipal[0]) {
+            s += "[building]church_f[/building] " + _t("firstChurch") + " | ";
+          }
+          if (defEd.igreja[0]) {
+            s += "[building]church_f[/building] " + _t("church") + " " + defEd.igreja[1] + " | ";
+          }
+          // Ha látható a védő csapat és nem off faluról van szó
+          if (
+            this.dados.aldeia.defensiva.tropas.visiveis &&
+            tipoEscolhido !== _t("offensive") &&
+            tipoEscolhido !== _t("probOffensive")
+          ) {
+            s += this.dados.aldeia.defensiva.tropas.apoios + _t("defensiveNukes") + " | ";
+          }
+        }
+
+        // Épületkárok külön sorban, a spoiler előtt
+        var damageInfo = "";
+        if (this.dados.aldeia.defensiva.danos.danosVisiveis) {
+          if (this.dados.aldeia.defensiva.danos.faltoreroKos.presente) {
+            var ramDmg = this.dados.aldeia.defensiva.danos.faltoreroKos;
+            var buildingCode = getBuildingBBCode(ramDmg.edificio);
+            damageInfo += "[unit]ram[/unit]: [building]" + buildingCode + "[/building]" + 
+                         ramDmg.nivelAnterior + "---->" + ramDmg.nivelAtual + " | ";
+          }
+          if (this.dados.aldeia.defensiva.danos.katapult.presente) {
+            var catDmg = this.dados.aldeia.defensiva.danos.katapult;
+            var buildingCode = getBuildingBBCode(catDmg.edificio);
+            damageInfo += "[unit]catapult[/unit]: [building]" + buildingCode + "[/building]" + 
+                         catDmg.nivelAnterior + "---->" + catDmg.nivelAtual + " | ";
+          }
+        }
+
+        s += "[b][size=6]xD[/size][/b]";     // Vicces "aláírás"
+        
+        // Épületkárok hozzáadása külön sorban
+        if (damageInfo) {
+          s += "\n" + damageInfo.slice(0, -3); // Eltávolítjuk az utolsó " | "-t
+        }
+        s += "\n\n[b]" + infoRapida + "[/b]";
+        s += reportBBCode;                 // A jelentés BB-kódja
+        return s;
+      },
+
+      escreveNota: function () {
+        var noteText,
+            self = this,
+            villageID;
+
+        // A választott falu (támadó vagy védő) ID-je
+        if (this.dados.player.playerEstaAtacar || this.dados.player.playerQuerInfoDefensor) {
+          villageID = parseInt(this.dados.aldeia.defensiva.idAldeia);
+        } else {
+          villageID = parseInt(this.dados.aldeia.ofensiva.idAldeia);
+        }
+
+        // Endpoint a jegyzet szerkesztéséhez
+        var requestURL;
+        if (game_data.player.sitter === "0") {
+          requestURL =
+            "https://" +
+            location.hostname +
+            "/game.php?village=" +
+            game_data.village.id +
+            "&screen=api&ajaxaction=village_note_edit&h=" +
+            game_data.csrf +
+            "&client_time=" +
+            Math.round(Timing.getCurrentServerTime() / 1000);
+        } else {
+          // Ha sitter van
+          requestURL =
+            "https://" +
+            location.hostname +
+            "/game.php?village=" +
+            game_data.village.id +
+            "&screen=api&ajaxaction=village_note_edit&t=" +
+            game_data.player.id;
+        }
+
+        // Ha a játékos támadó vagy védő
+        if (this.dados.player.playerEstaAtacar || this.dados.player.playerEstaDefender) {
+          noteText = self.geraTextoNota();
+          $.post(
+            requestURL,
+            { note: noteText, village_id: villageID, h: game_data.csrf },
+            function () {
+              UI.SuccessMessage(_t("noteCreated"), 2000);
+            }
+          );
+        } else {
+          // Választási lehetőség: hova tegye a jelentést?
+          var dialogHeader = $('<div class="center"> ' + _t("addReportTo") + " </div>");
+          // Két gomb: Támadó / Védő
+          var dialogButtons = $(
+            '<div class="center">' +
+              '<button class="btn btn-confirm-yes atk">Támadó</button>' +
+              '<button class="btn btn-confirm-yes def">Védő</button>' +
+            "</div>"
+          );
+
+          var container = dialogHeader.add(dialogButtons);
+          Dialog.show("relatorio_notas", container);
+
+          // Ha "Támadó" gombra kattint
+          dialogButtons.find("button.atk").click(function () {
+            self.dados.player.playerQuerInfoAtacante = true;
+            noteText = self.geraTextoNota();
+            $.post(
+              requestURL,
+              { note: noteText, village_id: self.dados.aldeia.ofensiva.idAldeia, h: game_data.csrf },
+              function () {
+                UI.SuccessMessage(_t("noteCreated"), 2000);
+              }
+            );
+            Dialog.close();
+          });
+
+          // Ha "Védő" gombra kattint
+          dialogButtons.find("button.def").click(function () {
+            self.dados.player.playerQuerInfoDefensor = true;
+            noteText = self.geraTextoNota();
+            $.post(
+              requestURL,
+              { note: noteText, village_id: self.dados.aldeia.defensiva.idAldeia, h: game_data.csrf },
+              function () {
+                UI.SuccessMessage(_t("noteCreated"), 2000);
+              }
+            );
+            Dialog.close();
+          });
+        }
+      },
+
+      start: function () {
+        if (this.verificarPagina()) {
+          this.initDadosScript();
+          this.getTipoAldeia();
+          this.escreveNota();
+        }
+      }
+    };
+
+    // Nincs többnyelvűség; minden egyből magyar
+    // Elindítjuk a szkriptet
+    CriarRelatorioNotas.start();
+
+    // Opcionális számláló API (ezt hagyhatod vagy törölheted)
+    $.getJSON("https://api.countapi.xyz/hit/xdamScripts/scriptCriarNotaRelatorio");
+})();
