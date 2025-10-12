@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "Tribal Wars hCaptcha Auto-Solver",
+  "version": "1.0.0",
+  "description": "Automatically solves hCaptcha challenges in Tribal Wars using 2captcha or CapSolver API",
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "webRequest"
+  ],
+  
+  "host_permissions": [
+    "https://*.tribalwars.net/*",
+    "https://*.klanhaboru.hu/*",
+    "https://hcaptcha.com/*",
+    "https://*.hcaptcha.com/*",
+    "https://2captcha.com/*",
+    "https://api.capsolver.com/*",
+    "<all_urls>"
+  ],
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.tribalwars.net/game.php*",
+        "https://*.klanhaboru.hu/game.php*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://newassets.hcaptcha.com/*",
+        "https://*.hcaptcha.com/*"
+      ],
+      "js": ["hcaptcha-iframe.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "hCaptcha Auto-Solver"
+  },
+  
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

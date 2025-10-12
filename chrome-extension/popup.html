@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>hCaptcha Auto-Solver</title>
+    <style>
+        body {
+            width: 400px;
+            min-height: 500px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+        }
+        
+        .btn-secondary {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #f57c00;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .status.error {
+            border-left-color: #f44336;
+        }
+        
+        .status.warning {
+            border-left-color: #ff9800;
+        }
+        
+        .status h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .status p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+        }
+        
+        .stats h3 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .stats-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .links a {
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            margin: 0 10px;
+            opacity: 0.8;
+        }
+        
+        .links a:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 hCaptcha Auto-Solver</h1>
+        <p>Automatically solve hCaptcha challenges in Tribal Wars</p>
+    </div>
+    
+    <div class="content">
+        <form id="config-form">
+            <div class="form-group">
+                <label for="service">Solving Service:</label>
+                <select id="service" name="service">
+                    <option value="2captcha">2captcha ($2.99/1000 solves)</option>
+                    <option value="capsolver">CapSolver ($0.8-2/1000 solves)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="api-key">API Key:</label>
+                <input type="text" id="api-key" name="apiKey" placeholder="Enter your API key">
+            </div>
+            
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="auto-solve" name="autoSolve">
+                    <label for="auto-solve">Enable Auto-Solve</label>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button type="button" id="save-btn" class="btn btn-primary">💾 Save</button>
+                <button type="button" id="test-btn" class="btn btn-secondary">🧪 Test API</button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Testing API connection...</p>
+        </div>
+        
+        <div class="status" id="status" style="display: none;">
+            <h3 id="status-title">Status</h3>
+            <p id="status-message">Ready</p>
+        </div>
+        
+        <div class="stats" id="stats">
+            <h3>📊 Statistics</h3>
+            <div class="stats-row">
+                <span>Total Solves:</span>
+                <span id="solve-count">0</span>
+            </div>
+            <div class="stats-row">
+                <span>Last Solve:</span>
+                <span id="last-solve">Never</span>
+            </div>
+            <div class="stats-row">
+                <span>Current Status:</span>
+                <span id="current-status">idle</span>
+            </div>
+        </div>
+        
+        <div class="links">
+            <a href="https://2captcha.com" target="_blank">Get 2captcha API Key</a>
+            <a href="https://capsolver.com" target="_blank">Get CapSolver API Key</a>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
