@@ -4398,75 +4398,113 @@ function norbi0n_farm_injectFarmGod(ref) {
 		script.textContent = `(function() {
 			console.log('🚜 Norbi0N FarmGod automation initializing...');
 			const FarmHandler = {
-				pressTimer: null, progressTimer: null, botDetectionTimer: null,
-				totalPresses: 0, isRunning: false, startTime: null,
+				farmTimer: null, totalClicks: 0, isRunning: false, isPaused: false,
+				startTime: null, recheckTimeout: null,
 				startFarming: function() {
-					console.log('Starting continuous farming...');
-					this.isRunning = true; this.totalPresses = 0; this.startTime = Date.now();
+					console.log('Starting continuous farming with button clicking...');
+					this.isRunning = true; this.isPaused = false; this.totalClicks = 0; this.startTime = Date.now();
 					const self = this;
-					this.pressTimer = setInterval(() => self.pressEnter(), 100);
-					this.progressTimer = setInterval(() => self.monitorProgress(), 100);
-					this.botDetectionTimer = setInterval(() => self.checkBotProtection(), 80);
+					this.farmTimer = setInterval(() => {
+						if (self.isPaused) return;
+						if (self.checkBotProtection()) return;
+						if (self.monitorProgress()) return;
+						self.clickFarmButton();
+					}, 220);
+				},
+				detectBotProtection: function() {
+					try {
+						if (document.getElementById('botprotection_quest')) return 'botprotection_quest element';
+						if (document.querySelector('.bot-protection-row')) return '.bot-protection-row element';
+						if (document.querySelector('.captcha')) return '.captcha element';
+						const bodyText = document.body.textContent || document.body.innerText || '';
+						if (bodyText.indexOf('Bot védelem') !== -1) return '"Bot védelem" text';
+						if (bodyText.indexOf('Kezdd meg a botvédelem ellenőrzését') !== -1) return '"Kezdd meg a botvédelem ellenőrzését" text';
+						if (bodyText.indexOf('botvédelem ellenőrzését') !== -1) return '"botvédelem ellenőrzését" text';
+						if (bodyText.indexOf('Start the bot protection check') !== -1) return '"Start the bot protection check" text';
+					} catch (error) {
+						console.error('Error in detectBotProtection:', error);
+					}
+					return null;
 				},
 				checkBotProtection: function() {
-					if (!this.isRunning) return;
-					const botElement = document.getElementById('botprotection_quest');
-					if (botElement) {
-						console.log('BOT PROTECTION DETECTED IN FARM TAB!');
-						this.stopFarming();
-						if (window.opener) {
-							window.opener.postMessage({
-								source: 'norbi_farm_bot_detection',
-								message: 'Bot detected while farming - farming stopped',
-								detectionMethod: 'botprotection_quest',
-								totalPresses: this.totalPresses,
-								timestamp: Date.now()
-							}, '*');
+					if (!this.isRunning) return false;
+					const detectionMethod = this.detectBotProtection();
+					if (detectionMethod) {
+						if (!this.isPaused) {
+							console.log('BOT PROTECTION DETECTED! Method: ' + detectionMethod);
+							console.log('Pausing farming for 10 seconds... (captcha solver working)');
+							this.isPaused = true;
+							const self = this;
+							this.recheckTimeout = setTimeout(() => {
+								console.log('Rechecking bot protection after 10 seconds...');
+								const recheckMethod = self.detectBotProtection();
+								if (recheckMethod) {
+									console.log('BOT PROTECTION STILL PRESENT! Method: ' + recheckMethod);
+									console.log('Captcha solver failed or timeout. Stopping farming...');
+									self.stopFarming();
+									if (window.opener) {
+										window.opener.postMessage({
+											source: 'norbi_farm_bot_detection',
+											message: 'Bot protection detected - farming stopped after recheck',
+											detectionMethod: recheckMethod,
+											totalClicks: self.totalClicks,
+											timestamp: Date.now()
+										}, '*');
+									}
+									localStorage.setItem('norbi_farm_result', JSON.stringify({
+										status: 'error',
+										message: 'Bot protection detected - farming stopped after recheck',
+										error: 'Bot protection still present after 10 seconds',
+										detectionMethod: recheckMethod,
+										totalClicks: self.totalClicks,
+										timestamp: Date.now()
+									}));
+								} else {
+									console.log('BOT PROTECTION CLEARED! Captcha solver successful!');
+									console.log('Resuming farming...');
+									self.isPaused = false;
+								}
+							}, 10000);
 						}
-						localStorage.setItem('norbi_farm_result', JSON.stringify({
-							status: 'error',
-							message: 'Bot detected while farming',
-							error: 'Bot protection quest appeared',
-							totalPresses: this.totalPresses,
-							timestamp: Date.now()
-						}));
+						return true;
 					}
+					return false;
 				},
-				pressEnter: function() {
+				clickFarmButton: function() {
 					if (!this.isRunning) return;
-					const createKeyEvent = (type) => new KeyboardEvent(type, {
-						key: 'Enter',
-						code: 'Enter',
-						keyCode: 13,
-						which: 13,
-						bubbles: true,
-						cancelable: true
-					});
-					document.dispatchEvent(createKeyEvent('keydown'));
-					document.dispatchEvent(createKeyEvent('keyup'));
-					if (document.activeElement) {
-						document.activeElement.dispatchEvent(createKeyEvent('keydown'));
-						document.activeElement.dispatchEvent(createKeyEvent('keyup'));
-					}
-					this.totalPresses++;
-					if (this.totalPresses % 50 === 0) {
-						console.log(\`Enter pressed \${this.totalPresses} times\`);
+					try {
+						const buttonA = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_a');
+						const buttonB = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_b');
+						const button = buttonA || buttonB;
+						if (button) {
+							button.click();
+							this.totalClicks++;
+							if (this.totalClicks % 50 === 0) {
+								console.log(\`Clicked farm button \${this.totalClicks} times\`);
+							}
+						} else {
+							if (this.totalClicks % 50 === 0) {
+								console.log('No farm button found, waiting...');
+							}
+						}
+					} catch (error) {
+						console.error('Error clicking farm button:', error);
 					}
 				},
 				monitorProgress: function() {
-					if (!this.isRunning) return;
+					if (!this.isRunning) return false;
 					const progressBar = document.getElementById('FarmGodProgessbar');
-					if (!progressBar) return;
+					if (!progressBar) return false;
 					const labelSpan = progressBar.querySelector('span.label');
-					if (!labelSpan) return;
+					if (!labelSpan) return false;
 					const cleanText = labelSpan.innerText || labelSpan.textContent;
 					const parts = cleanText.split(' / ');
-					if (parts.length !== 2) return;
+					if (parts.length !== 2) return false;
 					let currentStr = parts[0].trim().replace(/\\./g, '');
 					let totalStr = parts[1].trim().replace(/\\./g, '');
 					const current = parseInt(currentStr);
 					const total = parseInt(totalStr);
-					if (isNaN(current) || isNaN(total)) return;
+					if (isNaN(current) || isNaN(total)) return false;
 					const percentage = total > 0 ? (current / total) * 100 : 0;
 					if (current >= total) {
 						console.log('Farming completed!');
@@ -4478,19 +4516,29 @@ function norbi0n_farm_injectFarmGod(ref) {
 							status: 'success',
 							message: 'Farming completed successfully',
 							villages: total,
-							totalPresses: this.totalPresses,
+							totalClicks: this.totalClicks,
 							finalProgress: cleanText,
 							timeMinutes: minutes,
 							timeSeconds: seconds,
 							timestamp: Date.now()
 						}));
 						setTimeout(() => window.close(), 3000);
+						return true;
 					}
+					return false;
 				},
 				stopFarming: function() {
 					this.isRunning = false;
-					clearInterval(this.pressTimer); clearInterval(this.progressTimer); clearInterval(this.botDetectionTimer);
-					console.log(\`Stopped. Total presses: \${this.totalPresses}\`);
+					this.isPaused = false;
+					if (this.farmTimer) {
+						clearInterval(this.farmTimer);
+						this.farmTimer = null;
+					}
+					if (this.recheckTimeout) {
+						clearTimeout(this.recheckTimeout);
+						this.recheckTimeout = null;
+					}
+					console.log(\`Stopped. Total clicks: \${this.totalClicks}\`);
 				}
 			};
 			setTimeout(() => {
@@ -4512,7 +4560,28 @@ function norbi0n_farm_injectFarmGod(ref) {
 							const planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
 							if (planButton) {
 								planButton.click();
-								setTimeout(() => FarmHandler.startFarming(), 3000);
+								console.log('Waiting for loading throbber to disappear...');
+								function waitForThrobberToDisappear(callback) {
+									const checkInterval = setInterval(() => {
+										const throbber = document.querySelector('img[src="/graphic/throbber.gif"]');
+										if (!throbber) {
+											console.log('Throbber disappeared, loading complete!');
+											clearInterval(checkInterval);
+											callback();
+										} else {
+											console.log('Still loading... (throbber visible)');
+										}
+									}, 500);
+									setTimeout(() => {
+										clearInterval(checkInterval);
+										console.log('Throbber wait timeout, continuing anyway...');
+										callback();
+									}, 30000);
+								}
+								waitForThrobberToDisappear(() => {
+									console.log('Farm plan created, starting farming...');
+									FarmHandler.startFarming();
+								});
 							} else {
 								console.error('Farm button not found');
 								localStorage.setItem('norbi_farm_result', JSON.stringify({
@@ -4629,7 +4698,7 @@ function szem4_norbi0n_farm_motor() {
 								const data = JSON.parse(result);
 								if (data.status === 'success') {
 									const timeMsg = data.timeMinutes > 0 ? `${data.timeMinutes}m ${data.timeSeconds}s` : `${data.timeSeconds}s`;
-									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.totalPresses} klikk`);
+									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.totalClicks || data.totalPresses} klikk`);
 									SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
 									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
 									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
@@ -4855,9 +4924,8 @@ function norbi0n_farm_loadSettings() {
 ujkieg_hang("Norbi0N_Farm", "norbi0n_start;norbi0n_complete");
 ujkieg("norbi0n_farm", "Norbi0N Farming", `<tr><td>
 	<h2 align="center">🚜 Norbi0N Farming Engine</h2>
-	<h4 align="center">FarmGod Automation - Auto ENTER Press</h4>
 	<p align="center"><i>A hivatalos FarmGod scriptet használja az AKTUÁLIS faluban.<br>Uses official FarmGod script on CURRENT village.</i></p>
-	<p align="center"><b>🔴 Bot detektálás: 200ms | 🟢 ENTER nyomás: 100ms</b></p>
+	<p align="center"><b>🔴 Bot védelem: 7 módszer + újraellenőrzés | 🟢 Gomb kattintás: 220ms</b></p>
 	<br>
 	<form id="norbi0n_farm_settings" onchange="norbi0n_farm_updateSettings()">
 		<table class="vis" style="margin: auto;">
