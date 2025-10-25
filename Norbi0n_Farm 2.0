@@ -293,84 +293,112 @@ const NorbiFarmEngine = {
                                                 if (planButton) {
                                                     console.log('Found Farm megtervezése button, clicking...');
                                                     planButton.click();
-                                                    
-                                                    // Wait for farming plan to be created, then start continuous farming
-                                                    setTimeout(function() {
+
+                                                    // Wait for loading throbber to disappear before starting farming
+                                                    console.log('Waiting for loading throbber to disappear...');
+
+                                                    function waitForThrobberToDisappear(callback) {
+                                                        var checkInterval = setInterval(function() {
+                                                            var throbber = document.querySelector('img[src="/graphic/throbber.gif"]');
+
+                                                            if (!throbber) {
+                                                                console.log('Throbber disappeared, loading complete!');
+                                                                clearInterval(checkInterval);
+                                                                callback();
+                                                            } else {
+                                                                console.log('Still loading... (throbber visible)');
+                                                            }
+                                                        }, 500); // Check every 500ms
+
+                                                        // Timeout after 30 seconds
+                                                        setTimeout(function() {
+                                                            clearInterval(checkInterval);
+                                                            console.log('Throbber wait timeout, continuing anyway...');
+                                                            callback();
+                                                        }, 30000);
+                                                    }
+
+                                                    // Wait for throbber to disappear, then start farming
+                                                    waitForThrobberToDisappear(function() {
                                                         console.log('Farm plan created, now starting continuous farming...');
                                                         
-                                                        // Start the continuous farming process using Helper.js logic
+                                                        // Start the continuous farming process with button clicking
                                                         var farmHandler = {
-                                                            pressTimer: null,
-                                                            progressTimer: null,
-                                                            botDetectionTimer: null,
-                                                            totalPresses: 0,
+                                                            farmTimer: null,
+                                                            totalClicks: 0,
                                                             isRunning: false,
+                                                            isPaused: false,
                                                             startTime: null,
-                                                            
+                                                            recheckTimeout: null,
+
                                                             startFarming: function() {
-                                                                console.log('Starting continuous Enter pressing and progress monitoring...');
+                                                                console.log('Starting continuous farming with button clicking...');
                                                                 this.isRunning = true;
-                                                                this.totalPresses = 0;
+                                                                this.isPaused = false;
+                                                                this.totalClicks = 0;
                                                                 this.startTime = Date.now();
                                                                 var self = this;
-                                                                
-                                                                // Start continuous Enter pressing
-                                                                this.pressTimer = setInterval(function() {
-                                                                    self.pressEnter();
-                                                                }, 100);
-                                                                
-                                                                // Start progress monitoring
-                                                                this.progressTimer = setInterval(function() {
-                                                                    self.monitorProgress();
-                                                                }, 100);
-                                                                
-                                                                // Start bot protection detection
-                                                                this.botDetectionTimer = setInterval(function() {
-                                                                    self.checkBotProtection();
-                                                                }, 80); // Check every 80ms as requested
+
+                                                                // Start single interval: bot check -> progress check -> button click
+                                                                this.farmTimer = setInterval(function() {
+                                                                    // Skip if paused (waiting for bot protection recheck)
+                                                                    if (self.isPaused) {
+                                                                        return;
+                                                                    }
+
+                                                                    // Step 1: Check bot protection first
+                                                                    if (self.checkBotProtection()) {
+                                                                        return; // Paused, waiting for recheck
+                                                                    }
+
+                                                                    // Step 2: Check progress
+                                                                    if (self.monitorProgress()) {
+                                                                        return; // Stop if farming completed
+                                                                    }
+
+                                                                    // Step 3: Click farm button
+                                                                    self.clickFarmButton();
+                                                                }, 220); // Check and click every 220ms
                                                             },
                                                             
-                                                            pressEnter: function() {
+                                                            clickFarmButton: function() {
                                                                 if (!this.isRunning) return;
-                                                                
+
                                                                 try {
-                                                                    var enterDownEvent = new KeyboardEvent('keydown', {
-                                                                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-                                                                        bubbles: true, cancelable: true
-                                                                    });
-                                                                    
-                                                                    var enterUpEvent = new KeyboardEvent('keyup', {
-                                                                        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-                                                                        bubbles: true, cancelable: true
-                                                                    });
-                                                                    
-                                                                    document.dispatchEvent(enterDownEvent);
-                                                                    document.dispatchEvent(enterUpEvent);
-                                                                    
-                                                                    if (document.activeElement) {
-                                                                        document.activeElement.dispatchEvent(enterDownEvent);
-                                                                        document.activeElement.dispatchEvent(enterUpEvent);
-                                                                    }
-                                                                    
-                                                                    this.totalPresses++;
-                                                                    
-                                                                    if (this.totalPresses % 50 === 0) {
-                                                                        console.log('Pressed Enter ' + this.totalPresses + ' times');
+                                                                    // Look for farm buttons (A or B)
+                                                                    var buttonA = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_a');
+                                                                    var buttonB = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_b');
+
+                                                                    // Click whichever button is available
+                                                                    var button = buttonA || buttonB;
+
+                                                                    if (button) {
+                                                                        button.click();
+                                                                        this.totalClicks++;
+
+                                                                        if (this.totalClicks % 50 === 0) {
+                                                                            console.log('Clicked farm button ' + this.totalClicks + ' times');
+                                                                        }
+                                                                    } else {
+                                                                        // No button found - just wait for next cycle
+                                                                        if (this.totalClicks % 50 === 0) {
+                                                                            console.log('No farm button found, waiting...');
+                                                                        }
                                                                     }
                                                                 } catch (error) {
-                                                                    console.error('Error pressing Enter:', error);
+                                                                    console.error('Error clicking farm button:', error);
                                                                 }
                                                             },
                                                             
                                                             monitorProgress: function() {
-                                                                if (!this.isRunning) return;
+                                                                if (!this.isRunning) return false;
                                                                 
                                                                 try {
                                                                     var progressBar = document.getElementById('FarmGodProgessbar');
-                                                                    if (!progressBar) return;
+                                                                    if (!progressBar) return false;
                                                                     
                                                                     var labelSpan = progressBar.querySelector('span.label');
-                                                                    if (!labelSpan) return;
+                                                                    if (!labelSpan) return false;
                                                                     
                                                                     var progressText = labelSpan.textContent.trim();
                                                                     
@@ -410,7 +438,7 @@ const NorbiFarmEngine = {
                                                                     
                                                                     if (!match) {
                                                                         console.log('FarmGod Progress: Could not parse format "' + progressText + '"');
-                                                                        return;
+                                                                        return false;
                                                                     }
                                                                     
                                                                     var current = parseInt(match[1]);
@@ -429,100 +457,167 @@ const NorbiFarmEngine = {
                                                                     if (current >= total) {
                                                                         console.log('FARMING COMPLETED! Final: ' + cleanText);
                                                                         this.stopFarming();
-                                                                        
+
                                                                         // Calculate farming duration
                                                                         var endTime = Date.now();
                                                                         var durationMs = endTime - this.startTime;
                                                                         var durationMinutes = Math.floor(durationMs / 60000);
                                                                         var durationSeconds = Math.floor((durationMs % 60000) / 1000);
-                                                                        
+
                                                                         console.log('Farming took: ' + durationMinutes + ' minutes ' + durationSeconds + ' seconds');
                                                                         console.log('Total villages farmed: ' + current);
-                                                                        console.log('Total Enter presses: ' + this.totalPresses);
-                                                                        
+                                                                        console.log('Total button clicks: ' + this.totalClicks);
+
                                                                         // Use original decimal value for reporting if available
                                                                         var reportedVillages = originalTotal !== null ? originalTotal : current;
                                                                         console.log('Reported villages: ' + reportedVillages);
-                                                                        
+
                                                                         // Report success with detailed results
                                                         localStorage.setItem('norbi_farm_result', JSON.stringify({
                                                             status: 'success',
                                                                         message: 'Farming completed successfully',
                                                                         villages: reportedVillages,
-                                                                        totalPresses: this.totalPresses,
+                                                                        totalClicks: this.totalClicks,
                                                                             finalProgress: cleanText,
                                                                         timeMinutes: durationMinutes,
                                                                         timeSeconds: durationSeconds,
                                                             timestamp: Date.now()
                                                         }));
-                                                                        
+
                                                                         // Close tab after 3 seconds
                                                                         setTimeout(function() {
                                                                             console.log('Closing farm tab...');
                                                                             window.close();
                                                                         }, 3000);
+
+                                                                        return true; // Farming completed
                                                                     }
+
+                                                                    return false; // Not complete yet
                                                                 } catch (error) {
                                                                     console.error('Error monitoring progress:', error);
                                                                 }
                                                             },
                                                             
-                                                            checkBotProtection: function() {
-                                                                if (!this.isRunning) return;
-                                                                
+                                                            detectBotProtection: function() {
+                                                                // Comprehensive bot protection detection
                                                                 try {
-                                                                    // Check for bot protection element
+                                                                    // Method 1: Check for botprotection_quest element
                                                                     var botElement = document.getElementById('botprotection_quest');
-                                                                    
                                                                     if (botElement) {
-                                                                        console.log('BOT PROTECTION DETECTED! Stopping farming immediately...');
-                                                                        console.log('Bot protection element found:', botElement);
-                                                                        
-                                                                        // Stop farming immediately
-                                                                        this.stopFarming();
-                                                                        
-                                                                        // Report bot protection detection
-                                                                        localStorage.setItem('norbi_farm_result', JSON.stringify({
-                                                                            status: 'error',
-                                                                            message: 'Bot protection detected - farming stopped for safety',
-                                                                            error: 'Bot protection quest appeared',
-                                                                            totalPresses: this.totalPresses,
-                                                                            timestamp: Date.now()
-                                                                        }));
-                                                                        
-                                                                        return;
+                                                                        return 'botprotection_quest element';
                                                                     }
+
+                                                                    // Method 2: Check for .bot-protection-row
+                                                                    var botProtectionRow = document.querySelector('.bot-protection-row');
+                                                                    if (botProtectionRow) {
+                                                                        return '.bot-protection-row element';
+                                                                    }
+
+                                                                    // Method 3: Check for .captcha element
+                                                                    var captchaElement = document.querySelector('.captcha');
+                                                                    if (captchaElement) {
+                                                                        return '.captcha element';
+                                                                    }
+
+                                                                    // Method 4-7: Check for bot protection text
+                                                                    var bodyText = document.body.textContent || document.body.innerText || '';
+                                                                    if (bodyText.indexOf('Bot védelem') !== -1) {
+                                                                        return '"Bot védelem" text';
+                                                                    }
+                                                                    if (bodyText.indexOf('Kezdd meg a botvédelem ellenőrzését') !== -1) {
+                                                                        return '"Kezdd meg a botvédelem ellenőrzését" text';
+                                                                    }
+                                                                    if (bodyText.indexOf('botvédelem ellenőrzését') !== -1) {
+                                                                        return '"botvédelem ellenőrzését" text';
+                                                                    }
+                                                                    if (bodyText.indexOf('Start the bot protection check') !== -1) {
+                                                                        return '"Start the bot protection check" text';
+                                                                    }
+
                                                                 } catch (error) {
-                                                                    console.error('Error checking bot protection:', error);
+                                                                    console.error('Error in detectBotProtection:', error);
                                                                 }
+
+                                                                return null; // No bot protection detected
+                                                            },
+
+                                                            checkBotProtection: function() {
+                                                                if (!this.isRunning) return false;
+
+                                                                var detectionMethod = this.detectBotProtection();
+
+                                                                if (detectionMethod) {
+                                                                    // Bot protection detected!
+                                                                    if (!this.isPaused) {
+                                                                        // First detection - pause and schedule recheck
+                                                                        console.log('BOT PROTECTION DETECTED! Method: ' + detectionMethod);
+                                                                        console.log('Pausing farming for 10 seconds... (captcha solver working)');
+
+                                                                        this.isPaused = true;
+                                                                        var self = this;
+
+                                                                        // Schedule recheck after 10 seconds
+                                                                        this.recheckTimeout = setTimeout(function() {
+                                                                            console.log('Rechecking bot protection after 10 seconds...');
+
+                                                                            var recheckMethod = self.detectBotProtection();
+
+                                                                            if (recheckMethod) {
+                                                                                // Still detected - stop farming completely
+                                                                                console.log('BOT PROTECTION STILL PRESENT! Method: ' + recheckMethod);
+                                                                                console.log('Captcha solver failed or timeout. Stopping farming...');
+
+                                                                                self.stopFarming();
+
+                                                                                // Report bot protection detection
+                                                                                localStorage.setItem('norbi_farm_result', JSON.stringify({
+                                                                                    status: 'error',
+                                                                                    message: 'Bot protection detected - farming stopped after recheck',
+                                                                                    error: 'Bot protection still present after 10 seconds',
+                                                                                    detectionMethod: recheckMethod,
+                                                                                    totalClicks: self.totalClicks,
+                                                                                    timestamp: Date.now()
+                                                                                }));
+                                                                            } else {
+                                                                                // All clear - resume farming!
+                                                                                console.log('BOT PROTECTION CLEARED! Captcha solver successful!');
+                                                                                console.log('Resuming farming...');
+                                                                                self.isPaused = false;
+                                                                            }
+                                                                        }, 10000); // 10 seconds
+                                                                    }
+
+                                                                    return true; // Bot protection detected (paused)
+                                                                }
+
+                                                                return false; // No bot protection
                                                             },
                                                             
                                                             stopFarming: function() {
                                                                 this.isRunning = false;
-                                                                
-                                                                // Clear all timers
-                                                                if (this.pressTimer) {
-                                                                    clearInterval(this.pressTimer);
-                                                                    this.pressTimer = null;
+                                                                this.isPaused = false;
+
+                                                                // Clear farm timer
+                                                                if (this.farmTimer) {
+                                                                    clearInterval(this.farmTimer);
+                                                                    this.farmTimer = null;
                                                                 }
-                                                                if (this.progressTimer) {
-                                                                    clearInterval(this.progressTimer);
-                                                                    this.progressTimer = null;
+
+                                                                // Clear recheck timeout if exists
+                                                                if (this.recheckTimeout) {
+                                                                    clearTimeout(this.recheckTimeout);
+                                                                    this.recheckTimeout = null;
                                                                 }
-                                                                if (this.botDetectionTimer) {
-                                                                    clearInterval(this.botDetectionTimer);
-                                                                    this.botDetectionTimer = null;
-                                                                }
-                                                                
-                                                                console.log('Stopped farming. Total presses: ' + this.totalPresses);
+
+                                                                console.log('Stopped farming. Total button clicks: ' + this.totalClicks);
                                                             }
                                                         };
                                                         
                                                         // Start the farming process
                                                         farmHandler.startFarming();
-                                                        
-                                                    }, 3000); // Wait 3 seconds for plan to be created
-                                                    
+                                                    }); // End of waitForThrobberToDisappear callback
+
                                                 } else {
                                                     console.error('Farm megtervezése button not found');
                                                     localStorage.setItem('norbi_farm_result', JSON.stringify({
@@ -624,7 +719,7 @@ const NorbiFarmEngine = {
                 this.log('=== FARMING COMPLETED SUCCESSFULLY ===');
                 this.log('Villages farmed: ' + data.villages + ' villages');
                 this.log('Total farming time: ' + timeMsg);
-                this.log('Enter key presses: ' + data.totalPresses);
+                this.log('Button clicks: ' + (data.totalClicks || data.totalPresses || 'N/A'));
                 this.log('Completed at: ' + completionTime);
                 this.log('Final progress: ' + data.finalProgress);
                 this.log('Farm tab will auto-close in 3 seconds...');
@@ -639,7 +734,7 @@ const NorbiFarmEngine = {
             if (data.error === 'Bot protection quest appeared') {
                 this.log('=== BOT PROTECTION DETECTED ===');
                 this.log('Farming stopped immediately for safety!');
-                this.log('Total presses before stop: ' + data.totalPresses);
+                this.log('Total clicks before stop: ' + (data.totalClicks || data.totalPresses || 'N/A'));
                 this.log('Please solve the bot protection manually');
                 this.updateStatus('Bot Protection Detected - Stopped');
         } else {
@@ -772,24 +867,34 @@ const NorbiFarmEngine = {
     
     checkBotProtection: function() {
         try {
-            // Check for bot protection element on current page (original method)
+            // Comprehensive bot protection detection
+            var detectionMethods = [];
+
+            // Method 1: Check for botprotection_quest element
             var botElement = document.getElementById('botprotection_quest');
-            
-            // Enhanced detection for Hungarian bot protection elements
+            if (botElement) detectionMethods.push('botprotection_quest');
+
+            // Method 2: Check for .bot-protection-row
             var botProtectionRow = document.querySelector('.bot-protection-row');
+            if (botProtectionRow) detectionMethods.push('.bot-protection-row');
+
+            // Method 3: Check for .captcha element
             var captchaElement = document.querySelector('.captcha');
-            var botVedelemText = document.body.textContent.indexOf('Bot védelem') !== -1;
-            
+            if (captchaElement) detectionMethods.push('.captcha');
+
+            // Method 4-7: Check for bot protection text
+            var bodyText = document.body.textContent || document.body.innerText || '';
+            if (bodyText.indexOf('Bot védelem') !== -1) detectionMethods.push('"Bot védelem" text');
+            if (bodyText.indexOf('Kezdd meg a botvédelem ellenőrzését') !== -1) detectionMethods.push('"Kezdd meg a botvédelem ellenőrzését"');
+            if (bodyText.indexOf('botvédelem ellenőrzését') !== -1) detectionMethods.push('"botvédelem ellenőrzését"');
+            if (bodyText.indexOf('Start the bot protection check') !== -1) detectionMethods.push('"Start the bot protection check"');
+
             // Check if any bot protection is detected
-            if (botElement || botProtectionRow || captchaElement || botVedelemText) {
-                var detectionMethod = '';
-                if (botElement) detectionMethod += 'botprotection_quest ';
-                if (botProtectionRow) detectionMethod += '.bot-protection-row ';
-                if (captchaElement) detectionMethod += '.captcha ';
-                if (botVedelemText) detectionMethod += '"Bot védelem" text ';
-                
+            if (detectionMethods.length > 0) {
+                var detectionMethod = detectionMethods.join(', ');
+
                 this.log('=== BOT PROTECTION DETECTED ===');
-                this.log('Detection method(s): ' + detectionMethod.trim());
+                this.log('Detection method(s): ' + detectionMethod);
                 
                 // Send notifications immediately
                 var notificationMessage = this.loopEnabled ? 
