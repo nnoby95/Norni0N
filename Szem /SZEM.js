@@ -105,6 +105,7 @@ try{ /*Rendszeradatok*/
 			case 'adatok': szem4_ADAT_motor(); break;
 			case 'gyujto': szem4_GYUJTO_motor(); break;
 			case 'norbi0n_farm': szem4_norbi0n_farm_motor(); break;
+			case 'recruitment': szem4_recruitment_motor(); break;
 			default: debug('worker','Ismeretlen ID', JSON.stringify(worker_message))
 		}
 	};
@@ -1103,6 +1104,10 @@ function szunet(script,kep){try{
 			NORBI0N_FARM_PAUSE = !NORBI0N_FARM_PAUSE;
 			var sw = NORBI0N_FARM_PAUSE;
 			break;
+		case 'recruitment':
+			RECRUITMENT_PAUSE = !RECRUITMENT_PAUSE;
+			var sw = RECRUITMENT_PAUSE;
+			break;
 		default: {alert2("Sikertelen script megállatás. Nincs ilyen alscript: "+script);return;}
 	}
 	
@@ -1739,6 +1744,7 @@ function restartKieg(type) {
 			case 'farm': szem4_farmolo_motor(); break;
 			case 'vije': szem4_VIJE_motor(); break;
 			case 'epit': szem4_EPITO_motor(); break;
+			case 'recruitment': szem4_recruitment_motor(); break;
 		}
 	}, 133);
 }
@@ -3006,7 +3012,11 @@ function szem4_VIJE_1kivalaszt(){try{
 	var isAnalize=false;
 	let szin = '';
 	for (var i=VT.length-2;i>0;i--) {
-		var reportId=VT[i].cells[1].getElementsByTagName("span")[0].getAttribute("data-id").replace("label_","");
+		// Relic mode: új HTML struktúra - span.quickedit[data-id] vagy span.report-title[data-id]
+		// Régi mód: span[data-id="label_XXX"]
+		var reportIdSpan = VT[i].cells[1].querySelector('span.quickedit[data-id], span.report-title[data-id]')
+			|| VT[i].cells[1].getElementsByTagName("span")[0];
+		var reportId = reportIdSpan.getAttribute("data-id").replace("label_","");
 		if (SZEM4_VIJE.ELEMZETT.includes(reportId)) continue;
 
 		try {
@@ -3036,7 +3046,13 @@ function szem4_VIJE_1kivalaszt(){try{
 		szin = VT[i].cells[1].childNodes;
 		for (var s=0;s<szin.length;s++) {
 			if (szin[s].nodeName=="IMG") {
-				szin=szin[s].src.split(".png")[0].split("/");
+				// Támogatja mind .png és .webp formátumot (új szerverek webp-t használnak)
+				var imgSrc = szin[s].src;
+				if (imgSrc.includes('.webp')) {
+					szin = imgSrc.split(".webp")[0].split("/");
+				} else {
+					szin = imgSrc.split(".png")[0].split("/");
+				}
 				szin=szin[szin.length-1];
 				break;
 			}
@@ -3165,13 +3181,31 @@ function szem4_VIJE_2elemzes(adatok){try{
 	hungarianDate = new Date(Date.parse(hungarianDate.replace(/jan\./g, "Jan").replace(/febr?\./g, "Feb").replace(/márc\./g, "Mar").replace(/ápr\./g, "Apr").replace(/máj\./g, "May").replace(/jún\./g, "Jun").replace(/júl\./g, "Jul").replace(/aug\./g, "Aug").replace(/szept\./g, "Sep").replace(/okt\./g, "Oct").replace(/nov\./g, "Nov").replace(/dec\./g, "Dec")));
 	hungarianDate = hungarianDate.getTime();
 	if (SZEM4_VIJE.ALL_VIJE_SAVED[adatok[1]] >= hungarianDate) isOld = true;
-	if (!isOld && VIJE_REF2.document.querySelector('#attack_spy_resources') !== null && VIJE_REF2.document.querySelector('#attack_spy_resources').rows[0].cells[1].querySelector('a') == null) {
-		var x=VIJE_REF2.document.getElementById("attack_spy_resources").rows[0].cells[1];
+	if (!isOld && VIJE_REF2.document.querySelector('#attack_spy_resources') !== null) {
+		// Relic mode: az első sor a Relikvia, a második a nyersanyagok
+		// Régi mód: az első sor a nyersanyagok
+		var spyResourcesTable = VIJE_REF2.document.getElementById("attack_spy_resources");
+		var isRelicMode = document.getElementById("vije_opts").isRelicMode.checked;
+		var resourceRowIndex = 0;
 
-		if (adatok[4]) { var nyersossz=''; debug("VIJE2","Nem kell elemezni (régi)"); } else {
+		// Relic módban vagy ha az első sor "Relikvia" szót tartalmaz, a második sort használjuk
+		if (isRelicMode || (spyResourcesTable.rows[0] && spyResourcesTable.rows[0].textContent.includes('Relikvia'))) {
+			resourceRowIndex = 1;
+		}
+
+		// Ellenőrizzük, hogy létezik-e a sor és nincs-e benne link (ami arra utal, hogy nem teljes a felderítés)
+		var resourceRow = spyResourcesTable.rows[resourceRowIndex];
+		if (!resourceRow || (resourceRow.cells[1] && resourceRow.cells[1].querySelector('a') != null)) {
+			// Nincs megfelelő sor vagy nem teljes felderítés - skipeljük a nyersanyag elemzést
+			var x = null;
+		} else {
+			var x = resourceRow.cells[1];
+		}
+
+		if (adatok[4]) { var nyersossz=''; debug("VIJE2","Nem kell elemezni (régi)"); } else if (x) {
 			try{
 				if (/\d/.test(x.textContent)) {
-					var nyers=x.textContent.replace(/\./g,"").match(/[0-9]+/g); 
+					var nyers=x.textContent.replace(/\./g,"").match(/[0-9]+/g);
 					var nyersossz=0;
 					for (var i=0;i<nyers.length;i++) nyersossz+=parseInt(nyers[i],10);
 				} else {
@@ -3343,6 +3377,7 @@ ujkieg("vije","Jelentés Elemző",`<tr><td>
 			<tr><td>${picBuilding('wall')}</td><td>"Fal" a szerver jelenlegi nyelvén</td><td><input type="text" size="15" name="wall" value="Fal"></td></tr>
 		</table>
 		<input type="checkbox" name="isdelete"> Zöld farmjelentések törlése?<br>
+		<input type="checkbox" name="isRelicMode"> Relic mód (új szerverekhez, ahol van Relikvia rendszer)<br>
 		<button onclick="szem4_vije_forgot()" type="button">Jelentések újraelemzése/elfelejtése</button><br><br><br>
 	</form>
 	</td></tr>`);
@@ -3360,6 +3395,739 @@ var SZEM4_VIJE = {
 readUpVijeOpts();
 var PM2;
 szem4_VIJE_motor();
+
+/*-----------------AUTO RECRUITMENT--------------------*/
+
+// Global state variables
+var RECRUITMENT_LEPES = 0;
+var RECRUITMENT_REF = null;
+var RECRUITMENT_PAUSE = true;
+var RECRUITMENT_HIBA = 0;
+var RECRUITMENT_GHIBA = 0;
+
+var SZEM4_RECRUITMENT = {
+	OPTIONS: {
+		checkInterval: 5,      // minutes
+		randomDelay: 1,        // minutes
+		resourceBudget: 60,    // percent
+		buildingDist: {
+			barracks: 50,
+			stable: 30,
+			garage: 20
+		},
+		loopMode: true
+	},
+	TEMPLATES: [],
+	ACTIVE_TEMPLATE: null,
+	CURRENT_PLAN: null,  // Store plan between LEPES 2 and 3
+	ROTATION: {
+		barracks: 0,
+		stable: 0,
+		garage: 0
+	},
+	STATS: {
+		lastRun: 0,
+		totalRuns: 0,
+		totalRecruits: 0,
+		errors: 0
+	}
+};
+
+// Template Management Functions
+function recruitment_createTemplate(name, units) {
+	return {
+		id: Date.now(),
+		name: name,
+		units: units  // {spear: 200, axe: 100, ...}
+	};
+}
+
+function recruitment_addTemplate(template) {
+	SZEM4_RECRUITMENT.TEMPLATES.push(template);
+	recruitment_save();
+	return template;
+}
+
+function recruitment_deleteTemplate(templateId) {
+	SZEM4_RECRUITMENT.TEMPLATES = SZEM4_RECRUITMENT.TEMPLATES.filter(t => t.id !== templateId);
+	if (SZEM4_RECRUITMENT.ACTIVE_TEMPLATE && SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.id === templateId) {
+		SZEM4_RECRUITMENT.ACTIVE_TEMPLATE = null;
+	}
+	recruitment_save();
+}
+
+function recruitment_setActive(templateId) {
+	const template = SZEM4_RECRUITMENT.TEMPLATES.find(t => t.id === templateId);
+	if (template) {
+		SZEM4_RECRUITMENT.ACTIVE_TEMPLATE = template;
+		recruitment_save();
+		recruitment_renderTemplates();
+		return true;
+	}
+	return false;
+}
+
+function recruitment_getTemplate(templateId) {
+	return SZEM4_RECRUITMENT.TEMPLATES.find(t => t.id === templateId);
+}
+
+// Data Extraction Functions
+function recruitment_extractResources(doc) {
+	return {
+		wood: parseInt(doc.getElementById('wood')?.textContent || 0),
+		stone: parseInt(doc.getElementById('stone')?.textContent || 0),
+		iron: parseInt(doc.getElementById('iron')?.textContent || 0)
+	};
+}
+
+function recruitment_extractPopulation(doc) {
+	const current = parseInt(doc.getElementById('pop_current_label')?.textContent || 0);
+	const max = parseInt(doc.getElementById('pop_max_label')?.textContent || 0);
+	return {
+		current: current,
+		max: max,
+		available: max - current
+	};
+}
+
+function recruitment_extractTroops(doc) {
+	const troops = {};
+	const unitRows = doc.querySelectorAll('table.vis tbody tr.row_a, table.vis tbody tr.row_b');
+
+	unitRows.forEach(row => {
+		const unitLink = row.querySelector('.unit_link');
+		if (unitLink) {
+			const unitType = unitLink.getAttribute('data-unit');
+			const troopCountCell = row.querySelectorAll('td')[2];
+
+			if (troopCountCell) {
+				const countText = troopCountCell.textContent.trim();
+				const match = countText.match(/(\d+)\/(\d+)/);
+
+				if (match) {
+					troops[unitType] = {
+						inVillage: parseInt(match[1]),
+						total: parseInt(match[2])
+					};
+				}
+			}
+		}
+	});
+
+	return troops;
+}
+
+function recruitment_extractUnitCosts(doc) {
+	const costs = {};
+	const unitRows = doc.querySelectorAll('table.vis tbody tr.row_a, table.vis tbody tr.row_b');
+
+	unitRows.forEach(row => {
+		const unitLink = row.querySelector('.unit_link');
+		if (unitLink) {
+			const unitType = unitLink.getAttribute('data-unit');
+
+			costs[unitType] = {
+				wood: parseInt(doc.getElementById(unitType + '_0_cost_wood')?.textContent || 0),
+				stone: parseInt(doc.getElementById(unitType + '_0_cost_stone')?.textContent || 0),
+				iron: parseInt(doc.getElementById(unitType + '_0_cost_iron')?.textContent || 0),
+				pop: parseInt(doc.getElementById(unitType + '_0_cost_pop')?.textContent || 0)
+			};
+		}
+	});
+
+	return costs;
+}
+
+// Recruitment Calculator Functions
+function recruitment_calculateNeeded(template, currentTroops) {
+	const needed = {};
+
+	for (const [unitType, goalAmount] of Object.entries(template.units)) {
+		const currentAmount = currentTroops[unitType]?.inVillage || 0;
+		const difference = goalAmount - currentAmount;
+
+		if (difference > 0) {
+			needed[unitType] = difference;
+		}
+	}
+
+	return needed;
+}
+
+function recruitment_getNextUnit(building, neededUnits) {
+	const buildingUnits = {
+		barracks: ['spear', 'sword', 'axe', 'archer'],
+		stable: ['spy', 'light', 'marcher', 'heavy'],
+		garage: ['ram', 'catapult']
+	};
+
+	const availableUnits = buildingUnits[building].filter(u => neededUnits[u] > 0);
+	if (availableUnits.length === 0) return null;
+
+	const rotation = SZEM4_RECRUITMENT.ROTATION[building];
+	const nextUnit = availableUnits[rotation % availableUnits.length];
+	SZEM4_RECRUITMENT.ROTATION[building] = (rotation + 1) % availableUnits.length;
+
+	return nextUnit;
+}
+
+function recruitment_calculateAffordable(unitType, resources, population, unitCosts) {
+	const cost = unitCosts[unitType];
+	if (!cost) return 0;
+
+	const affordableByWood = cost.wood > 0 ? Math.floor(resources.wood / cost.wood) : 999999;
+	const affordableByStone = cost.stone > 0 ? Math.floor(resources.stone / cost.stone) : 999999;
+	const affordableByIron = cost.iron > 0 ? Math.floor(resources.iron / cost.iron) : 999999;
+	const affordableByPop = cost.pop > 0 ? Math.floor(population.available / cost.pop) : 999999;
+
+	return Math.min(affordableByWood, affordableByStone, affordableByIron, affordableByPop);
+}
+
+function recruitment_calculatePlan(gameData) {
+	const template = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE;
+	if (!template) return null;
+
+	const needed = recruitment_calculateNeeded(template, gameData.troops);
+	if (Object.keys(needed).length === 0) {
+		return { units: {}, message: 'Template complete' };
+	}
+
+	const result = {};
+
+	// Calculate budget
+	const budget = SZEM4_RECRUITMENT.OPTIONS.resourceBudget / 100;
+	const totalBudget = {
+		wood: Math.floor(gameData.resources.wood * budget),
+		stone: Math.floor(gameData.resources.stone * budget),
+		iron: Math.floor(gameData.resources.iron * budget)
+	};
+
+	// Try each building
+	for (const building of ['barracks', 'stable', 'garage']) {
+		const unitType = recruitment_getNextUnit(building, needed);
+		if (!unitType) continue;
+
+		const buildingBudget = {
+			wood: Math.floor(totalBudget.wood * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100),
+			stone: Math.floor(totalBudget.stone * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100),
+			iron: Math.floor(totalBudget.iron * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100)
+		};
+
+		const affordable = recruitment_calculateAffordable(unitType, buildingBudget, gameData.population, gameData.unitCosts);
+		const amount = Math.min(affordable, needed[unitType]);
+
+		if (amount > 0) {
+			result[unitType] = amount;
+		}
+	}
+
+	return { units: result, message: Object.keys(result).length > 0 ? 'Plan ready' : 'Insufficient resources' };
+}
+
+// State Machine Motor Function
+function szem4_recruitment_motor() {
+	try {
+		// Check pause state
+		if (RECRUITMENT_PAUSE) {
+			worker.postMessage({'id': 'recruitment', 'time': 5000});
+			return;
+		}
+
+		// Check if template is set
+		if (!SZEM4_RECRUITMENT.ACTIVE_TEMPLATE) {
+			debug('Recruitment', 'No active template, pausing');
+			RECRUITMENT_PAUSE = true;
+			return;
+		}
+
+		// Error handling
+		if (RECRUITMENT_HIBA > 3) {
+			RECRUITMENT_HIBA = 0;
+			RECRUITMENT_GHIBA++;
+			RECRUITMENT_LEPES = 0;
+		}
+		if (RECRUITMENT_GHIBA > 5) {
+			naplo('Recruitment', 'Too many errors, stopping');
+			RECRUITMENT_PAUSE = true;
+			return;
+		}
+
+		let nexttime = 5000;
+
+		switch (RECRUITMENT_LEPES) {
+			case 0: // Idle - wait for interval
+				const now = Date.now();
+				const lastRun = SZEM4_RECRUITMENT.STATS.lastRun;
+				const interval = SZEM4_RECRUITMENT.OPTIONS.checkInterval * 60 * 1000;
+				const randomDelay = Math.random() * SZEM4_RECRUITMENT.OPTIONS.randomDelay * 60 * 1000;
+
+				if (now - lastRun >= interval + randomDelay || lastRun === 0) {
+					debug('Recruitment', 'Starting recruitment cycle');
+					RECRUITMENT_LEPES = 1;
+					nexttime = 1000;
+				} else {
+					nexttime = 10000; // Check every 10s
+				}
+				break;
+
+			case 1: // Open worker tab
+				try {
+					const url = `/game.php?village=${game_data.village.id}&screen=train`;
+					RECRUITMENT_REF = window.open(url, '_blank');
+
+					if (!RECRUITMENT_REF) {
+						debug('Recruitment', 'Failed to open worker tab');
+						RECRUITMENT_HIBA++;
+						RECRUITMENT_LEPES = 0;
+					} else {
+						RECRUITMENT_LEPES = 2;
+						nexttime = 3000; // Wait for load
+					}
+				} catch(e) {
+					debug('Recruitment', 'Error opening tab: ' + e);
+					RECRUITMENT_HIBA++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			case 2: // Extract data & calculate
+				try {
+					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					const doc = RECRUITMENT_REF.document;
+					const gameData = {
+						resources: recruitment_extractResources(doc),
+						population: recruitment_extractPopulation(doc),
+						troops: recruitment_extractTroops(doc),
+						unitCosts: recruitment_extractUnitCosts(doc)
+					};
+
+					const planResult = recruitment_calculatePlan(gameData);
+
+					if (!planResult || Object.keys(planResult.units).length === 0) {
+						debug('Recruitment', 'No units to recruit: ' + planResult.message);
+						RECRUITMENT_REF.close();
+						RECRUITMENT_LEPES = 0;
+						SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
+						SZEM4_RECRUITMENT.STATS.totalRuns++;
+					} else {
+						debug('Recruitment', 'Plan: ' + JSON.stringify(planResult.units));
+						SZEM4_RECRUITMENT.CURRENT_PLAN = planResult.units;
+						RECRUITMENT_LEPES = 3;
+						nexttime = 500;
+					}
+				} catch(e) {
+					debug('Recruitment', 'Error extracting data: ' + e);
+					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
+					RECRUITMENT_HIBA++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			case 3: // Submit recruitment
+				try {
+					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					const doc = RECRUITMENT_REF.document;
+					const form = doc.getElementById('train_form');
+
+					if (!form) {
+						debug('Recruitment', 'Train form not found');
+						RECRUITMENT_REF.close();
+						RECRUITMENT_HIBA++;
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					// Fill form with plan
+					let filledAny = false;
+					for (const [unitType, quantity] of Object.entries(SZEM4_RECRUITMENT.CURRENT_PLAN)) {
+						const input = doc.getElementById(unitType + '_0');
+						if (input) {
+							input.value = quantity;
+							filledAny = true;
+						}
+					}
+
+					if (!filledAny) {
+						debug('Recruitment', 'No units could be filled');
+						RECRUITMENT_REF.close();
+						RECRUITMENT_HIBA++;
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					form.submit();
+
+					SZEM4_RECRUITMENT.STATS.totalRecruits++;
+					SZEM4_RECRUITMENT.STATS.totalRuns++;
+					SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
+					naplo('Recruitment', 'Recruited: ' + JSON.stringify(SZEM4_RECRUITMENT.CURRENT_PLAN));
+
+					setTimeout(() => {
+						if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) {
+							RECRUITMENT_REF.close();
+						}
+					}, 2000);
+
+					SZEM4_RECRUITMENT.CURRENT_PLAN = null;
+					RECRUITMENT_LEPES = 0;
+					nexttime = 1000;
+				} catch(e) {
+					debug('Recruitment', 'Error submitting: ' + e);
+					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
+					RECRUITMENT_HIBA++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			default:
+				RECRUITMENT_LEPES = 0;
+		}
+
+		worker.postMessage({'id': 'recruitment', 'time': nexttime});
+
+	} catch(e) {
+		debug('szem4_recruitment_motor()', e + ' Lépés:' + RECRUITMENT_LEPES);
+		RECRUITMENT_LEPES = 0;
+	}
+}
+
+// Save/Load Functions
+function recruitment_save() {
+	try {
+		localStorage.setItem(AZON + "_recruitment", JSON.stringify(SZEM4_RECRUITMENT));
+		return true;
+	} catch(e) {
+		debug('Recruitment', 'Save error: ' + e);
+		return false;
+	}
+}
+
+function recruitment_load() {
+	try {
+		const saved = localStorage.getItem(AZON + "_recruitment");
+		if (saved) {
+			const loaded = JSON.parse(saved);
+			SZEM4_RECRUITMENT = Object.assign(SZEM4_RECRUITMENT, loaded);
+			debug('Recruitment', 'Loaded from storage');
+		}
+	} catch(e) {
+		debug('Recruitment', 'Load error: ' + e);
+	}
+}
+
+// UI Functions
+function recruitment_renderTemplates() {
+	const tbody = document.querySelector('#recruitment_templates tbody');
+	if (!tbody) return;
+
+	// Clear existing rows except header
+	while (tbody.rows.length > 1) {
+		tbody.deleteRow(1);
+	}
+
+	if (SZEM4_RECRUITMENT.TEMPLATES.length === 0) {
+		const row = tbody.insertRow();
+		const cell = row.insertCell(0);
+		cell.colSpan = 3;
+		cell.style.textAlign = 'center';
+		cell.style.fontStyle = 'italic';
+		cell.textContent = 'No templates created yet';
+		return;
+	}
+
+	SZEM4_RECRUITMENT.TEMPLATES.forEach(template => {
+		const row = tbody.insertRow();
+		const isActive = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE && SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.id === template.id;
+
+		if (isActive) {
+			row.style.backgroundColor = '#d4e4bc';
+			row.style.fontWeight = 'bold';
+		}
+
+		// Name cell
+		const nameCell = row.insertCell(0);
+		nameCell.textContent = template.name + (isActive ? ' ★' : '');
+
+		// Units cell
+		const unitsCell = row.insertCell(1);
+		const unitCount = Object.keys(template.units).length;
+		const totalUnits = Object.values(template.units).reduce((sum, val) => sum + val, 0);
+		unitsCell.textContent = `${unitCount} types, ${totalUnits} total`;
+
+		// Actions cell
+		const actionsCell = row.insertCell(2);
+		actionsCell.innerHTML = `
+			<button onclick="recruitment_setActive(${template.id})" class="btn" ${isActive ? 'disabled' : ''}>Select</button>
+			<button onclick="recruitment_showTemplateEditor(${template.id})" class="btn">Edit</button>
+			<button onclick="recruitment_confirmDelete(${template.id})" class="btn">Delete</button>
+		`;
+	});
+
+	recruitment_updateStats();
+}
+
+function recruitment_showTemplateEditor(templateId = null) {
+	const isEdit = templateId !== null;
+	const template = isEdit ? recruitment_getTemplate(templateId) : null;
+
+	const unitTypes = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult'];
+
+	let unitInputs = '';
+	unitTypes.forEach(unitType => {
+		const currentValue = template ? (template.units[unitType] || 0) : 0;
+		unitInputs += `
+			<tr>
+				<td>${unitType.charAt(0).toUpperCase() + unitType.slice(1)}:</td>
+				<td><input type="number" class="template-unit-input" data-unit="${unitType}" min="0" value="${currentValue}"></td>
+			</tr>
+		`;
+	});
+
+	const dialogHTML = `
+		<div id="templateEditorDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 2px solid #7d510f; border-radius: 8px; padding: 20px; z-index: 10000; min-width: 400px; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); color: black;">
+			<h3 style="margin-top: 0; color: black;">${isEdit ? 'Edit Template' : 'Create New Template'}</h3>
+
+			<label style="display: block; margin-bottom: 15px;">
+				Template Name:
+				<input type="text" id="templateName" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #c1a264; border-radius: 3px;" value="${template ? template.name : ''}">
+			</label>
+
+			<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 3px;">
+				<h4 style="margin-top: 0;">Unit Goals</h4>
+				<table class="vis" style="width: 100%;">
+					${unitInputs}
+				</table>
+			</div>
+
+			<div style="display: flex; gap: 10px; justify-content: flex-end;">
+				<button id="templateSave" class="btn">Save</button>
+				<button id="templateCancel" class="btn">Cancel</button>
+			</div>
+		</div>
+
+		<div id="templateEditorOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;"></div>
+	`;
+
+	const container = document.createElement('div');
+	container.innerHTML = dialogHTML;
+	document.body.appendChild(container);
+
+	// Event listeners
+	document.getElementById('templateSave').addEventListener('click', function() {
+		const name = document.getElementById('templateName').value.trim();
+		if (!name) {
+			alert('Please enter a template name');
+			return;
+		}
+
+		const units = {};
+		document.querySelectorAll('.template-unit-input').forEach(input => {
+			const unitType = input.getAttribute('data-unit');
+			const value = parseInt(input.value) || 0;
+			if (value > 0) {
+				units[unitType] = value;
+			}
+		});
+
+		if (Object.keys(units).length === 0) {
+			alert('Please set at least one unit goal');
+			return;
+		}
+
+		if (isEdit) {
+			const existingTemplate = recruitment_getTemplate(templateId);
+			existingTemplate.name = name;
+			existingTemplate.units = units;
+			recruitment_save();
+			naplo('Recruitment', 'Template updated: ' + name);
+		} else {
+			const newTemplate = recruitment_createTemplate(name, units);
+			recruitment_addTemplate(newTemplate);
+			naplo('Recruitment', 'Template created: ' + name);
+		}
+
+		recruitment_renderTemplates();
+		container.remove();
+	});
+
+	document.getElementById('templateCancel').addEventListener('click', function() {
+		container.remove();
+	});
+
+	document.getElementById('templateEditorOverlay').addEventListener('click', function() {
+		container.remove();
+	});
+}
+
+function recruitment_confirmDelete(templateId) {
+	const template = recruitment_getTemplate(templateId);
+	if (!template) return;
+
+	if (confirm(`Are you sure you want to delete template "${template.name}"?`)) {
+		recruitment_deleteTemplate(templateId);
+		recruitment_renderTemplates();
+		naplo('Recruitment', 'Template deleted: ' + template.name);
+	}
+}
+
+function recruitment_saveSettings() {
+	try {
+		SZEM4_RECRUITMENT.OPTIONS.checkInterval = parseInt(document.getElementById('recruitment_interval').value) || 5;
+		SZEM4_RECRUITMENT.OPTIONS.randomDelay = parseInt(document.getElementById('recruitment_delay').value) || 1;
+		SZEM4_RECRUITMENT.OPTIONS.resourceBudget = parseInt(document.getElementById('recruitment_budget').value) || 60;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks = parseInt(document.getElementById('recruitment_barracks').value) || 50;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable = parseInt(document.getElementById('recruitment_stable').value) || 30;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage = parseInt(document.getElementById('recruitment_garage').value) || 20;
+
+		// Validate building distribution
+		const total = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks +
+		              SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable +
+		              SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage;
+
+		if (total !== 100) {
+			alert('Building distribution must total 100%!');
+			return false;
+		}
+
+		recruitment_save();
+		alert2('Settings saved successfully');
+		return true;
+	} catch(e) {
+		debug('Recruitment', 'Error saving settings: ' + e);
+		return false;
+	}
+}
+
+function recruitment_loadSettings() {
+	try {
+		if (document.getElementById('recruitment_interval')) {
+			document.getElementById('recruitment_interval').value = SZEM4_RECRUITMENT.OPTIONS.checkInterval;
+			document.getElementById('recruitment_delay').value = SZEM4_RECRUITMENT.OPTIONS.randomDelay;
+			document.getElementById('recruitment_budget').value = SZEM4_RECRUITMENT.OPTIONS.resourceBudget;
+			document.getElementById('recruitment_barracks').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks;
+			document.getElementById('recruitment_stable').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable;
+			document.getElementById('recruitment_garage').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage;
+		}
+	} catch(e) {
+		debug('Recruitment', 'Error loading settings: ' + e);
+	}
+}
+
+function recruitment_updateStats() {
+	try {
+		if (document.getElementById('recruitment_stat_runs')) {
+			document.getElementById('recruitment_stat_runs').textContent = SZEM4_RECRUITMENT.STATS.totalRuns;
+			document.getElementById('recruitment_stat_recruits').textContent = SZEM4_RECRUITMENT.STATS.totalRecruits;
+			document.getElementById('recruitment_stat_lastrun').textContent =
+				SZEM4_RECRUITMENT.STATS.lastRun ? new Date(SZEM4_RECRUITMENT.STATS.lastRun).toLocaleString() : 'Never';
+			document.getElementById('recruitment_stat_errors').textContent = SZEM4_RECRUITMENT.STATS.errors;
+		}
+	} catch(e) {
+		debug('Recruitment', 'Error updating stats: ' + e);
+	}
+}
+
+// Initialize recruitment
+recruitment_load();
+szem4_recruitment_motor();
+
+// Add Recruitment UI
+ujkieg("recruitment","Recruitment",`<tr><td>
+	<h2 align="center">Auto Recruitment System</h2>
+
+	<!-- Templates Section -->
+	<h3>Templates</h3>
+	<table class="vis" id="recruitment_templates" style="color: black; width: 100%;">
+		<tbody>
+			<tr>
+				<th>Name</th>
+				<th>Units</th>
+				<th>Actions</th>
+			</tr>
+		</tbody>
+	</table>
+	<p align="center">
+		<button onclick="recruitment_showTemplateEditor()">Create New Template</button>
+	</p>
+
+	<!-- Settings Section -->
+	<h3>Settings</h3>
+	<table class="vis" style="color: black; margin: auto;">
+		<tr>
+			<td>Check Interval (minutes):</td>
+			<td><input type="number" id="recruitment_interval" min="1" value="5" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Random Delay (minutes):</td>
+			<td><input type="number" id="recruitment_delay" min="0" value="1" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Resource Budget (%):</td>
+			<td><input type="number" id="recruitment_budget" min="1" max="100" value="60" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2"><b>Building Distribution</b></td>
+		</tr>
+		<tr>
+			<td>Barracks (%):</td>
+			<td><input type="number" id="recruitment_barracks" value="50" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Stable (%):</td>
+			<td><input type="number" id="recruitment_stable" value="30" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Garage (%):</td>
+			<td><input type="number" id="recruitment_garage" value="20" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+		</tr>
+	</table>
+
+	<!-- Statistics Section -->
+	<h3>Statistics</h3>
+	<table class="vis" style="color: black; margin: auto;">
+		<tr>
+			<td>Total Runs:</td>
+			<td id="recruitment_stat_runs">0</td>
+		</tr>
+		<tr>
+			<td>Total Recruits:</td>
+			<td id="recruitment_stat_recruits">0</td>
+		</tr>
+		<tr>
+			<td>Last Run:</td>
+			<td id="recruitment_stat_lastrun">Never</td>
+		</tr>
+		<tr>
+			<td>Errors:</td>
+			<td id="recruitment_stat_errors">0</td>
+		</tr>
+	</table>
+
+	<!-- Instructions -->
+	<h3>How to Use</h3>
+	<ol style="color: white; text-align: left; max-width: 800px; margin: auto;">
+		<li>Create a template with your desired troop goals</li>
+		<li>Select the template you want to use (click "Select" button)</li>
+		<li>Adjust settings if needed (check interval, resource budget, etc.)</li>
+		<li>Click the RECRUITMENT button in the top menu to start/pause</li>
+		<li>The system will automatically recruit troops based on your template</li>
+	</ol>
+</td></tr>`);
+
+// Load UI settings after panel is created
+setTimeout(() => {
+	recruitment_loadSettings();
+	recruitment_renderTemplates();
+	recruitment_updateStats();
+}, 500);
 
 /*-----------------TÁMADÁS FIGYELŐ--------------------*/
 
