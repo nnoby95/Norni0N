@@ -3415,6 +3415,11 @@ var SZEM4_RECRUITMENT = {
 			stable: 30,
 			garage: 20
 		},
+		maxUnits: {
+			barracks: 0,       // 0 = no limit
+			stable: 0,
+			garage: 0
+		},
 		loopMode: true
 	},
 	TEMPLATES: [],
@@ -3614,7 +3619,14 @@ function recruitment_calculatePlan(gameData) {
 		};
 
 		const affordable = recruitment_calculateAffordable(unitType, buildingBudget, gameData.population, gameData.unitCosts);
-		const amount = Math.min(affordable, needed[unitType]);
+		let amount = Math.min(affordable, needed[unitType]);
+
+		// Apply max units per cycle limit if set (with safety check for old saves)
+		const maxUnits = SZEM4_RECRUITMENT.OPTIONS.maxUnits || {};
+		const maxLimit = maxUnits[building] || 0;
+		if (maxLimit > 0 && amount > maxLimit) {
+			amount = maxLimit;
+		}
 
 		if (amount > 0) {
 			result[unitType] = amount;
@@ -3635,7 +3647,8 @@ function szem4_recruitment_motor() {
 
 		// Check if template is set
 		if (!SZEM4_RECRUITMENT.ACTIVE_TEMPLATE) {
-			debug('Recruitment', 'No active template, pausing');
+			recruitment_log('No active template selected - pausing', 'warn');
+			naplo('Recruitment', 'No active template - paused');
 			RECRUITMENT_PAUSE = true;
 			return;
 		}
@@ -3645,10 +3658,14 @@ function szem4_recruitment_motor() {
 			RECRUITMENT_HIBA = 0;
 			RECRUITMENT_GHIBA++;
 			RECRUITMENT_LEPES = 0;
+			recruitment_log(`Too many errors in cycle, resetting (global errors: ${RECRUITMENT_GHIBA})`, 'error');
 		}
 		if (RECRUITMENT_GHIBA > 5) {
-			naplo('Recruitment', 'Too many errors, stopping');
+			recruitment_log('Too many global errors - stopping recruitment', 'error');
+			naplo('Recruitment', 'Stopped due to too many errors');
 			RECRUITMENT_PAUSE = true;
+			SZEM4_RECRUITMENT.STATS.errors++;
+			recruitment_save();
 			return;
 		}
 
@@ -3662,7 +3679,8 @@ function szem4_recruitment_motor() {
 				const randomDelay = Math.random() * SZEM4_RECRUITMENT.OPTIONS.randomDelay * 60 * 1000;
 
 				if (now - lastRun >= interval + randomDelay || lastRun === 0) {
-					debug('Recruitment', 'Starting recruitment cycle');
+					recruitment_log('Starting recruitment cycle...', 'info');
+					naplo('Recruitment', 'Starting cycle for template: ' + SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.name);
 					RECRUITMENT_LEPES = 1;
 					nexttime = 1000;
 				} else {
@@ -3672,19 +3690,21 @@ function szem4_recruitment_motor() {
 
 			case 1: // Open worker tab
 				try {
+					recruitment_log('Opening train page...', 'info');
 					const url = `/game.php?village=${game_data.village.id}&screen=train`;
 					RECRUITMENT_REF = window.open(url, '_blank');
 
 					if (!RECRUITMENT_REF) {
-						debug('Recruitment', 'Failed to open worker tab');
+						recruitment_log('Failed to open worker tab (popup blocked?)', 'error');
 						RECRUITMENT_HIBA++;
 						RECRUITMENT_LEPES = 0;
 					} else {
+						recruitment_log('Train page opened, waiting for load...', 'info');
 						RECRUITMENT_LEPES = 2;
 						nexttime = 3000; // Wait for load
 					}
 				} catch(e) {
-					debug('Recruitment', 'Error opening tab: ' + e);
+					recruitment_log('Error opening tab: ' + e, 'error');
 					RECRUITMENT_HIBA++;
 					RECRUITMENT_LEPES = 0;
 				}
@@ -3693,10 +3713,12 @@ function szem4_recruitment_motor() {
 			case 2: // Extract data & calculate
 				try {
 					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						recruitment_log('Worker tab was closed unexpectedly', 'warn');
 						RECRUITMENT_LEPES = 0;
 						break;
 					}
 
+					recruitment_log('Extracting game data...', 'info');
 					const doc = RECRUITMENT_REF.document;
 					const gameData = {
 						resources: recruitment_extractResources(doc),
@@ -3705,24 +3727,29 @@ function szem4_recruitment_motor() {
 						unitCosts: recruitment_extractUnitCosts(doc)
 					};
 
+					recruitment_log(`Resources: W:${gameData.resources.wood} S:${gameData.resources.stone} I:${gameData.resources.iron} | Pop: ${gameData.population.available}/${gameData.population.max}`, 'info');
+
 					const planResult = recruitment_calculatePlan(gameData);
 
 					if (!planResult || Object.keys(planResult.units).length === 0) {
-						debug('Recruitment', 'No units to recruit: ' + planResult.message);
+						recruitment_log('No units to recruit: ' + (planResult?.message || 'unknown'), 'info');
 						RECRUITMENT_REF.close();
 						RECRUITMENT_LEPES = 0;
 						SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
 						SZEM4_RECRUITMENT.STATS.totalRuns++;
+						recruitment_save();
 					} else {
-						debug('Recruitment', 'Plan: ' + JSON.stringify(planResult.units));
+						const planStr = Object.entries(planResult.units).map(([u,q]) => `${u}:${q}`).join(', ');
+						recruitment_log('Recruitment plan: ' + planStr, 'success');
 						SZEM4_RECRUITMENT.CURRENT_PLAN = planResult.units;
 						RECRUITMENT_LEPES = 3;
 						nexttime = 500;
 					}
 				} catch(e) {
-					debug('Recruitment', 'Error extracting data: ' + e);
+					recruitment_log('Error extracting data: ' + e, 'error');
 					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
 					RECRUITMENT_HIBA++;
+					SZEM4_RECRUITMENT.STATS.errors++;
 					RECRUITMENT_LEPES = 0;
 				}
 				break;
@@ -3730,6 +3757,7 @@ function szem4_recruitment_motor() {
 			case 3: // Submit recruitment
 				try {
 					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						recruitment_log('Worker tab was closed before submit', 'warn');
 						RECRUITMENT_LEPES = 0;
 						break;
 					}
@@ -3738,37 +3766,48 @@ function szem4_recruitment_motor() {
 					const form = doc.getElementById('train_form');
 
 					if (!form) {
-						debug('Recruitment', 'Train form not found');
+						recruitment_log('Train form not found on page', 'error');
 						RECRUITMENT_REF.close();
 						RECRUITMENT_HIBA++;
+						SZEM4_RECRUITMENT.STATS.errors++;
 						RECRUITMENT_LEPES = 0;
 						break;
 					}
 
 					// Fill form with plan
 					let filledAny = false;
+					let filledUnits = [];
 					for (const [unitType, quantity] of Object.entries(SZEM4_RECRUITMENT.CURRENT_PLAN)) {
 						const input = doc.getElementById(unitType + '_0');
 						if (input) {
 							input.value = quantity;
 							filledAny = true;
+							filledUnits.push(`${unitType}:${quantity}`);
 						}
 					}
 
 					if (!filledAny) {
-						debug('Recruitment', 'No units could be filled');
+						recruitment_log('No unit inputs could be filled', 'error');
 						RECRUITMENT_REF.close();
 						RECRUITMENT_HIBA++;
+						SZEM4_RECRUITMENT.STATS.errors++;
 						RECRUITMENT_LEPES = 0;
 						break;
 					}
 
+					recruitment_log('Submitting recruitment form...', 'info');
 					form.submit();
 
 					SZEM4_RECRUITMENT.STATS.totalRecruits++;
 					SZEM4_RECRUITMENT.STATS.totalRuns++;
 					SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
-					naplo('Recruitment', 'Recruited: ' + JSON.stringify(SZEM4_RECRUITMENT.CURRENT_PLAN));
+
+					const recruitMsg = filledUnits.join(', ');
+					recruitment_log('SUCCESS! Recruited: ' + recruitMsg, 'success');
+					naplo('Recruitment', 'Recruited: ' + recruitMsg);
+
+					recruitment_save();
+					recruitment_updateStats();
 
 					setTimeout(() => {
 						if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) {
@@ -3780,9 +3819,10 @@ function szem4_recruitment_motor() {
 					RECRUITMENT_LEPES = 0;
 					nexttime = 1000;
 				} catch(e) {
-					debug('Recruitment', 'Error submitting: ' + e);
+					recruitment_log('Error submitting: ' + e, 'error');
 					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
 					RECRUITMENT_HIBA++;
+					SZEM4_RECRUITMENT.STATS.errors++;
 					RECRUITMENT_LEPES = 0;
 				}
 				break;
@@ -3794,6 +3834,7 @@ function szem4_recruitment_motor() {
 		worker.postMessage({'id': 'recruitment', 'time': nexttime});
 
 	} catch(e) {
+		recruitment_log('Motor error: ' + e, 'error');
 		debug('szem4_recruitment_motor()', e + ' Lépés:' + RECRUITMENT_LEPES);
 		RECRUITMENT_LEPES = 0;
 	}
@@ -3816,6 +3857,14 @@ function recruitment_load() {
 		if (saved) {
 			const loaded = JSON.parse(saved);
 			SZEM4_RECRUITMENT = Object.assign(SZEM4_RECRUITMENT, loaded);
+			// Ensure maxUnits exists for old saves that don't have it
+			if (!SZEM4_RECRUITMENT.OPTIONS.maxUnits) {
+				SZEM4_RECRUITMENT.OPTIONS.maxUnits = {
+					barracks: 0,
+					stable: 0,
+					garage: 0
+				};
+			}
 			debug('Recruitment', 'Loaded from storage');
 		}
 	} catch(e) {
@@ -3986,6 +4035,9 @@ function recruitment_saveSettings() {
 		SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks = parseInt(document.getElementById('recruitment_barracks').value) || 50;
 		SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable = parseInt(document.getElementById('recruitment_stable').value) || 30;
 		SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage = parseInt(document.getElementById('recruitment_garage').value) || 20;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.barracks = parseInt(document.getElementById('recruitment_max_barracks').value) || 0;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.stable = parseInt(document.getElementById('recruitment_max_stable').value) || 0;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.garage = parseInt(document.getElementById('recruitment_max_garage').value) || 0;
 
 		// Validate building distribution
 		const total = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks +
@@ -4015,6 +4067,10 @@ function recruitment_loadSettings() {
 			document.getElementById('recruitment_barracks').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks;
 			document.getElementById('recruitment_stable').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable;
 			document.getElementById('recruitment_garage').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage;
+			// Load max units settings (with fallback to 0 for old saves)
+			document.getElementById('recruitment_max_barracks').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.barracks || 0;
+			document.getElementById('recruitment_max_stable').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.stable || 0;
+			document.getElementById('recruitment_max_garage').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.garage || 0;
 		}
 	} catch(e) {
 		debug('Recruitment', 'Error loading settings: ' + e);
@@ -4043,9 +4099,40 @@ szem4_recruitment_motor();
 ujkieg("recruitment","Recruitment",`<tr><td>
 	<h2 align="center">Auto Recruitment System</h2>
 
+	<!-- Status Section -->
+	<div style="background: #e8d4a0; border: 2px solid #7d510f; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+		<h3 style="margin-top: 0;">Status</h3>
+		<table class="vis" style="width: 100%;">
+			<tr>
+				<td style="width: 150px;"><b>Status:</b></td>
+				<td><span id="recruitment_status" style="padding: 3px 10px; border-radius: 3px; font-weight: bold;">PAUSED</span></td>
+			</tr>
+			<tr>
+				<td><b>Active Template:</b></td>
+				<td id="recruitment_active_template">None selected</td>
+			</tr>
+			<tr>
+				<td><b>Current Step:</b></td>
+				<td id="recruitment_current_step">Idle</td>
+			</tr>
+			<tr>
+				<td><b>Last Run:</b></td>
+				<td id="recruitment_last_run">Never</td>
+			</tr>
+			<tr>
+				<td><b>Next Run:</b></td>
+				<td id="recruitment_next_run">-</td>
+			</tr>
+			<tr>
+				<td><b>Countdown:</b></td>
+				<td><span id="recruitment_countdown" style="font-family: monospace; font-size: 16px; font-weight: bold;">--:--</span></td>
+			</tr>
+		</table>
+	</div>
+
 	<!-- Templates Section -->
 	<h3>Templates</h3>
-	<table class="vis" id="recruitment_templates" style="color: black; width: 100%;">
+	<table class="vis" id="recruitment_templates" style="width: 100%;">
 		<tbody>
 			<tr>
 				<th>Name</th>
@@ -4055,65 +4142,90 @@ ujkieg("recruitment","Recruitment",`<tr><td>
 		</tbody>
 	</table>
 	<p align="center">
-		<button onclick="recruitment_showTemplateEditor()">Create New Template</button>
+		<button onclick="recruitment_showTemplateEditor()" class="btn">Create New Template</button>
 	</p>
 
 	<!-- Settings Section -->
 	<h3>Settings</h3>
-	<table class="vis" style="color: black; margin: auto;">
+	<table class="vis" style="margin: auto;">
 		<tr>
 			<td>Check Interval (minutes):</td>
-			<td><input type="number" id="recruitment_interval" min="1" value="5" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_interval" min="1" value="5" style="width: 80px;"></td>
 		</tr>
 		<tr>
 			<td>Random Delay (minutes):</td>
-			<td><input type="number" id="recruitment_delay" min="0" value="1" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_delay" min="0" value="1" style="width: 80px;"></td>
 		</tr>
 		<tr>
 			<td>Resource Budget (%):</td>
-			<td><input type="number" id="recruitment_budget" min="1" max="100" value="60" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_budget" min="1" max="100" value="60" style="width: 80px;"></td>
 		</tr>
 		<tr>
-			<td colspan="2"><b>Building Distribution</b></td>
+			<td colspan="2"><b>Building Distribution (must total 100%)</b></td>
 		</tr>
 		<tr>
 			<td>Barracks (%):</td>
-			<td><input type="number" id="recruitment_barracks" value="50" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_barracks" value="50" style="width: 80px;"></td>
 		</tr>
 		<tr>
 			<td>Stable (%):</td>
-			<td><input type="number" id="recruitment_stable" value="30" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_stable" value="30" style="width: 80px;"></td>
 		</tr>
 		<tr>
 			<td>Garage (%):</td>
-			<td><input type="number" id="recruitment_garage" value="20" onchange="recruitment_saveSettings()" style="width: 80px;"></td>
+			<td><input type="number" id="recruitment_garage" value="20" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2"><b>Max Units Per Cycle (0 = no limit)</b></td>
+		</tr>
+		<tr>
+			<td>Barracks max:</td>
+			<td><input type="number" id="recruitment_max_barracks" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Stable max:</td>
+			<td><input type="number" id="recruitment_max_stable" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Garage max:</td>
+			<td><input type="number" id="recruitment_max_garage" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2" align="center" style="padding-top: 10px;">
+				<button onclick="recruitment_saveSettings()" class="btn">Save Settings</button>
+			</td>
 		</tr>
 	</table>
 
 	<!-- Statistics Section -->
 	<h3>Statistics</h3>
-	<table class="vis" style="color: black; margin: auto;">
+	<table class="vis" style="margin: auto;">
 		<tr>
 			<td>Total Runs:</td>
 			<td id="recruitment_stat_runs">0</td>
 		</tr>
 		<tr>
-			<td>Total Recruits:</td>
+			<td>Successful Recruits:</td>
 			<td id="recruitment_stat_recruits">0</td>
-		</tr>
-		<tr>
-			<td>Last Run:</td>
-			<td id="recruitment_stat_lastrun">Never</td>
 		</tr>
 		<tr>
 			<td>Errors:</td>
 			<td id="recruitment_stat_errors">0</td>
 		</tr>
 	</table>
+	<p align="center" style="margin-top: 10px;">
+		<button onclick="recruitment_resetStats()" class="btn">Reset Statistics</button>
+	</p>
+
+	<!-- Log Section -->
+	<h3>Activity Log</h3>
+	<div id="recruitment_log" style="background: #1a1a1a; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; height: 150px; overflow-y: auto; border: 1px solid #7d510f; border-radius: 4px;">
+		<div style="color: #888;">Waiting for activity...</div>
+	</div>
 
 	<!-- Instructions -->
 	<h3>How to Use</h3>
-	<ol style="color: white; text-align: left; max-width: 800px; margin: auto;">
+	<ol style="text-align: left; max-width: 800px; margin: auto;">
 		<li>Create a template with your desired troop goals</li>
 		<li>Select the template you want to use (click "Select" button)</li>
 		<li>Adjust settings if needed (check interval, resource budget, etc.)</li>
@@ -4122,11 +4234,138 @@ ujkieg("recruitment","Recruitment",`<tr><td>
 	</ol>
 </td></tr>`);
 
+// Recruitment Log Function
+function recruitment_log(message, type = 'info') {
+	const logDiv = document.getElementById('recruitment_log');
+	if (!logDiv) return;
+
+	const timestamp = new Date().toLocaleTimeString();
+	const colors = {
+		'info': '#00ff00',
+		'warn': '#ffff00',
+		'error': '#ff4444',
+		'success': '#44ff44'
+	};
+	const color = colors[type] || colors.info;
+
+	const entry = document.createElement('div');
+	entry.style.color = color;
+	entry.innerHTML = `[${timestamp}] ${message}`;
+
+	// Remove "waiting" message if present
+	const waiting = logDiv.querySelector('div[style*="color: #888"]');
+	if (waiting) waiting.remove();
+
+	logDiv.appendChild(entry);
+	logDiv.scrollTop = logDiv.scrollHeight;
+
+	// Keep only last 50 entries
+	while (logDiv.children.length > 50) {
+		logDiv.removeChild(logDiv.firstChild);
+	}
+}
+
+// Reset Statistics
+function recruitment_resetStats() {
+	if (confirm('Are you sure you want to reset all statistics?')) {
+		SZEM4_RECRUITMENT.STATS = {
+			lastRun: 0,
+			totalRuns: 0,
+			totalRecruits: 0,
+			errors: 0
+		};
+		recruitment_save();
+		recruitment_updateStats();
+		recruitment_log('Statistics reset', 'info');
+		naplo('Recruitment', 'Statistics reset');
+	}
+}
+
+// Update Status UI
+function recruitment_updateStatusUI() {
+	// Status badge
+	const statusEl = document.getElementById('recruitment_status');
+	if (statusEl) {
+		if (RECRUITMENT_PAUSE) {
+			statusEl.textContent = 'PAUSED';
+			statusEl.style.backgroundColor = '#ffcccc';
+			statusEl.style.color = '#8B0000';
+		} else {
+			statusEl.textContent = 'RUNNING';
+			statusEl.style.backgroundColor = '#ccffcc';
+			statusEl.style.color = '#006400';
+		}
+	}
+
+	// Active template
+	const templateEl = document.getElementById('recruitment_active_template');
+	if (templateEl) {
+		if (SZEM4_RECRUITMENT.ACTIVE_TEMPLATE) {
+			const t = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE;
+			const unitCount = Object.keys(t.units).length;
+			templateEl.innerHTML = `<b>${t.name}</b> (${unitCount} unit types)`;
+		} else {
+			templateEl.innerHTML = '<span style="color: red;">None selected - select a template first!</span>';
+		}
+	}
+
+	// Current step
+	const stepEl = document.getElementById('recruitment_current_step');
+	if (stepEl) {
+		const steps = ['Waiting for next cycle', 'Opening train page', 'Extracting data', 'Submitting recruitment'];
+		stepEl.textContent = steps[RECRUITMENT_LEPES] || 'Unknown';
+	}
+
+	// Last run
+	const lastRunEl = document.getElementById('recruitment_last_run');
+	if (lastRunEl) {
+		if (SZEM4_RECRUITMENT.STATS.lastRun) {
+			lastRunEl.textContent = new Date(SZEM4_RECRUITMENT.STATS.lastRun).toLocaleString();
+		} else {
+			lastRunEl.textContent = 'Never';
+		}
+	}
+
+	// Next run & Countdown
+	const nextRunEl = document.getElementById('recruitment_next_run');
+	const countdownEl = document.getElementById('recruitment_countdown');
+
+	if (RECRUITMENT_PAUSE || !SZEM4_RECRUITMENT.STATS.lastRun) {
+		if (nextRunEl) nextRunEl.textContent = '-';
+		if (countdownEl) countdownEl.textContent = '--:--';
+	} else {
+		const interval = SZEM4_RECRUITMENT.OPTIONS.checkInterval * 60 * 1000;
+		const nextRun = SZEM4_RECRUITMENT.STATS.lastRun + interval;
+		const now = Date.now();
+		const remaining = Math.max(0, nextRun - now);
+
+		if (nextRunEl) {
+			nextRunEl.textContent = new Date(nextRun).toLocaleTimeString();
+		}
+
+		if (countdownEl) {
+			if (remaining <= 0) {
+				countdownEl.textContent = 'Running...';
+				countdownEl.style.color = '#00ff00';
+			} else {
+				const mins = Math.floor(remaining / 60000);
+				const secs = Math.floor((remaining % 60000) / 1000);
+				countdownEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+				countdownEl.style.color = remaining < 30000 ? '#ffff00' : '#ffffff';
+			}
+		}
+	}
+}
+
 // Load UI settings after panel is created
 setTimeout(() => {
 	recruitment_loadSettings();
 	recruitment_renderTemplates();
 	recruitment_updateStats();
+	recruitment_updateStatusUI();
+
+	// Start UI update interval
+	setInterval(recruitment_updateStatusUI, 1000);
 }, 500);
 
 /*-----------------TÁMADÁS FIGYELŐ--------------------*/
