@@ -1,0 +1,818 @@
+/*
+ * BUILD TIME OPTIMIZER v3.1
+ * =========================
+ * Features:
+ * - Exact build order preservation
+ * - Multiple entries of same building supported
+ * - Shows completion time for each building
+ * - Proper Tribal Wars UI styling
+ */
+
+(async function() {
+    'use strict';
+
+    // =============================================================================
+    // CONFIGURATION
+    // =============================================================================
+    
+    const scriptConfig = {
+        name: 'Build Optimizer',
+        version: 'v3.1',
+        author: 'Norbi0N'
+    };
+
+    // =============================================================================
+    // WORLD CONFIG - Fetch from interface.php
+    // =============================================================================
+    
+    let worldConfig = {
+        speed: 1,
+        unitSpeed: 1,
+        moral: 0
+    };
+
+    async function fetchWorldConfig() {
+        try {
+            const response = await fetch('/interface.php?func=get_config');
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(text, 'text/xml');
+            
+            worldConfig.speed = parseFloat(xml.querySelector('speed')?.textContent) || 1;
+            worldConfig.unitSpeed = parseFloat(xml.querySelector('unit_speed')?.textContent) || 1;
+            worldConfig.moral = parseInt(xml.querySelector('moral')?.textContent) || 0;
+            
+            console.log(`✅ World Config: speed=${worldConfig.speed}x, unit_speed=${worldConfig.unitSpeed}x`);
+            return worldConfig;
+        } catch (error) {
+            console.error('❌ Failed to fetch world config:', error);
+            return worldConfig;
+        }
+    }
+
+    // =============================================================================
+    // BUILDING DATA
+    // =============================================================================
+    
+    const buildConf = {
+        "main": { name: "Főhadiszállás", wood: 90, stone: 80, iron: 70, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 900, max_level: 30 },
+        "barracks": { name: "Barakk", wood: 200, stone: 170, iron: 90, wood_factor: 1.26, stone_factor: 1.28, iron_factor: 1.26, build_time: 1800, max_level: 25 },
+        "stable": { name: "Istálló", wood: 270, stone: 240, iron: 260, wood_factor: 1.26, stone_factor: 1.28, iron_factor: 1.26, build_time: 6000, max_level: 20 },
+        "garage": { name: "Műhely", wood: 300, stone: 240, iron: 260, wood_factor: 1.26, stone_factor: 1.28, iron_factor: 1.26, build_time: 6000, max_level: 15 },
+        "smith": { name: "Kovácsműhely", wood: 220, stone: 180, iron: 240, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 6000, max_level: 20 },
+        "place": { name: "Gyülekezőhely", wood: 10, stone: 40, iron: 30, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 10860, max_level: 1 },
+        "statue": { name: "Szobor", wood: 220, stone: 220, iron: 220, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 1500, max_level: 1 },
+        "market": { name: "Piac", wood: 100, stone: 100, iron: 100, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 2700, max_level: 25 },
+        "wood": { name: "Fatelep", wood: 50, stone: 60, iron: 40, wood_factor: 1.25, stone_factor: 1.275, iron_factor: 1.245, build_time: 900, max_level: 30 },
+        "stone": { name: "Agyagbánya", wood: 65, stone: 50, iron: 40, wood_factor: 1.27, stone_factor: 1.265, iron_factor: 1.24, build_time: 900, max_level: 30 },
+        "iron": { name: "Vashánya", wood: 75, stone: 65, iron: 70, wood_factor: 1.252, stone_factor: 1.275, iron_factor: 1.24, build_time: 1080, max_level: 30 },
+        "farm": { name: "Tanya", wood: 45, stone: 40, iron: 30, wood_factor: 1.3, stone_factor: 1.32, iron_factor: 1.29, build_time: 1200, max_level: 30 },
+        "storage": { name: "Raktár", wood: 60, stone: 50, iron: 40, wood_factor: 1.265, stone_factor: 1.27, iron_factor: 1.245, build_time: 1020, max_level: 30 },
+        "hide": { name: "Rejtekhely", wood: 50, stone: 60, iron: 50, wood_factor: 1.25, stone_factor: 1.25, iron_factor: 1.25, build_time: 1800, max_level: 10 },
+        "wall": { name: "Fal", wood: 50, stone: 100, iron: 20, wood_factor: 1.26, stone_factor: 1.275, iron_factor: 1.26, build_time: 3600, max_level: 20 },
+        "snob": { name: "Akadémia", wood: 15000, stone: 25000, iron: 10000, wood_factor: 2, stone_factor: 2, iron_factor: 2, build_time: 586800, max_level: 1 },
+        "watchtower": { name: "Őrtorony", wood: 12000, stone: 14000, iron: 10000, wood_factor: 1.17, stone_factor: 1.17, iron_factor: 1.18, build_time: 13200, max_level: 20 },
+        "church": { name: "Templom", wood: 16000, stone: 20000, iron: 5000, wood_factor: 1.26, stone_factor: 1.28, iron_factor: 1.26, build_time: 184980, max_level: 3 },
+        "church_f": { name: "Első templom", wood: 160, stone: 200, iron: 50, wood_factor: 1.26, stone_factor: 1.28, iron_factor: 1.26, build_time: 8160, max_level: 1 }
+    };
+
+    const levelMultipliers = [
+        0.076531875, 0.008575, 0.1611688357125, 0.49997092217822, 0.95648692484371,
+        1.507915906133, 2.1583894342689, 2.9234350042923, 3.8258560762261, 4.8929653630626,
+        6.1578892138254, 7.6590657112219, 9.4433064708667, 11.564692858728, 14.087747339219,
+        17.087827532738, 20.656815089182, 24.899818499248, 29.943903177098, 35.937391973395,
+        43.057125537371, 51.513283593952, 61.553558650789, 73.469813455449, 87.609924818161,
+        104.38073172038, 124.27318094664, 147.85747137631, 175.8153675657, 208.94719428012
+    ];
+
+    // =============================================================================
+    // CALCULATION FUNCTIONS
+    // =============================================================================
+    
+    function hqFactor(hqLevel) {
+        return Math.pow(1.05, -hqLevel);
+    }
+
+    function calcBuildTime(building, targetLevel, hqLevel) {
+        const conf = buildConf[building];
+        if (!conf) return 0;
+        
+        const baseBuildTime = conf.build_time / worldConfig.speed;
+        const hqReduction = hqFactor(hqLevel);
+        const levelMult = levelMultipliers[targetLevel - 1] || 1;
+        
+        return Math.round(hqReduction * baseBuildTime * levelMult);
+    }
+
+    function calcCost(building, targetLevel) {
+        const conf = buildConf[building];
+        if (!conf) return { wood: 0, stone: 0, iron: 0, total: 0 };
+        
+        const wood = Math.round(conf.wood * Math.pow(conf.wood_factor, targetLevel - 1));
+        const stone = Math.round(conf.stone * Math.pow(conf.stone_factor, targetLevel - 1));
+        const iron = Math.round(conf.iron * Math.pow(conf.iron_factor, targetLevel - 1));
+        
+        return { wood, stone, iron, total: wood + stone + iron };
+    }
+
+    function formatSeconds(seconds) {
+        if (seconds < 0) seconds = 0;
+        
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (days > 0) {
+            return `${days}n ${hours}ó ${minutes}p`;
+        } else if (hours > 0) {
+            return `${hours}ó ${minutes}p ${secs}mp`;
+        } else if (minutes > 0) {
+            return `${minutes}p ${secs}mp`;
+        } else {
+            return `${secs}mp`;
+        }
+    }
+
+    function formatDateTime(date) {
+        return date.toLocaleString('hu-HU', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    }
+
+    function formatNumber(num) {
+        return num.toLocaleString('hu-HU');
+    }
+
+    function getServerTime() {
+        const serverTimeEl = document.querySelector('#serverTime');
+        const serverDateEl = document.querySelector('#serverDate');
+        
+        if (!serverTimeEl || !serverDateEl) return new Date();
+        
+        const time = serverTimeEl.textContent.trim();
+        const date = serverDateEl.textContent.trim();
+        const [day, month, year] = date.split('/');
+        
+        return new Date(`${year}-${month}-${day}T${time}`);
+    }
+
+    // =============================================================================
+    // SIMULATION ENGINE - EXACT ORDER PRESERVED
+    // =============================================================================
+    
+    function simulateQueue(buildQueue, startingHQ, startingLevels = null) {
+        let currentHQ = startingHQ;
+        let totalSeconds = 0;
+        const breakdown = [];
+        let currentTime = getServerTime();
+        
+        // Track current levels of all buildings during simulation
+        const currentLevels = startingLevels ? { ...startingLevels } : { ...game_data.village.buildings };
+        
+        // Convert all levels to integers
+        Object.keys(currentLevels).forEach(key => {
+            currentLevels[key] = parseInt(currentLevels[key]) || 0;
+        });
+        
+        buildQueue.forEach((item, index) => {
+            const building = item.building;
+            const targetLevel = item.level;
+            const fromLevel = currentLevels[building] || 0;
+            
+            // Calculate time with current HQ level
+            const time = calcBuildTime(building, targetLevel, currentHQ);
+            const cost = calcCost(building, targetLevel);
+            const finishTime = new Date(currentTime.getTime() + time * 1000);
+            
+            breakdown.push({
+                position: index + 1,
+                building: building,
+                buildingName: buildConf[building]?.name || building,
+                fromLevel: fromLevel,
+                level: targetLevel,
+                time,
+                timeStr: formatSeconds(time),
+                startTime: new Date(currentTime),
+                finishTime,
+                finishTimeStr: formatDateTime(finishTime),
+                cost,
+                hqUsed: currentHQ
+            });
+            
+            totalSeconds += time;
+            currentTime = finishTime;
+            
+            // Update tracked level
+            currentLevels[building] = targetLevel;
+            
+            // If building HQ, update current HQ level for subsequent builds
+            if (building === 'main') {
+                currentHQ = targetLevel;
+            }
+        });
+        
+        return {
+            totalSeconds,
+            totalTime: formatSeconds(totalSeconds),
+            startTime: getServerTime(),
+            finishTime: currentTime,
+            finishTimeStr: formatDateTime(currentTime),
+            breakdown,
+            finalHQ: currentHQ,
+            finalLevels: currentLevels
+        };
+    }
+
+    function findOptimalHQ(buildQueue, currentHQ, maxTest = 7) {
+        const results = [];
+        const currentLevels = { ...game_data.village.buildings };
+        
+        // Convert all levels to integers
+        Object.keys(currentLevels).forEach(key => {
+            currentLevels[key] = parseInt(currentLevels[key]) || 0;
+        });
+        
+        // Baseline: no HQ upgrade
+        const baseline = simulateQueue(buildQueue, currentHQ, currentLevels);
+        results.push({
+            strategy: `HQ ${currentHQ} marad`,
+            hqTarget: currentHQ,
+            hqUpgradeSeconds: 0,
+            hqUpgradeTime: '-',
+            buildQueueSeconds: baseline.totalSeconds,
+            buildQueueTime: baseline.totalTime,
+            totalSeconds: baseline.totalSeconds,
+            totalTime: baseline.totalTime,
+            finishTime: baseline.finishTime,
+            finishTimeStr: baseline.finishTimeStr,
+            breakdown: baseline.breakdown
+        });
+        
+        // Test HQ upgrades
+        for (let testHQ = currentHQ + 1; testHQ <= Math.min(buildConf.main.max_level, currentHQ + maxTest); testHQ++) {
+            // Build HQ upgrade queue
+            const hqQueue = [];
+            for (let lvl = currentHQ + 1; lvl <= testHQ; lvl++) {
+                hqQueue.push({ building: 'main', level: lvl });
+            }
+            
+            // Simulate HQ upgrades
+            const hqLevels = { ...currentLevels };
+            const hqResult = simulateQueue(hqQueue, currentHQ, hqLevels);
+            
+            // Simulate build queue with upgraded HQ
+            const buildLevels = { ...hqResult.finalLevels };
+            const buildResult = simulateQueue(buildQueue, testHQ, buildLevels);
+            
+            const totalSeconds = hqResult.totalSeconds + buildResult.totalSeconds;
+            const finishTime = new Date(getServerTime().getTime() + totalSeconds * 1000);
+            
+            // Combine breakdowns
+            const combinedBreakdown = [
+                ...hqResult.breakdown.map(item => ({ ...item, isHQUpgrade: true })),
+                ...buildResult.breakdown
+            ];
+            
+            // Renumber positions
+            combinedBreakdown.forEach((item, index) => {
+                item.position = index + 1;
+            });
+            
+            results.push({
+                strategy: `HQ ${currentHQ} → ${testHQ} először`,
+                hqTarget: testHQ,
+                hqUpgradeSeconds: hqResult.totalSeconds,
+                hqUpgradeTime: hqResult.totalTime,
+                buildQueueSeconds: buildResult.totalSeconds,
+                buildQueueTime: buildResult.totalTime,
+                totalSeconds,
+                totalTime: formatSeconds(totalSeconds),
+                finishTime,
+                finishTimeStr: formatDateTime(finishTime),
+                breakdown: combinedBreakdown
+            });
+        }
+        
+        results.sort((a, b) => a.totalSeconds - b.totalSeconds);
+        
+        return {
+            results,
+            optimal: results[0],
+            baseline: baseline.totalSeconds,
+            timeSaved: baseline.totalSeconds - results[0].totalSeconds
+        };
+    }
+
+    // =============================================================================
+    // QUEUE MANAGEMENT
+    // =============================================================================
+    
+    const buildQueue = [];
+    
+    function getCurrentLevelForBuilding(building) {
+        const baseLevel = parseInt(game_data.village.buildings[building]) || 0;
+        
+        let highestInQueue = baseLevel;
+        buildQueue.forEach(item => {
+            if (item.building === building && item.level > highestInQueue) {
+                highestInQueue = item.level;
+            }
+        });
+        
+        return highestInQueue;
+    }
+
+    function updateQueueDisplay() {
+        const tbody = document.getElementById('bo-queue-list');
+        if (!tbody) return;
+        
+        if (buildQueue.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="bo-empty-queue">Üres építési sor. Adj hozzá épületeket!</td></tr>`;
+            return;
+        }
+
+        const currentHQ = parseInt(game_data.village.buildings.main) || 1;
+        const simulation = simulateQueue(buildQueue, currentHQ);
+
+        tbody.innerHTML = buildQueue.map((item, index) => {
+            const simItem = simulation.breakdown[index];
+            return `
+                <tr>
+                    <td><span class="bo-position">${index + 1}</span></td>
+                    <td>
+                        <img src="/graphic/buildings/${item.building}.png" style="width:14px; height:14px; vertical-align:middle;">
+                        ${buildConf[item.building]?.name || item.building}
+                        <small style="color:#888">(${simItem.fromLevel}→)</small>
+                    </td>
+                    <td><b>${item.level}</b>. szint</td>
+                    <td>
+                        <span class="bo-move-btn" onclick="window.BuildOptimizer.moveUp(${index})" title="Fel">▲</span>
+                        <span class="bo-move-btn" onclick="window.BuildOptimizer.moveDown(${index})" title="Le">▼</span>
+                        <span class="bo-remove-btn" onclick="window.BuildOptimizer.removeFromQueue(${index})" title="Törlés">✕</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function updateBuildingSelect() {
+        const selects = ['bo-building-select', 'bo-quick-building'];
+        selects.forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            Array.from(select.options).forEach(option => {
+                const building = option.value;
+                const currentLevel = getCurrentLevelForBuilding(building);
+                const baseName = buildConf[building]?.name || building;
+                option.textContent = `${baseName} (${currentLevel})`;
+                option.dataset.current = currentLevel;
+            });
+        });
+    }
+
+    function addToQueue() {
+        const select = document.getElementById('bo-building-select');
+        const building = select.value;
+        const targetLevel = parseInt(document.getElementById('bo-target-level').value);
+        const maxLevel = parseInt(select.options[select.selectedIndex].dataset.max) || 30;
+        const currentLevel = getCurrentLevelForBuilding(building);
+
+        if (!targetLevel) {
+            UI.ErrorMessage('Add meg a cél szintet!');
+            return;
+        }
+
+        if (targetLevel <= currentLevel) {
+            UI.ErrorMessage(`A cél szintnek (${targetLevel}) nagyobbnak kell lennie a jelenlegi/sorban lévő szintnél (${currentLevel})!`);
+            return;
+        }
+
+        if (targetLevel > maxLevel) {
+            UI.ErrorMessage(`Maximum szint: ${maxLevel}`);
+            return;
+        }
+
+        buildQueue.push({ building, level: targetLevel });
+
+        document.getElementById('bo-target-level').value = '';
+        updateBuildingSelect();
+        updateQueueDisplay();
+        UI.SuccessMessage(`${buildConf[building].name} ${targetLevel}. szint hozzáadva!`);
+    }
+
+    function addMultipleLevels() {
+        const select = document.getElementById('bo-quick-building');
+        const building = select.value;
+        const fromLevel = parseInt(document.getElementById('bo-quick-from').value);
+        const toLevel = parseInt(document.getElementById('bo-quick-to').value);
+        const maxLevel = parseInt(select.options[select.selectedIndex].dataset.max) || 30;
+
+        if (!fromLevel || !toLevel) {
+            UI.ErrorMessage('Add meg mindkét szintet!');
+            return;
+        }
+
+        if (fromLevel >= toLevel) {
+            UI.ErrorMessage('A kezdő szintnek kisebbnek kell lennie!');
+            return;
+        }
+
+        if (toLevel > maxLevel) {
+            UI.ErrorMessage(`Maximum szint: ${maxLevel}`);
+            return;
+        }
+
+        for (let lvl = fromLevel + 1; lvl <= toLevel; lvl++) {
+            buildQueue.push({ building, level: lvl });
+        }
+
+        document.getElementById('bo-quick-from').value = '';
+        document.getElementById('bo-quick-to').value = '';
+        
+        updateBuildingSelect();
+        updateQueueDisplay();
+        UI.SuccessMessage(`${buildConf[building].name} ${fromLevel}→${toLevel} hozzáadva (${toLevel - fromLevel} szint)!`);
+    }
+
+    function removeFromQueue(index) {
+        buildQueue.splice(index, 1);
+        updateBuildingSelect();
+        updateQueueDisplay();
+    }
+
+    function moveUp(index) {
+        if (index === 0) return;
+        [buildQueue[index], buildQueue[index - 1]] = [buildQueue[index - 1], buildQueue[index]];
+        updateQueueDisplay();
+    }
+
+    function moveDown(index) {
+        if (index >= buildQueue.length - 1) return;
+        [buildQueue[index], buildQueue[index + 1]] = [buildQueue[index + 1], buildQueue[index]];
+        updateQueueDisplay();
+    }
+
+    function clearQueue() {
+        buildQueue.length = 0;
+        updateBuildingSelect();
+        updateQueueDisplay();
+        document.getElementById('bo-results').style.display = 'none';
+        UI.SuccessMessage('Építési sor törölve!');
+    }
+
+    function analyze() {
+        if (buildQueue.length === 0) {
+            UI.ErrorMessage('Add hozzá épületeket az építési sorhoz!');
+            return;
+        }
+
+        const currentHQ = parseInt(game_data.village.buildings.main) || 1;
+        const maxTestHQ = parseInt(document.getElementById('bo-hq-test-max').value) || (currentHQ + 5);
+        
+        const optimization = findOptimalHQ(buildQueue, currentHQ, maxTestHQ - currentHQ);
+        
+        displayResults(optimization, currentHQ);
+    }
+
+    function displayResults(optimization, currentHQ) {
+        const resultsDiv = document.getElementById('bo-results');
+        const contentDiv = document.getElementById('bo-results-content');
+        
+        resultsDiv.style.display = 'block';
+
+        // Comparison table
+        let tableHtml = `
+            <table class="bo-results-table">
+                <thead>
+                    <tr>
+                        <th>Stratégia</th>
+                        <th>HQ fejl.</th>
+                        <th>Építés</th>
+                        <th>Összesen</th>
+                        <th>Befejezés</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        optimization.results.forEach((result, index) => {
+            const isWinner = index === 0;
+            const rowClass = isWinner ? 'bo-winner' : '';
+
+            tableHtml += `
+                <tr class="${rowClass}">
+                    <td>${isWinner ? '🏆 ' : ''}${result.strategy}</td>
+                    <td>${result.hqUpgradeTime}</td>
+                    <td>${result.buildQueueTime}</td>
+                    <td><b>${result.totalTime}</b></td>
+                    <td class="bo-finish-time">${result.finishTimeStr}</td>
+                </tr>
+            `;
+        });
+
+        tableHtml += '</tbody></table>';
+
+        // Summary
+        const optimal = optimization.optimal;
+        const timeSaved = optimization.timeSaved;
+
+        let summaryClass = timeSaved > 0 ? '' : 'no-save';
+        let summaryHtml = `
+            <div class="bo-summary ${summaryClass}">
+                <h5>${timeSaved > 0 ? '🏆 AJÁNLÁS' : '✅ EREDMÉNY'}</h5>
+                <p><b>${optimal.strategy}</b></p>
+                ${timeSaved > 0 ? `<p>⏱️ Megtakarítás: <b>${formatSeconds(timeSaved)}</b></p>` : '<p>A HQ fejlesztés nem gyorsít ezen a soron.</p>'}
+                <p>🏁 Befejezés: <b>${optimal.finishTimeStr}</b></p>
+            </div>
+        `;
+
+        // Detailed breakdown
+        let breakdownHtml = `
+            <div class="bo-breakdown">
+                <div class="bo-breakdown-header">
+                    📋 Részletes időterv (${optimal.strategy})
+                </div>
+                <div class="bo-breakdown-scroll">
+                    <table class="bo-breakdown-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Épület</th>
+                                <th>Szint</th>
+                                <th>Időtartam</th>
+                                <th>HQ</th>
+                                <th>Elkészül</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        optimal.breakdown.forEach(item => {
+            const rowClass = item.isHQUpgrade ? 'hq-upgrade' : '';
+            breakdownHtml += `
+                <tr class="${rowClass}">
+                    <td><span class="bo-position">${item.position}</span></td>
+                    <td>
+                        <img src="/graphic/buildings/${item.building}.png" style="width:14px; height:14px; vertical-align:middle;">
+                        ${item.buildingName}
+                        ${item.isHQUpgrade ? '<small>(HQ)</small>' : ''}
+                    </td>
+                    <td>${item.fromLevel} → <b>${item.level}</b></td>
+                    <td>${item.timeStr}</td>
+                    <td>${item.hqUsed}</td>
+                    <td class="bo-finish-time">${item.finishTimeStr}</td>
+                </tr>
+            `;
+        });
+
+        breakdownHtml += '</tbody></table></div></div>';
+
+        contentDiv.innerHTML = tableHtml + summaryHtml + breakdownHtml;
+        resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // =============================================================================
+    // UI CREATION
+    // =============================================================================
+    
+    function createUI() {
+        const existing = document.getElementById('buildOptimizer');
+        if (existing) existing.remove();
+
+        const currentBuildings = game_data.village.buildings;
+        const currentHQ = parseInt(currentBuildings.main) || 1;
+
+        const html = `
+            <div id="buildOptimizer" class="bo-container">
+                <div class="bo-header">
+                    <h3>
+                        <img src="/graphic/buildings/main.png" style="vertical-align: middle; width: 20px; height: 20px;">
+                        ${scriptConfig.name} ${scriptConfig.version}
+                    </h3>
+                    <span class="bo-close" onclick="document.getElementById('buildOptimizer').remove()">✕</span>
+                </div>
+                
+                <div class="bo-body">
+                    <div class="bo-section">
+                        <div class="bo-info-bar">
+                            <span><b>Világ:</b> ${worldConfig.speed}x</span>
+                            <span><b>HQ:</b> ${currentHQ}. szint</span>
+                            <span><b>Idő:</b> <span id="bo-server-time">${formatDateTime(getServerTime())}</span></span>
+                        </div>
+                    </div>
+
+                    <div class="bo-section">
+                        <h4>Építési sorrend</h4>
+                        <div class="bo-queue-input">
+                            <div class="bo-queue-scroll" id="bo-queue-container">
+                                <table class="vis" width="100%">
+                                    <thead>
+                                        <tr>
+                                            <th width="30">#</th>
+                                            <th>Épület</th>
+                                            <th width="60">Szint</th>
+                                            <th width="60"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="bo-queue-list"></tbody>
+                                </table>
+                            </div>
+                            <div class="bo-add-row">
+                                <select id="bo-building-select">
+                                    ${Object.entries(buildConf).map(([key, conf]) => 
+                                        `<option value="${key}" data-current="${currentBuildings[key] || 0}" data-max="${conf.max_level}">${conf.name} (${currentBuildings[key] || 0})</option>`
+                                    ).join('')}
+                                </select>
+                                <span>→</span>
+                                <input type="number" id="bo-target-level" placeholder="Szint" min="1" max="30" style="width: 55px;">
+                                <button class="btn" onclick="window.BuildOptimizer.addToQueue()">+ Hozzáad</button>
+                                <button class="btn btn-danger" onclick="window.BuildOptimizer.clearQueue()">Törlés</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bo-section">
+                        <h4>Gyors hozzáadás (több szint)</h4>
+                        <div class="bo-quick-add">
+                            <select id="bo-quick-building">
+                                ${Object.entries(buildConf).map(([key, conf]) => 
+                                    `<option value="${key}" data-current="${currentBuildings[key] || 0}" data-max="${conf.max_level}">${conf.name}</option>`
+                                ).join('')}
+                            </select>
+                            <input type="number" id="bo-quick-from" placeholder="Ettől" style="width: 50px;">
+                            <span>→</span>
+                            <input type="number" id="bo-quick-to" placeholder="Eddig" style="width: 50px;">
+                            <button class="btn" onclick="window.BuildOptimizer.addMultipleLevels()">Hozzáad</button>
+                        </div>
+                    </div>
+
+                    <div class="bo-section">
+                        <h4>Főhadiszállás optimalizálás</h4>
+                        <div class="bo-hq-test">
+                            <label>Teszt HQ szintig: 
+                                <input type="number" id="bo-hq-test-max" value="${Math.min(currentHQ + 5, 30)}" min="${currentHQ + 1}" max="30" style="width: 55px;">
+                            </label>
+                            <button class="btn btn-primary" onclick="window.BuildOptimizer.analyze()">🔍 Elemzés</button>
+                        </div>
+                    </div>
+
+                    <div class="bo-section" id="bo-results" style="display: none;">
+                        <h4>📊 Eredmények</h4>
+                        <div id="bo-results-content"></div>
+                    </div>
+                </div>
+
+                <div class="bo-footer">
+                    <small>${scriptConfig.name} ${scriptConfig.version} by ${scriptConfig.author}</small>
+                </div>
+            </div>
+        `;
+
+        const style = `
+            <style>
+                .bo-container {
+                    position: fixed;
+                    top: 80px;
+                    right: 30px;
+                    width: 550px;
+                    max-height: 90vh;
+                    overflow-y: auto;
+                    background: #f4e4bc;
+                    border: 2px solid #7d510f;
+                    border-radius: 8px;
+                    z-index: 99999;
+                    font-family: Verdana, Arial, sans-serif;
+                    font-size: 11px;
+                    box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+                }
+                .bo-header {
+                    background: linear-gradient(to bottom, #c1a264 0%, #b89956 100%);
+                    padding: 8px 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #7d510f;
+                    cursor: move;
+                    position: sticky;
+                    top: 0;
+                    z-index: 10;
+                }
+                .bo-header h3 { margin: 0; color: #422d09; font-size: 13px; }
+                .bo-close { cursor: pointer; font-size: 18px; color: #5d3d0a; font-weight: bold; padding: 0 5px; }
+                .bo-close:hover { color: #c00; }
+                .bo-body { padding: 10px; }
+                .bo-section {
+                    background: #fff5da;
+                    border: 1px solid #c9a86c;
+                    border-radius: 4px;
+                    padding: 10px;
+                    margin-bottom: 10px;
+                }
+                .bo-section h4 {
+                    margin: 0 0 10px 0;
+                    padding: 0 0 5px 0;
+                    border-bottom: 1px solid #d4b57a;
+                    color: #5d3d0a;
+                    font-size: 12px;
+                }
+                .bo-info-bar { display: flex; gap: 15px; flex-wrap: wrap; color: #422d09; }
+                .bo-info-bar span { background: #efe0c0; padding: 4px 8px; border-radius: 3px; border: 1px solid #d4b57a; }
+                .bo-queue-scroll { max-height: 180px; overflow-y: auto; border: 1px solid #d4b57a; border-radius: 3px; margin-bottom: 10px; }
+                .bo-queue-input table { margin: 0; }
+                .bo-queue-input table th { background: #c9a86c; color: #422d09; padding: 4px 6px; text-align: left; position: sticky; top: 0; }
+                .bo-queue-input table td { padding: 4px 6px; border-bottom: 1px solid #e0d0b0; vertical-align: middle; }
+                .bo-queue-input table tr:nth-child(even) td { background: #efe0c0; }
+                .bo-queue-input table tr:nth-child(odd) td { background: #fff5da; }
+                .bo-add-row, .bo-quick-add { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+                .bo-add-row select, .bo-add-row input, .bo-quick-add select, .bo-quick-add input { padding: 4px; border: 1px solid #b89956; border-radius: 3px; background: #fff; }
+                .bo-hq-test { display: flex; gap: 15px; align-items: center; }
+                .btn-primary { background: linear-gradient(to bottom, #6b8e23 0%, #556b2f 100%) !important; color: white !important; border-color: #3d5c0a !important; }
+                .btn-danger { background: linear-gradient(to bottom, #dc3545 0%, #c82333 100%) !important; color: white !important; border-color: #bd2130 !important; font-size: 10px !important; padding: 3px 8px !important; }
+                .bo-results-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+                .bo-results-table th, .bo-results-table td { padding: 5px 6px; text-align: left; border: 1px solid #c9a86c; }
+                .bo-results-table th { background: #c9a86c; color: #422d09; }
+                .bo-results-table tr:nth-child(even) td { background: #efe0c0; }
+                .bo-results-table tr:nth-child(odd) td { background: #fff5da; }
+                .bo-winner { background: #90EE90 !important; font-weight: bold; }
+                .bo-breakdown { margin-top: 15px; border: 1px solid #c9a86c; border-radius: 4px; overflow: hidden; }
+                .bo-breakdown-header { background: #c9a86c; padding: 6px 10px; font-weight: bold; color: #422d09; }
+                .bo-breakdown-scroll { max-height: 220px; overflow-y: auto; }
+                .bo-breakdown-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                .bo-breakdown-table th { background: #d4b57a; padding: 4px 6px; text-align: left; position: sticky; top: 0; }
+                .bo-breakdown-table td { padding: 4px 6px; border-bottom: 1px solid #e0d0b0; }
+                .bo-breakdown-table tr:nth-child(even) td { background: #efe0c0; }
+                .bo-breakdown-table tr:nth-child(odd) td { background: #fff5da; }
+                .bo-breakdown-table tr.hq-upgrade td { background: #ffe4b5 !important; font-style: italic; }
+                .bo-summary { margin-top: 15px; padding: 12px; background: linear-gradient(to bottom, #90EE90 0%, #7CDC7C 100%); border: 2px solid #4CAF50; border-radius: 5px; text-align: center; }
+                .bo-summary.no-save { background: linear-gradient(to bottom, #fff5da 0%, #efe0c0 100%); border-color: #c9a86c; }
+                .bo-summary h5 { margin: 0 0 8px 0; color: #1B5E20; }
+                .bo-summary.no-save h5 { color: #5d3d0a; }
+                .bo-remove-btn { cursor: pointer; color: #c00; font-weight: bold; font-size: 14px; }
+                .bo-remove-btn:hover { color: #f00; }
+                .bo-move-btn { cursor: pointer; color: #666; font-size: 12px; padding: 0 2px; }
+                .bo-move-btn:hover { color: #000; }
+                .bo-footer { background: #e8d5a3; padding: 6px 12px; text-align: center; border-top: 1px solid #c9a86c; color: #7d510f; }
+                .bo-empty-queue { text-align: center; color: #888; padding: 20px; font-style: italic; }
+                .bo-position { background: #d4b57a; border-radius: 50%; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px; }
+                .bo-finish-time { color: #006400; font-weight: bold; }
+            </style>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', style + html);
+        makeDraggable(document.getElementById('buildOptimizer'));
+        
+        setInterval(() => {
+            const el = document.getElementById('bo-server-time');
+            if (el) el.textContent = formatDateTime(getServerTime());
+        }, 1000);
+    }
+
+    function makeDraggable(element) {
+        const header = element.querySelector('.bo-header');
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('bo-close')) return;
+            isDragging = true;
+            offsetX = e.clientX - element.getBoundingClientRect().left;
+            offsetY = e.clientY - element.getBoundingClientRect().top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            element.style.left = (e.clientX - offsetX) + 'px';
+            element.style.top = (e.clientY - offsetY) + 'px';
+            element.style.right = 'auto';
+        });
+
+        document.addEventListener('mouseup', () => { isDragging = false; });
+    }
+
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
+    
+    window.BuildOptimizer = {
+        addToQueue,
+        addMultipleLevels,
+        removeFromQueue,
+        moveUp,
+        moveDown,
+        clearQueue,
+        analyze
+    };
+
+    await fetchWorldConfig();
+    createUI();
+    updateQueueDisplay();
+
+    UI.SuccessMessage(`${scriptConfig.name} ${scriptConfig.version} betöltve!`);
+
+})();
