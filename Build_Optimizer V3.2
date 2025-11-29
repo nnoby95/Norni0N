@@ -28,7 +28,8 @@
     let worldConfig = {
         speed: 1,
         unitSpeed: 1,
-        moral: 0
+        moral: 0,
+        buildTimeBonus: 0  // Percentage reduction (e.g., 20 = 20% faster)
     };
 
     async function fetchWorldConfig() {
@@ -101,7 +102,10 @@
         const hqReduction = hqFactor(hqLevel);
         const levelMult = levelMultipliers[targetLevel - 1] || 1;
         
-        return Math.round(hqReduction * baseBuildTime * levelMult);
+        // Apply building time bonus (percentage reduction)
+        const bonusMultiplier = 1 - (worldConfig.buildTimeBonus / 100);
+        
+        return Math.round(hqReduction * baseBuildTime * levelMult * bonusMultiplier);
     }
 
     function calcCost(building, targetLevel) {
@@ -521,12 +525,15 @@
         // Summary
         const optimal = optimization.optimal;
         const timeSaved = optimization.timeSaved;
+        const bonusActive = worldConfig.buildTimeBonus > 0;
 
         let summaryClass = timeSaved > 0 ? '' : 'no-save';
+        let bonusInfo = bonusActive ? `<p>🎁 Építési bónusz: <b>-${worldConfig.buildTimeBonus}%</b></p>` : '';
         let summaryHtml = `
             <div class="bo-summary ${summaryClass}">
                 <h5>${timeSaved > 0 ? '🏆 AJÁNLÁS' : '✅ EREDMÉNY'}</h5>
                 <p><b>${optimal.strategy}</b></p>
+                ${bonusInfo}
                 ${timeSaved > 0 ? `<p>⏱️ Megtakarítás: <b>${formatSeconds(timeSaved)}</b></p>` : '<p>A HQ fejlesztés nem gyorsít ezen a soron.</p>'}
                 <p>🏁 Befejezés: <b>${optimal.finishTimeStr}</b></p>
             </div>
@@ -604,6 +611,10 @@
                             <span><b>Világ:</b> ${worldConfig.speed}x</span>
                             <span><b>HQ:</b> ${currentHQ}. szint</span>
                             <span><b>Idő:</b> <span id="bo-server-time">${formatDateTime(getServerTime())}</span></span>
+                            <span class="bo-bonus-input">
+                                <b>Építési bónusz:</b>
+                                <input type="number" id="bo-build-bonus" value="0" min="0" max="99" style="width: 45px;" onchange="window.BuildOptimizer.updateBonus(this.value)">%
+                            </span>
                         </div>
                     </div>
 
@@ -723,6 +734,9 @@
                 }
                 .bo-info-bar { display: flex; gap: 15px; flex-wrap: wrap; color: #422d09; }
                 .bo-info-bar span { background: #efe0c0; padding: 4px 8px; border-radius: 3px; border: 1px solid #d4b57a; }
+                .bo-bonus-input { display: flex; align-items: center; gap: 4px; }
+                .bo-bonus-input input { padding: 2px 4px; border: 1px solid #b89956; border-radius: 3px; background: #fff; text-align: center; }
+                .bo-bonus-active { background: #90EE90 !important; border-color: #4CAF50 !important; }
                 .bo-queue-scroll { max-height: 180px; overflow-y: auto; border: 1px solid #d4b57a; border-radius: 3px; margin-bottom: 10px; }
                 .bo-queue-input table { margin: 0; }
                 .bo-queue-input table th { background: #c9a86c; color: #422d09; padding: 4px 6px; text-align: left; position: sticky; top: 0; }
@@ -795,6 +809,26 @@
         document.addEventListener('mouseup', () => { isDragging = false; });
     }
 
+    function updateBonus(value) {
+        const bonus = parseInt(value) || 0;
+        worldConfig.buildTimeBonus = Math.max(0, Math.min(99, bonus));
+        
+        const input = document.getElementById('bo-build-bonus');
+        const container = input?.closest('.bo-bonus-input');
+        
+        if (container) {
+            if (bonus > 0) {
+                container.classList.add('bo-bonus-active');
+                UI.SuccessMessage(`Építési bónusz: ${bonus}% (gyorsabb építés)`);
+            } else {
+                container.classList.remove('bo-bonus-active');
+            }
+        }
+        
+        // Update queue display to show new times
+        updateQueueDisplay();
+    }
+
     // =============================================================================
     // INITIALIZATION
     // =============================================================================
@@ -806,7 +840,8 @@
         moveUp,
         moveDown,
         clearQueue,
-        analyze
+        analyze,
+        updateBonus
     };
 
     await fetchWorldConfig();
