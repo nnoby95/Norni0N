@@ -106,6 +106,7 @@ try{ /*Rendszeradatok*/
 			case 'gyujto': szem4_GYUJTO_motor(); break;
 			case 'norbi0n_farm': szem4_norbi0n_farm_motor(); break;
 			case 'recruitment': szem4_recruitment_motor(); break;
+			case 'barb': szem4_barb_motor(); break;
 			default: debug('worker','Ismeretlen ID', JSON.stringify(worker_message))
 		}
 	};
@@ -715,16 +716,17 @@ function init(){try{
 				<div class="profile" onclick="selectTheme(4)">Téma 4</div>
 			</div>
 			<table class="style-settings-table">
-			<tr><td>Bal háttérkép</td><td><input type="text" size="80" name="wallp_left" value="${pic('default_bg_left.jpg')}" onchange="onWallpChange()"><br>
+			<tr><td>Bal háttérkép</td><td><input type="text" size="80" name="wallp_left" value="https://raw.githubusercontent.com/nnoby95/Norni0N/main/Assets/TW3.webp" onchange="onWallpChange()"><br>
 										Videó: <input type="text" size="70" name="wallp_left_vid" value="-" onchange="onWallpChange()"><br>
-										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_left_mirror"></td><td rowspan="2">Videólink. Ha nem szeretnél írj "-" -t, és háttérképet használ. Ha az sincs vagy érvénytelen, akkor háttérszín lesz használva</td></tr>
-			<tr><td>Jobb háttérkép</td><td><input type="text" size="80"  name="wallp_right" value="${pic('default_bg_right.jpg')}" onchange="onWallpChange()"><br>
+										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_left_mirror" checked></td><td rowspan="2">Videólink. Ha nem szeretnél írj "-" -t, és háttérképet használ. Ha az sincs vagy érvénytelen, akkor háttérszín lesz használva</td></tr>
+			<tr><td>Jobb háttérkép</td><td><input type="text" size="80"  name="wallp_right" value="https://raw.githubusercontent.com/nnoby95/Norni0N/main/Assets/TW4.webp" onchange="onWallpChange()"><br>
 										Videó: <input type="text" size="70" name="wallp_right_vid" value="-" onchange="onWallpChange()"><br>
 										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_right_mirror"></td></tr>
-			<tr><td>Tartalom háttérszíne</td><td><input type="text" size="30" name="content_bgcolor" value="#111" onchange="onWallpChange()"></td><td>[Default: #111] Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
-			<tr><td>Tartalom betűszíne</td><td><input type="text" size="30" name="content_fontcolor" value="white" onchange="onWallpChange()"></td><td>[Default: white] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
-			<tr><td>Keret színe</td><td><input type="text" size="30" name="content_border" value="yellow" onchange="onWallpChange()"></td><td>[Default: yellow] Valid CSS "border-color" property támogatott. <a href="https://www.w3schools.com/css/css_border_color.asp" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Tartalom háttérszíne</td><td><input type="text" size="80" name="content_bgcolor" value="#d2c09e url('https://dshu.innogamescdn.com/asset/ae6c0149/graphic/background/bg-image.webp')" onchange="onWallpChange()"></td><td>[Default: #d2c09e with TW texture] Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Tartalom betűszíne</td><td><input type="text" size="30" name="content_fontcolor" value="#000" onchange="onWallpChange()"></td><td>[Default: #000] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Keret színe</td><td><input type="text" size="30" name="content_border" value="#8B4513" onchange="onWallpChange()"></td><td>[Default: #8B4513] Valid CSS "border-color" property támogatott. <a href="https://www.w3schools.com/css/css_border_color.asp" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Vetett árnyék</td><td><input type="text" size="30" name="content_shadow" value="0 0 12px black" onchange="onWallpChange()"></td><td>[Default: 0 0 12px black] Valid CSS "box-shadow" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_box-shadow.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Keret szélessége / Frame width</td><td><input type="number" size="10" name="frame_width" value="1024" min="800" max="1920" onchange="onWallpChange(true, 'frame_width')"> px</td><td>[Default: 1024] A fő tartalom szélessége pixelben. Min: 800, Max: 1920</td></tr>
 			<tr><td>Beállítás táblázat háttere</td>       <td><input type="text" size="30" name="table_bgcolor"      value="-" onchange="onWallpChange(true, 'table_bgcolor')"></td>     <td>[Default: -] A háttér cellánként értendő. Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Beállítás táblázat szövegszíne</td>   <td><input type="text" size="30" name="table_color"        value="-" onchange="onWallpChange(true, 'table_color')"></td>       <td>[Default: -] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Táblázatok fejlécének háttere</td>    <td><input type="text" size="30" name="table_head_bgcolor" value="-" onchange="onWallpChange(true, 'table_head_bgcolor')"></td><td>[Default: -] A háttér cellánként értendő. Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
@@ -816,6 +818,18 @@ function onWallpChange(isUpdate=true, changedText) {
 	$('.fej > table').css('border-color', settingsForm.content_border.value);
 	$('#content > table').css('box-shadow', settingsForm.content_shadow.value);
 	$('.fej').css('box-shadow', settingsForm.content_shadow.value);
+	if (changedText === 'frame_width' || changedText === 'ALL') {
+		const frameWidth = parseInt(settingsForm.frame_width.value, 10) || 1024;
+		const halfWidth = frameWidth / 2;
+		$('#content').css('width', frameWidth + 'px');
+		$('.fej').css('width', frameWidth + 'px');
+		$('.fej > table').css('background-size', frameWidth + 'px');
+		$('.menuitem').attr('width', frameWidth + 'px');
+		$('.left-background').css('width', `calc(50vw - ${halfWidth}px)`);
+		$('.right-background').css('width', `calc(50vw - ${halfWidth}px)`);
+		// Update the divrow width in menu
+		$('#menuk .divrow').css('width', (frameWidth - 8) + 'px');
+	}
 	if (changedText === 'table_bgcolor' || changedText === 'ALL') {
 		const styleElement = $("<style>")
 			.attr("type", "text/css")
@@ -1058,7 +1072,10 @@ function debug_urit() {
 function ujkieg(id,nev,tartalom){
 	if (document.getElementById(nev)) return false;
 	ALL_EXTENSION.push(id);
-	document.getElementById("kiegs").innerHTML+='<img onclick=\'szunet("'+id+'",this)\' name="'+id+'" onmouseover=\'sugo(this,"Az érintett scriptet tudod megállítani/elindítani.")\' src="'+pic(((id=='farm'||id=='vije'||id=='gyujto')?'pause':'play')+ ".png")+'" alt="Stop" title="Klikk a szüneteltetéshez"> <a href=\'javascript: nyit("'+id+'");\'>'+nev.toUpperCase()+'</a> ';
+	// Motors that start paused should show pause icon initially
+	const pausedMotors = ['farm', 'vije', 'gyujto', 'norbi0n_farm', 'recruitment', 'barb'];
+	const initialIcon = pausedMotors.includes(id) ? 'pause' : 'play';
+	document.getElementById("kiegs").innerHTML+='<img onclick=\'szunet("'+id+'",this)\' name="'+id+'" onmouseover=\'sugo(this,"Az érintett scriptet tudod megállítani/elindítani.")\' src="'+pic(initialIcon + ".png")+'" alt="Stop" title="Klikk a szüneteltetéshez"> <a href=\'javascript: nyit("'+id+'");\'>'+nev.toUpperCase()+'</a> ';
 	document.getElementById("content").innerHTML+='<table class="menuitem" width="1024px" align="center" id="'+id+'" style="display: none">'+tartalom+'</table>';
 	return true;
 }
@@ -1107,6 +1124,10 @@ function szunet(script,kep){try{
 		case 'recruitment':
 			RECRUITMENT_PAUSE = !RECRUITMENT_PAUSE;
 			var sw = RECRUITMENT_PAUSE;
+			break;
+		case 'barb':
+			BARB_PAUSE = !BARB_PAUSE;
+			var sw = BARB_PAUSE;
 			break;
 		default: {alert2("Sikertelen script megállatás. Nincs ilyen alscript: "+script);return;}
 	}
@@ -3242,6 +3263,19 @@ function szem4_VIJE_2elemzes(adatok){try{
 				}
 			}
 			SZEM4_FARM.DOMINFO_FARMS[adatok[1]].buildings = JSON.parse(JSON.stringify(spyLevels));
+			// Update barb_intel with building data
+			if (typeof SZEM4_BARB !== 'undefined' && SZEM4_BARB.ENABLED) {
+				// Try to extract defender village ID from the report
+				let defVillageId = null;
+				try {
+					const defLink = VIJE_REF2.document.querySelector('#attack_info_def a[href*="info_village"]');
+					if (defLink) {
+						const idMatch = defLink.href.match(/id=(\d+)/);
+						if (idMatch) defVillageId = parseInt(idMatch[1], 10);
+					}
+				} catch(e) { debug('VIJE', 'Could not extract defender village ID: ' + e); }
+				barb_updateIntel(adatok[1], spyLevels, hungarianDate, defVillageId);
+			}
 			if (spyLevels.wall === 0) {
 				if (spyLevels.barracks === 0) {
 					spyLevels.wall--;
@@ -4390,6 +4424,1184 @@ function TamadUpdt(lap){try{
 
 ujkieg_hang("Bejövő támadások","bejovo");
 ujkieg("idtamad","Bejövő támadások",'<tr><td align="center"><table class="vis" id="idtamad_Bejovok" style="vertical-align:top; display: inline-block;"><tr><th>Időpont</th><th>Támadások száma</th></tr></table> </td></tr>');
+
+/*-----------------BARB (Barbarian Village Control)--------------------*/
+var BARB_LEPES = 0;
+var BARB_REF = null;
+var BARB_PAUSE = true;
+var BARB_HIBA = 0;
+var BARB_GHIBA = 0;
+var BARB_CURRENT_TARGET = null;
+
+var SZEM4_BARB = {
+	ENABLED: false,
+	INTEL: {}, // coord: { buildings, reportAge, lastUpdated, distance, attackSent }
+	CONFIG: {
+		maxMain: 1,
+		maxWall: 0,
+		maxBarracks: 0,
+		maxStable: 0,
+		maxGarage: 0,
+		maxMarket: 20,
+		maxSmith: 20
+	},
+	OPTIONS: {
+		attackDelay: 1250, // ms between attacks (1000-1500 randomized)
+		axesToSend: 10,
+		spyToSend: 1,
+		safetyMargin: 1.2, // 20% extra siege units
+		maxDistance: 30, // max fields from current village
+		fromVillage: '' // source village for attacks
+	},
+	QUEUE: [], // attack queue
+	STATS: {
+		attacksSent: 0,
+		lastAttack: null
+	}
+};
+
+/**
+ * Rams needed per wall level (Tribal Wars practical values)
+ * Index = wall level, value = minimum rams needed to destroy that level
+ * These are conservative estimates assuming rams survive the battle
+ */
+const RAMS_PER_WALL_LEVEL = [
+	0,   // level 0 - no wall
+	3,   // level 1
+	5,   // level 2
+	8,   // level 3
+	10,  // level 4
+	13,  // level 5
+	16,  // level 6
+	19,  // level 7
+	23,  // level 8
+	27,  // level 9
+	31,  // level 10
+	36,  // level 11
+	41,  // level 12
+	46,  // level 13
+	52,  // level 14
+	58,  // level 15
+	65,  // level 16
+	72,  // level 17
+	80,  // level 18
+	88,  // level 19
+	97   // level 20
+];
+
+/**
+ * Catapults needed per building level (Tribal Wars practical values)
+ * These are minimum catapults to reliably destroy ONE level
+ * Formula: ~2-3 catapults per building level for reliable destruction
+ */
+const CATA_PER_BUILDING_LEVEL = [
+	0,   // level 0
+	3,   // level 1
+	5,   // level 2
+	7,   // level 3
+	9,   // level 4
+	12,  // level 5
+	14,  // level 6
+	17,  // level 7
+	20,  // level 8
+	23,  // level 9
+	26,  // level 10
+	30,  // level 11
+	34,  // level 12
+	38,  // level 13
+	42,  // level 14
+	47,  // level 15
+	52,  // level 16
+	57,  // level 17
+	63,  // level 18
+	69,  // level 19
+	75,  // level 20
+	82,  // level 21
+	89,  // level 22
+	97,  // level 23
+	105, // level 24
+	114  // level 25
+];
+
+/**
+ * Calculate number of rams needed to destroy wall from current level to target level
+ * Uses practical Tribal Wars values - rams destroy ALL levels to target in one attack
+ * @param {number} currentLevel - Current wall level
+ * @param {number} targetLevel - Target wall level (from config)
+ * @returns {number} Number of rams needed
+ */
+function barb_calculateRamsNeeded(currentLevel, targetLevel) {
+	if (currentLevel <= targetLevel) return 0;
+
+	// Rams can destroy multiple wall levels in one attack
+	// We need enough rams to destroy the highest level (currentLevel)
+	// Lower levels will be destroyed along the way
+	const baseRams = RAMS_PER_WALL_LEVEL[currentLevel] || (currentLevel * 5);
+
+	// Apply safety margin
+	const ramsNeeded = Math.ceil(baseRams * SZEM4_BARB.OPTIONS.safetyMargin);
+
+	debug('barb_calculateRamsNeeded', `Wall ${currentLevel} -> ${targetLevel}: need ${ramsNeeded} rams (base: ${baseRams})`);
+	return Math.max(ramsNeeded, 1);
+}
+
+/**
+ * Calculate number of catapults needed to destroy building from current level to target level
+ * Catapults destroy ONE level per attack, so we calculate for the current (highest) level
+ * @param {string} buildingType - Type of building (main, barracks, stable, garage, market, smith)
+ * @param {number} currentLevel - Current building level
+ * @param {number} targetLevel - Target building level (from config)
+ * @returns {number} Number of catapults needed for ONE level reduction
+ */
+function barb_calculateCatapultsNeeded(buildingType, currentLevel, targetLevel) {
+	if (currentLevel <= targetLevel) return 0;
+
+	// Get base catapults for current level
+	const baseCata = CATA_PER_BUILDING_LEVEL[currentLevel] || (currentLevel * 3);
+
+	// Apply safety margin
+	const cataNeeded = Math.ceil(baseCata * SZEM4_BARB.OPTIONS.safetyMargin);
+
+	debug('barb_calculateCatapultsNeeded', `${buildingType} ${currentLevel} -> ${targetLevel}: need ${cataNeeded} cata (base: ${baseCata})`);
+	return Math.max(cataNeeded, 1);
+}
+
+/**
+ * Update barb_intel storage with building data from report
+ * @param {string} coord - Village coordinate "xxx|yyy"
+ * @param {object} spyLevels - Building levels from report
+ * @param {number} reportDate - Report timestamp
+ * @param {number} villageId - Village ID (optional)
+ */
+function barb_updateIntel(coord, spyLevels, reportDate, villageId) {
+	try {
+		// Calculate distance from current village (if fromVillage is set) or first player village
+		let distance = 0;
+		const fromVill = SZEM4_BARB.OPTIONS.fromVillage || Object.keys(KTID)[0];
+		if (fromVill) {
+			const [sx, sy] = fromVill.split('|').map(Number);
+			const [tx, ty] = coord.split('|').map(Number);
+			distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
+		}
+
+		// Preserve existing villageId if not provided in this update
+		const existingVillageId = SZEM4_BARB.INTEL[coord] ? SZEM4_BARB.INTEL[coord].villageId : null;
+
+		SZEM4_BARB.INTEL[coord] = {
+			coordinate: coord,
+			distance: Math.round(distance * 100) / 100,
+			main: spyLevels.main || 0,
+			wall: spyLevels.wall || 0,
+			barracks: spyLevels.barracks || 0,
+			stable: spyLevels.stable || 0,
+			garage: spyLevels.garage || 0,
+			market: spyLevels.market || 0,
+			smith: spyLevels.smith || 0,
+			reportAge: reportDate,
+			lastUpdated: Date.now(),
+			attackSent: SZEM4_BARB.INTEL[coord] ? SZEM4_BARB.INTEL[coord].attackSent : null,
+			villageId: villageId || existingVillageId || null
+		};
+
+		// Refresh UI table if visible
+		if (document.getElementById('barb_intel_table')) {
+			barb_rebuildTable();
+		}
+
+		debug('BARB', `Intel updated for ${coord}: wall=${spyLevels.wall}, barracks=${spyLevels.barracks}`);
+	} catch(e) {
+		debug('barb_updateIntel', 'Error: ' + e);
+	}
+}
+
+/**
+ * Check if a village needs destruction based on config
+ * @param {object} intel - Village intel object
+ * @returns {object|null} - Attack plan or null if no action needed
+ */
+function barb_checkVillageNeeds(intel) {
+	const config = SZEM4_BARB.CONFIG;
+	const plan = {
+		coord: intel.coordinate,
+		distance: intel.distance,
+		rams: 0,
+		catapults: 0,
+		catapultTarget: null,
+		buildings: []
+	};
+
+	// Check wall first
+	if (intel.wall > config.maxWall) {
+		plan.rams = barb_calculateRamsNeeded(intel.wall, config.maxWall);
+		plan.buildings.push({ type: 'wall', current: intel.wall, target: config.maxWall });
+	}
+
+	// Check buildings in priority order - only one catapult target per attack
+	const buildingPriority = ['barracks', 'stable', 'garage', 'main', 'smith', 'market'];
+	for (const building of buildingPriority) {
+		const maxKey = 'max' + building.charAt(0).toUpperCase() + building.slice(1);
+		const currentLevel = intel[building] || 0;
+		const maxLevel = config[maxKey];
+
+		if (currentLevel > maxLevel && !plan.catapultTarget) {
+			plan.catapults = barb_calculateCatapultsNeeded(building, currentLevel, maxLevel);
+			plan.catapultTarget = building;
+			plan.buildings.push({ type: building, current: currentLevel, target: maxLevel });
+		}
+	}
+
+	// Return plan only if there's something to do
+	if (plan.rams > 0 || plan.catapults > 0) {
+		return plan;
+	}
+	return null;
+}
+
+/**
+ * Get list of all villages needing action
+ */
+function barb_getTargetList() {
+	const targets = [];
+	const maxDist = SZEM4_BARB.OPTIONS.maxDistance;
+
+	for (const coord in SZEM4_BARB.INTEL) {
+		const intel = SZEM4_BARB.INTEL[coord];
+		if (intel.distance > maxDist) continue;
+
+		const plan = barb_checkVillageNeeds(intel);
+		if (plan) {
+			targets.push(plan);
+		}
+	}
+
+	// Sort by distance (closest first)
+	targets.sort((a, b) => a.distance - b.distance);
+	return targets;
+}
+
+/**
+ * Rebuild the intel table UI
+ */
+function barb_rebuildTable() {
+	const table = document.getElementById('barb_intel_table');
+	if (!table) return;
+
+	const tbody = table.querySelector('tbody');
+	const config = SZEM4_BARB.CONFIG;
+
+	// Clear existing rows (keep header)
+	while (tbody.rows.length > 1) {
+		tbody.deleteRow(1);
+	}
+
+	// Add rows for each intel entry
+	const sortedIntel = Object.values(SZEM4_BARB.INTEL).sort((a, b) => a.distance - b.distance);
+
+	for (const intel of sortedIntel) {
+		if (intel.distance > SZEM4_BARB.OPTIONS.maxDistance) continue;
+
+		const row = tbody.insertRow();
+
+		// Check if attack is in progress for this village
+		const isInQueue = SZEM4_BARB.QUEUE.some(q => q.coord === intel.coordinate);
+		const hasRecentAttack = intel.attackSent && (Date.now() - intel.attackSent) < 3600000; // Within 1 hour
+
+		// Determine row highlighting
+		let rowStyle = '';
+		if (hasRecentAttack || isInQueue) {
+			rowStyle = 'background-color: #bbdefb;'; // Light blue for attack in progress
+		} else if (intel.wall >= 3) {
+			rowStyle = 'background-color: #ff6b6b;'; // RED for wall >= 3
+		} else if (intel.barracks > 1) {
+			rowStyle = 'background-color: #ffd93d;'; // YELLOW for barracks > 1
+		}
+		row.style.cssText = rowStyle;
+
+		// Coordinate (clickable link to village info if ID available, otherwise map)
+		const coordCell = row.insertCell();
+		coordCell.style.color = '#000';
+		const [cx, cy] = intel.coordinate.split('|');
+		let coordUrl, coordStyle;
+		if (intel.villageId) {
+			// Village info URL with ID
+			coordUrl = `${BASE_URL}game.php?village&screen=info_village&id=${intel.villageId}#${cx};${cy}`;
+			coordStyle = 'color: #8B4513; font-weight: bold; text-decoration: underline;'; // Brown for village info
+		} else {
+			// Map URL as fallback
+			coordUrl = `${BASE_URL}game.php?screen=map&x=${cx}&y=${cy}`;
+			coordStyle = 'color: #0066cc; text-decoration: underline;'; // Blue for map
+		}
+		coordCell.innerHTML = `<a href="${coordUrl}" target="_blank" style="${coordStyle}">${intel.coordinate}</a>`;
+
+		// Distance
+		const distCell = row.insertCell();
+		distCell.style.color = '#000';
+		distCell.textContent = intel.distance.toFixed(1);
+
+		// Building levels with highlighting for values above config
+		const buildingCells = ['main', 'wall', 'barracks', 'stable', 'garage', 'market', 'smith'];
+		for (const building of buildingCells) {
+			const cell = row.insertCell();
+			const level = intel[building] || 0;
+			const maxKey = 'max' + building.charAt(0).toUpperCase() + building.slice(1);
+			const maxLevel = config[maxKey];
+
+			cell.textContent = level;
+			cell.style.textAlign = 'center';
+			if (level > maxLevel) {
+				cell.style.cssText = 'font-weight: bold; color: #c0392b; text-align: center;';
+			} else {
+				cell.style.color = '#000';
+			}
+		}
+
+		// Report age
+		const ageCell = row.insertCell();
+		ageCell.style.color = '#000';
+		const ageMinutes = Math.round((Date.now() - intel.reportAge) / 60000);
+		if (ageMinutes < 60) {
+			ageCell.textContent = ageMinutes + ' min';
+		} else if (ageMinutes < 1440) {
+			ageCell.textContent = Math.round(ageMinutes / 60) + ' hr';
+		} else {
+			ageCell.textContent = Math.round(ageMinutes / 1440) + ' day';
+		}
+
+		// Status column - show attack status
+		const statusCell = row.insertCell();
+		statusCell.style.textAlign = 'center';
+		if (isInQueue) {
+			statusCell.innerHTML = '<span style="color: #2196F3; font-weight: bold;" title="Attack queued">[Q] Queued</span>';
+		} else if (hasRecentAttack) {
+			const attackAge = Math.round((Date.now() - intel.attackSent) / 60000);
+			statusCell.innerHTML = `<span style="color: #2196F3; font-weight: bold;" title="Attack sent ${attackAge}m ago">[ATK] Sent ${attackAge}m</span>`;
+		} else {
+			const plan = barb_checkVillageNeeds(intel);
+			if (plan) {
+				statusCell.innerHTML = '<span style="color: #e74c3c;" title="Needs destruction">[!] Needs work</span>';
+			} else {
+				statusCell.innerHTML = '<span style="color: #27ae60;" title="At target levels">[OK]</span>';
+			}
+		}
+
+		// Action buttons - disable if already in queue or recently attacked
+		const actionCell = row.insertCell();
+		const disableAttack = isInQueue || hasRecentAttack;
+		actionCell.innerHTML = `
+			<button onclick="barb_attackNow('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; background-color: ${disableAttack ? '#999' : '#e74c3c'}; color: white; font-size: 11px;" ${disableAttack ? 'disabled title="Attack already sent/queued"' : ''}>Attack</button>
+			<button onclick="barb_queueSingleAttack('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; font-size: 11px;" ${isInQueue ? 'disabled title="Already in queue"' : ''}>+Q</button>
+			<button onclick="barb_removeIntel('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; font-size: 11px;">X</button>`;
+	}
+
+	// Update stats
+	const statsEl = document.getElementById('barb_stats');
+	if (statsEl) {
+		const targets = barb_getTargetList();
+		const inQueue = SZEM4_BARB.QUEUE.length;
+		const recentAttacks = Object.values(SZEM4_BARB.INTEL).filter(i => i.attackSent && (Date.now() - i.attackSent) < 3600000).length;
+		statsEl.innerHTML = `Intel: ${Object.keys(SZEM4_BARB.INTEL).length} | Need work: ${targets.length} | In queue: ${inQueue} | Recently attacked: ${recentAttacks} | Total sent: ${SZEM4_BARB.STATS.attacksSent}`;
+	}
+
+	// Update motor status
+	const motorStatusEl = document.getElementById('barb_motor_status');
+	if (motorStatusEl) {
+		if (BARB_PAUSE) {
+			motorStatusEl.innerHTML = '<span style="color: #e74c3c;">Paused</span>';
+		} else if (BARB_LEPES === 0) {
+			motorStatusEl.innerHTML = '<span style="color: #27ae60;">Ready</span>';
+		} else {
+			motorStatusEl.innerHTML = `<span style="color: #2196F3;">Working (step ${BARB_LEPES})</span>`;
+		}
+	}
+}
+
+/**
+ * Queue a single attack for a village
+ */
+function barb_queueSingleAttack(coord) {
+	const intel = SZEM4_BARB.INTEL[coord];
+	if (!intel) {
+		naplo('BARB', `No intel for ${coord}`);
+		return;
+	}
+
+	const plan = barb_checkVillageNeeds(intel);
+	if (plan) {
+		SZEM4_BARB.QUEUE.push(plan);
+		naplo('BARB', `Queued attack on ${coord}: ${plan.rams} rams, ${plan.catapults} catapults → ${plan.catapultTarget || 'none'}`);
+	} else {
+		naplo('BARB', `${coord} doesn't need action based on config`);
+	}
+}
+
+/**
+ * Attack a village immediately (skip queue)
+ */
+function barb_attackNow(coord) {
+	const intel = SZEM4_BARB.INTEL[coord];
+	if (!intel) {
+		naplo('BARB', `No intel for ${coord}`);
+		return;
+	}
+
+	const plan = barb_checkVillageNeeds(intel);
+	if (plan) {
+		// Add to FRONT of queue for immediate processing
+		SZEM4_BARB.QUEUE.unshift(plan);
+		barb_updateQueueDisplay();
+		naplo('BARB', `Immediate attack on ${coord}: ${plan.rams} rams, ${plan.catapults} catapults → ${plan.catapultTarget || 'none'}`);
+
+		// Reset state machine to process immediately
+		BARB_LEPES = 0;
+		BARB_HIBA = 0;
+
+		// Trigger motor immediately
+		szem4_barb_motor();
+	} else {
+		naplo('BARB', `${coord} doesn't need action based on config`);
+	}
+}
+
+/**
+ * Queue all villages needing action
+ */
+function barb_queueAllAttacks() {
+	SZEM4_BARB.QUEUE = barb_getTargetList();
+	naplo('BARB', `Queued ${SZEM4_BARB.QUEUE.length} attacks`);
+	barb_updateQueueDisplay();
+}
+
+/**
+ * Clear attack queue
+ */
+function barb_clearQueue() {
+	SZEM4_BARB.QUEUE = [];
+	barb_updateQueueDisplay();
+	naplo('BARB', 'Attack queue cleared');
+}
+
+/**
+ * Update queue display
+ */
+function barb_updateQueueDisplay() {
+	const el = document.getElementById('barb_queue_count');
+	if (el) {
+		el.textContent = SZEM4_BARB.QUEUE.length;
+	}
+}
+
+/**
+ * Remove intel for a village
+ */
+function barb_removeIntel(coord) {
+	delete SZEM4_BARB.INTEL[coord];
+	barb_rebuildTable();
+	naplo('BARB', `Removed intel for ${coord}`);
+}
+
+/**
+ * Save BARB config from UI
+ */
+function barb_saveConfig() {
+	const form = document.getElementById('barb_config_form');
+	if (!form) return;
+
+	SZEM4_BARB.CONFIG.maxMain = parseInt(form.maxMain.value, 10);
+	SZEM4_BARB.CONFIG.maxWall = parseInt(form.maxWall.value, 10);
+	SZEM4_BARB.CONFIG.maxBarracks = parseInt(form.maxBarracks.value, 10);
+	SZEM4_BARB.CONFIG.maxStable = parseInt(form.maxStable.value, 10);
+	SZEM4_BARB.CONFIG.maxGarage = parseInt(form.maxGarage.value, 10);
+	SZEM4_BARB.CONFIG.maxMarket = parseInt(form.maxMarket.value, 10);
+	SZEM4_BARB.CONFIG.maxSmith = parseInt(form.maxSmith.value, 10);
+
+	SZEM4_BARB.OPTIONS.maxDistance = parseInt(form.maxDistance.value, 10);
+	SZEM4_BARB.OPTIONS.axesToSend = parseInt(form.axesToSend.value, 10);
+	SZEM4_BARB.OPTIONS.spyToSend = parseInt(form.spyToSend.value, 10);
+	SZEM4_BARB.OPTIONS.fromVillage = form.fromVillage.value;
+
+	naplo('BARB', 'Configuration saved');
+	barb_rebuildTable();
+}
+
+/**
+ * Load BARB config to UI
+ */
+function barb_loadConfig() {
+	const form = document.getElementById('barb_config_form');
+	if (!form) return;
+
+	form.maxMain.value = SZEM4_BARB.CONFIG.maxMain;
+	form.maxWall.value = SZEM4_BARB.CONFIG.maxWall;
+	form.maxBarracks.value = SZEM4_BARB.CONFIG.maxBarracks;
+	form.maxStable.value = SZEM4_BARB.CONFIG.maxStable;
+	form.maxGarage.value = SZEM4_BARB.CONFIG.maxGarage;
+	form.maxMarket.value = SZEM4_BARB.CONFIG.maxMarket;
+	form.maxSmith.value = SZEM4_BARB.CONFIG.maxSmith;
+
+	form.maxDistance.value = SZEM4_BARB.OPTIONS.maxDistance;
+	form.axesToSend.value = SZEM4_BARB.OPTIONS.axesToSend;
+	form.spyToSend.value = SZEM4_BARB.OPTIONS.spyToSend;
+	form.fromVillage.value = SZEM4_BARB.OPTIONS.fromVillage || '';
+
+	// Populate fromVillage dropdown with player villages
+	const villSelect = form.fromVillage;
+	villSelect.innerHTML = '<option value="">Auto (current)</option>';
+	for (const coord in KTID) {
+		const opt = document.createElement('option');
+		opt.value = coord;
+		opt.textContent = coord;
+		if (SZEM4_BARB.OPTIONS.fromVillage === coord) opt.selected = true;
+		villSelect.appendChild(opt);
+	}
+}
+
+/**
+ * Enable/disable BARB system
+ */
+function barb_toggleEnabled() {
+	SZEM4_BARB.ENABLED = !SZEM4_BARB.ENABLED;
+	const btn = document.getElementById('barb_enable_btn');
+	if (btn) {
+		btn.textContent = SZEM4_BARB.ENABLED ? 'Enabled' : 'Disabled';
+		btn.style.backgroundColor = SZEM4_BARB.ENABLED ? '#27ae60' : '#e74c3c';
+	}
+	naplo('BARB', SZEM4_BARB.ENABLED ? 'Intel collection enabled' : 'Intel collection disabled');
+}
+
+/**
+ * Import existing DOMINFO_FARMS data to barb_intel
+ */
+function barb_importFromFarms() {
+	let imported = 0;
+	for (const coord in SZEM4_FARM.DOMINFO_FARMS) {
+		const farm = SZEM4_FARM.DOMINFO_FARMS[coord];
+		if (farm.buildings && !farm.isJatekos) {
+			const reportDate = SZEM4_VIJE.ALL_VIJE_SAVED[coord] || Date.now();
+			barb_updateIntel(coord, farm.buildings, reportDate);
+			imported++;
+		}
+	}
+	barb_rebuildTable();
+	naplo('BARB', `Imported ${imported} villages from farming data`);
+}
+
+/**
+ * Main motor function for BARB attacks
+ */
+function szem4_barb_motor() {
+	let nexttime = 5000;
+
+	try {
+		// Check if paused
+		if (BARB_PAUSE) {
+			nexttime = 10000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Check for bot protection
+		if (BOT || USER_ACTIVITY) {
+			nexttime = 10000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Wait for Farming motors to finish - MOTOR COORDINATION
+		if (!FARM_PAUSE && FARM_LEPES !== 0) {
+			barb_log('Waiting for Farm motor to finish...', 'info');
+			nexttime = 3000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+		if (NORBI0N_FARM_LEPES !== 0) {
+			barb_log('Waiting for Norbi0N Farm to finish...', 'info');
+			nexttime = 3000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Error handling
+		if (BARB_HIBA > 10) {
+			BARB_HIBA = 0;
+			BARB_GHIBA++;
+			if (BARB_GHIBA > 3) {
+				if (BARB_GHIBA > 5) {
+					naplo('BARB', 'Too many errors, pausing');
+					nexttime = 60000;
+				}
+				if (BARB_REF && !BARB_REF.closed) BARB_REF.close();
+			}
+			BARB_LEPES = 0;
+		}
+
+		// State machine
+		switch (BARB_LEPES) {
+			case 0: // Check queue and prepare next attack
+				if (SZEM4_BARB.QUEUE.length === 0) {
+					nexttime = 30000; // Nothing to do, check again in 30s
+					break;
+				}
+
+				BARB_CURRENT_TARGET = SZEM4_BARB.QUEUE[0];
+				barb_log(`Starting attack on ${BARB_CURRENT_TARGET.coord} (${BARB_CURRENT_TARGET.rams} rams, ${BARB_CURRENT_TARGET.catapults} cata → ${BARB_CURRENT_TARGET.catapultTarget || 'none'})`, 'attack');
+
+				// Open rally point
+				const fromVill = SZEM4_BARB.OPTIONS.fromVillage || Object.keys(KTID)[0];
+				if (!fromVill) {
+					barb_log('No source village configured!', 'error');
+					naplo('BARB', 'No source village configured');
+					nexttime = 60000;
+					break;
+				}
+
+				barb_log(`Opening rally point from ${fromVill}...`, 'info');
+				const villId = KTID[fromVill];
+				const url = VILL1ST.replace(/village=[0-9]+/, 'village=' + villId).replace('screen=overview', 'screen=place');
+				BARB_REF = windowOpener('barb', url, AZON + '_barb');
+				BARB_LEPES = 1;
+				nexttime = 2000;
+				barb_rebuildTable(); // Update status display
+				break;
+
+			case 1: // Fill attack form
+				if (!BARB_REF || BARB_REF.closed) {
+					barb_log('Rally point window closed unexpectedly', 'warn');
+					BARB_LEPES = 0;
+					break;
+				}
+
+				if (isPageLoaded(BARB_REF, -1, 'screen=place')) {
+					BARB_HIBA = 0;
+					barb_log('Filling attack form...', 'info');
+					const result = barb_fillAttackForm();
+					if (result === 'success') {
+						barb_log('Attack form filled, confirming...', 'info');
+						BARB_LEPES = 2;
+						nexttime = 2000;
+					} else if (result === 'insufficient') {
+						// Not enough troops, skip this target
+						barb_log(`Skipping ${BARB_CURRENT_TARGET.coord} - insufficient troops`, 'warn');
+						naplo('BARB', `Skipping ${BARB_CURRENT_TARGET.coord} - insufficient troops`);
+						SZEM4_BARB.QUEUE.shift();
+						barb_updateQueueDisplay();
+						barb_rebuildTable();
+						BARB_LEPES = 0;
+						nexttime = 1000;
+					} else {
+						BARB_HIBA++;
+					}
+				} else {
+					BARB_HIBA++;
+				}
+				break;
+
+			case 2: // Confirm attack and select catapult target
+				if (!BARB_REF || BARB_REF.closed) {
+					barb_log('Confirmation window closed unexpectedly', 'warn');
+					BARB_LEPES = 0;
+					break;
+				}
+
+				if (isPageLoaded(BARB_REF, -1, 'try=confirm')) {
+					BARB_HIBA = 0;
+
+					// Check for bot protection
+					if (BARB_REF.document.getElementById('botprotection_quest') ||
+						BARB_REF.document.getElementById('bot_check')) {
+						barb_log('Bot protection detected! Pausing...', 'error');
+						naplo('BARB', 'Bot protection detected!');
+						BotvedelemBe();
+						BARB_LEPES = 0;
+						nexttime = 10000;
+						break;
+					}
+
+					// Select catapult target if needed
+					if (BARB_CURRENT_TARGET.catapultTarget) {
+						barb_log(`Selecting catapult target: ${BARB_CURRENT_TARGET.catapultTarget}`, 'info');
+						barb_selectCatapultTarget();
+					}
+
+					// Confirm attack
+					const confirmBtn = BARB_REF.document.getElementById('troop_confirm_submit');
+					if (confirmBtn) {
+						confirmBtn.click();
+
+						// Update stats
+						SZEM4_BARB.STATS.attacksSent++;
+						SZEM4_BARB.STATS.lastAttack = Date.now();
+						SZEM4_BARB.INTEL[BARB_CURRENT_TARGET.coord].attackSent = Date.now();
+
+						barb_log(`Attack #${SZEM4_BARB.STATS.attacksSent} sent to ${BARB_CURRENT_TARGET.coord}!`, 'success');
+						naplo('BARB', `Attack sent to ${BARB_CURRENT_TARGET.coord}`);
+						playSound('farmolas_1', 'mp3');
+
+						// Remove from queue
+						SZEM4_BARB.QUEUE.shift();
+						barb_updateQueueDisplay();
+						barb_rebuildTable();
+
+						BARB_LEPES = 0;
+						// Random delay 1000-1500ms
+						nexttime = 1000 + Math.floor(Math.random() * 500);
+					} else {
+						barb_log('Confirm button not found, retrying...', 'warn');
+						BARB_HIBA++;
+					}
+				} else {
+					BARB_HIBA++;
+				}
+				break;
+
+			default:
+				BARB_LEPES = 0;
+		}
+	} catch(e) {
+		debug('szem4_barb_motor', 'Error: ' + e);
+		BARB_LEPES = 0;
+	}
+
+	// Add randomization to timing
+	const inga = 100 / ((Math.random() * 40) + 80);
+	nexttime = Math.round(nexttime * inga);
+
+	worker.postMessage({'id': 'barb', 'time': nexttime});
+}
+
+/**
+ * Fill the attack form on rally point
+ * @returns {string} 'success', 'insufficient', or 'error'
+ */
+function barb_fillAttackForm() {
+	try {
+		const doc = BARB_REF.document;
+		const form = doc.forms['units'] || doc.getElementById('command-data-form');
+		if (!form) {
+			debug('barb_fillAttackForm', 'Form not found');
+			return 'error';
+		}
+
+		const target = BARB_CURRENT_TARGET;
+		debug('barb_fillAttackForm', `Starting attack on ${target.coord}: rams=${target.rams}, cata=${target.catapults}`);
+
+		// Check available troops
+		const availableRam = barb_getAvailableTroops('ram');
+		const availableCata = barb_getAvailableTroops('catapult');
+		const availableAxe = barb_getAvailableTroops('axe');
+		const availableSpy = barb_getAvailableTroops('spy');
+
+		debug('barb_fillAttackForm', `Available: ram=${availableRam}, cata=${availableCata}, axe=${availableAxe}, spy=${availableSpy}`);
+
+		// Check if we have enough troops
+		if (target.rams > 0 && availableRam < target.rams) {
+			debug('barb_fillAttackForm', `Insufficient rams: need ${target.rams}, have ${availableRam}`);
+			return 'insufficient';
+		}
+		if (target.catapults > 0 && availableCata < target.catapults) {
+			debug('barb_fillAttackForm', `Insufficient catapults: need ${target.catapults}, have ${availableCata}`);
+			return 'insufficient';
+		}
+		if (availableAxe < SZEM4_BARB.OPTIONS.axesToSend) {
+			debug('barb_fillAttackForm', `Insufficient axes: need ${SZEM4_BARB.OPTIONS.axesToSend}, have ${availableAxe}`);
+			return 'insufficient';
+		}
+
+		// Fill coordinates
+		const [x, y] = target.coord.split('|');
+		form.x.value = x;
+		form.y.value = y;
+		debug('barb_fillAttackForm', `Coordinates set: ${x}|${y}`);
+
+		// Fill troops using getElementById (more reliable than form[name])
+		const setTroopValue = (unitType, value) => {
+			const input = doc.getElementById('unit_input_' + unitType);
+			if (input) {
+				input.value = value;
+				debug('barb_fillAttackForm', `Set ${unitType} = ${value}`);
+				return true;
+			}
+			debug('barb_fillAttackForm', `Input not found for ${unitType}`);
+			return false;
+		};
+
+		// Set siege units
+		if (target.rams > 0) setTroopValue('ram', target.rams);
+		if (target.catapults > 0) setTroopValue('catapult', target.catapults);
+
+		// Set escort troops
+		setTroopValue('axe', SZEM4_BARB.OPTIONS.axesToSend);
+
+		// Set spy if available
+		if (availableSpy >= SZEM4_BARB.OPTIONS.spyToSend) {
+			setTroopValue('spy', SZEM4_BARB.OPTIONS.spyToSend);
+		}
+
+		// Clear other troops to avoid accidental sends
+		const otherTroops = ['spear', 'sword', 'archer', 'light', 'marcher', 'heavy', 'snob'];
+		for (const troop of otherTroops) {
+			const input = doc.getElementById('unit_input_' + troop);
+			if (input) input.value = 0;
+		}
+
+		// Click attack button
+		const attackBtn = form.attack || doc.getElementById('target_attack');
+		if (attackBtn) {
+			debug('barb_fillAttackForm', 'Clicking attack button');
+			attackBtn.click();
+			return 'success';
+		}
+
+		debug('barb_fillAttackForm', 'Attack button not found');
+		return 'error';
+	} catch(e) {
+		debug('barb_fillAttackForm', 'Error: ' + e);
+		return 'error';
+	}
+}
+
+/**
+ * Get available troop count from rally point form
+ * @param {string} unitType - Unit type (ram, catapult, axe, spy, etc.)
+ * @returns {number} Available count
+ */
+function barb_getAvailableTroops(unitType) {
+	try {
+		const doc = BARB_REF.document;
+		const input = doc.getElementById('unit_input_' + unitType);
+		if (!input) {
+			debug('barb_getAvailableTroops', `Input not found for ${unitType}`);
+			return 0;
+		}
+
+		// Use data-all-count attribute - this is the most reliable source
+		const dataCount = input.getAttribute('data-all-count');
+		if (dataCount !== null) {
+			const count = parseInt(dataCount, 10);
+			debug('barb_getAvailableTroops', `${unitType}: ${count} (from data-all-count)`);
+			return count;
+		}
+
+		// Fallback: try to read from the anchor tag like "(70)"
+		const anchor = doc.getElementById('units_entry_all_' + unitType);
+		if (anchor) {
+			const match = anchor.textContent.match(/\d+/);
+			if (match) {
+				const count = parseInt(match[0], 10);
+				debug('barb_getAvailableTroops', `${unitType}: ${count} (from anchor text)`);
+				return count;
+			}
+		}
+
+		debug('barb_getAvailableTroops', `${unitType}: 0 (no source found)`);
+		return 0;
+	} catch(e) {
+		debug('barb_getAvailableTroops', `Error for ${unitType}: ${e.message}`);
+		return 0;
+	}
+}
+
+/**
+ * Select catapult target on confirmation page
+ */
+function barb_selectCatapultTarget() {
+	try {
+		const target = BARB_CURRENT_TARGET.catapultTarget;
+		if (!target) return;
+
+		debug('barb_selectCatapultTarget', `Trying to select catapult target: ${target}`);
+
+		// Get i18n building name from VIJE settings if available
+		const i18nTarget = SZEM4_VIJE.i18ns[target] || target;
+		debug('barb_selectCatapultTarget', `i18n target name: ${i18nTarget}`);
+
+		// Find catapult target select element
+		const selects = BARB_REF.document.querySelectorAll('select');
+		for (const select of selects) {
+			// Look for the building dropdown
+			if (select.name && (select.name.includes('building') || select.name.includes('catapult') || select.name.includes('target'))) {
+				debug('barb_selectCatapultTarget', `Found select: ${select.name}, options: ${select.options.length}`);
+				// Try to select the target building
+				for (const option of select.options) {
+					const optText = option.textContent.toLowerCase().trim();
+					const optVal = option.value.toLowerCase();
+					// Match by building ID, i18n name, or text content
+					if (optVal.includes(target.toLowerCase()) ||
+						optText.includes(target.toLowerCase()) ||
+						optText.includes(i18nTarget.toLowerCase())) {
+						select.value = option.value;
+						select.dispatchEvent(new Event('change', { bubbles: true }));
+						debug('BARB', `Selected catapult target: ${target} (option: ${option.textContent})`);
+						return;
+					}
+				}
+			}
+		}
+
+		// Alternative: look for specific ID patterns
+		const catSelect = BARB_REF.document.querySelector('#target_building, select[name="building"], select[name="catapult_target"]');
+		if (catSelect) {
+			debug('barb_selectCatapultTarget', `Found alternative select with ${catSelect.options.length} options`);
+			for (const option of catSelect.options) {
+				const optText = option.textContent.toLowerCase().trim();
+				if (optText.includes(target.toLowerCase()) || optText.includes(i18nTarget.toLowerCase())) {
+					catSelect.value = option.value;
+					catSelect.dispatchEvent(new Event('change', { bubbles: true }));
+					debug('BARB', `Selected catapult target via alternative: ${target}`);
+					return;
+				}
+			}
+		}
+
+		debug('barb_selectCatapultTarget', `Could not find option for target: ${target}`);
+	} catch(e) {
+		debug('barb_selectCatapultTarget', 'Error: ' + e);
+	}
+}
+
+/**
+ * Save BARB data to localStorage
+ */
+function barb_save() {
+	localStorage.setItem(AZON + '_barb', JSON.stringify(SZEM4_BARB));
+	debug('BARB', 'Data saved');
+}
+
+/**
+ * Load BARB data from localStorage
+ */
+function barb_load() {
+	try {
+		const saved = localStorage.getItem(AZON + '_barb');
+		if (saved) {
+			const data = JSON.parse(saved);
+			SZEM4_BARB = Object.assign({}, SZEM4_BARB, data);
+		}
+		barb_loadConfig();
+		barb_rebuildTable();
+	} catch(e) {
+		debug('barb_load', 'Error: ' + e);
+	}
+}
+
+// Initialize BARB motor
+barb_load();
+szem4_barb_motor();
+
+// Add to save system
+const orig_barb_szem4_ADAT_saveNow = szem4_ADAT_saveNow;
+szem4_ADAT_saveNow = function(tipus) {
+	if (tipus === 'barb') {
+		barb_save();
+		return;
+	}
+	orig_barb_szem4_ADAT_saveNow(tipus);
+};
+
+// UI for BARB module
+// Building icon URL helper for BARB
+const BARB_BUILDING_ICONS = {
+	main: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png',
+	wall: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png',
+	barracks: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png',
+	stable: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png',
+	garage: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png',
+	market: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png',
+	smith: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png'
+};
+
+function barb_getBuildingIcon(building, size = 18) {
+	const url = BARB_BUILDING_ICONS[building] || '';
+	return url ? `<img src="${url}" style="width:${size}px; height:${size}px; vertical-align:middle;" title="${building}">` : '';
+}
+
+ujkieg('barb', 'Barb Control', `<tr><td style="color: black;">
+	<h2 align="center" style="color: black;">Barbarian Village Control System</h2>
+	<p align="center" style="color: #666;">Automatically destroy buildings in barbarian villages to configured max levels</p>
+
+	<!-- Status Section -->
+	<div style="background: #e8d4a0; border: 2px solid #7d510f; border-radius: 8px; padding: 15px; margin-bottom: 15px; color: black;">
+		<h3 style="margin-top: 0; color: black;">Status</h3>
+		<table class="vis" style="width: 100%; color: black;">
+			<tr>
+				<td style="width: 150px;"><b>Intel Collection:</b></td>
+				<td><button id="barb_enable_btn" onclick="barb_toggleEnabled()" class="btn" style="background-color: #e74c3c; color: white;">Disabled</button></td>
+			</tr>
+			<tr>
+				<td><b>Motor Status:</b></td>
+				<td id="barb_motor_status">Idle</td>
+			</tr>
+			<tr>
+				<td><b>Attack Queue:</b></td>
+				<td><span id="barb_queue_count">0</span> attacks queued</td>
+			</tr>
+			<tr>
+				<td><b>Statistics:</b></td>
+				<td id="barb_stats">Loading...</td>
+			</tr>
+		</table>
+		<p align="center" style="margin-top: 10px;">
+			<button onclick="barb_queueAllAttacks()" class="btn">Queue All Attacks</button>
+			<button onclick="barb_clearQueue()" class="btn">Clear Queue</button>
+			<button onclick="barb_importFromFarms()" class="btn">Import from Farms</button>
+		</p>
+	</div>
+
+	<!-- Configuration Section (Collapsible) -->
+	<div style="background: #f5f5f5; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 15px; color: black;">
+		<h3 onclick="barb_toggleConfig()" style="margin: 0; padding: 15px; cursor: pointer; color: black; user-select: none;">
+			<span id="barb_config_arrow" style="display: inline-block; transition: transform 0.3s;">&#9660;</span> Configuration
+			<span style="font-size: 11px; font-weight: normal; color: #666; margin-left: 10px;">(click to collapse/expand)</span>
+		</h3>
+		<div id="barb_config_content" style="padding: 0 15px 15px 15px;">
+			<form id="barb_config_form">
+				<table class="vis" style="margin: auto; color: black;">
+					<tr><th colspan="4">Max Allowed Building Levels (destroy if above)</th></tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png" style="width:20px; height:20px; vertical-align:middle;"> Main:</td>
+						<td><input type="number" name="maxMain" min="0" max="30" value="1" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png" style="width:20px; height:20px; vertical-align:middle;"> Wall:</td>
+						<td><input type="number" name="maxWall" min="0" max="20" value="0" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png" style="width:20px; height:20px; vertical-align:middle;"> Barracks:</td>
+						<td><input type="number" name="maxBarracks" min="0" max="25" value="0" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png" style="width:20px; height:20px; vertical-align:middle;"> Stable:</td>
+						<td><input type="number" name="maxStable" min="0" max="20" value="0" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png" style="width:20px; height:20px; vertical-align:middle;"> Workshop:</td>
+						<td><input type="number" name="maxGarage" min="0" max="15" value="0" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png" style="width:20px; height:20px; vertical-align:middle;"> Smithy:</td>
+						<td><input type="number" name="maxSmith" min="0" max="20" value="20" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png" style="width:20px; height:20px; vertical-align:middle;"> Market:</td>
+						<td><input type="number" name="maxMarket" min="0" max="25" value="20" style="width: 50px;"></td>
+						<td></td><td></td>
+					</tr>
+					<tr><th colspan="4">Attack Options</th></tr>
+					<tr>
+						<td>Max Distance:</td>
+						<td><input type="number" name="maxDistance" min="1" max="100" value="30" style="width: 50px;"></td>
+						<td>Axes to send:</td>
+						<td><input type="number" name="axesToSend" min="0" max="100" value="10" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td>Spy to send:</td>
+						<td><input type="number" name="spyToSend" min="0" max="10" value="1" style="width: 50px;"></td>
+						<td>From Village:</td>
+						<td><select name="fromVillage" style="width: 100px;"><option value="">Auto</option></select></td>
+					</tr>
+				</table>
+				<p align="center" style="margin-top: 10px;">
+					<button type="button" onclick="barb_saveConfig()" class="btn">Save Config</button>
+					<button type="button" onclick="barb_save()" class="btn">Save All Data</button>
+				</p>
+			</form>
+		</div>
+	</div>
+
+	<!-- Intel Table -->
+	<h3 style="color: black;">Village Intel</h3>
+	<div style="max-height: 400px; overflow-y: auto;">
+		<table class="vis" id="barb_intel_table" style="width: 100%; color: black;">
+			<tbody>
+				<tr>
+					<th>Coord</th>
+					<th>Dist</th>
+					<th title="Main Building"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png" style="width:18px; height:18px;"></th>
+					<th title="Wall"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png" style="width:18px; height:18px;"></th>
+					<th title="Barracks"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png" style="width:18px; height:18px;"></th>
+					<th title="Stable"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png" style="width:18px; height:18px;"></th>
+					<th title="Workshop"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png" style="width:18px; height:18px;"></th>
+					<th title="Market"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png" style="width:18px; height:18px;"></th>
+					<th title="Smithy"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png" style="width:18px; height:18px;"></th>
+					<th>Age</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Legend -->
+	<div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px; color: black;">
+		<b>Legend:</b>
+		<span style="background: #ffd93d; padding: 2px 8px; margin-left: 10px; color: black;">Yellow = Barracks > 1</span>
+		<span style="background: #ff6b6b; padding: 2px 8px; margin-left: 10px; color: black;">Red = Wall >= 3</span>
+		<span style="color: #c0392b; font-weight: bold; margin-left: 10px;">Bold red = Above max</span>
+		<span style="color: #2196F3; font-weight: bold; margin-left: 10px;">Blue = Attack incoming</span>
+	</div>
+
+	<!-- Activity Log Section (at bottom) -->
+	<div style="background: #f5f5f5; border: 1px solid #ccc; border-radius: 8px; padding: 15px; margin-top: 15px; color: black;">
+		<h3 style="margin-top: 0; color: black;">Activity Log</h3>
+		<div id="barb_log" style="background: #1a1a1a; color: #00ff00; font-family: monospace; font-size: 11px; padding: 10px; height: 180px; overflow-y: auto; border: 1px solid #7d510f; border-radius: 4px;">
+			<div style="color: #888;">Waiting for activity...</div>
+		</div>
+	</div>
+</td></tr>`);
+
+// BARB Log Function
+function barb_log(message, type = 'info') {
+	const logDiv = document.getElementById('barb_log');
+	if (!logDiv) return;
+
+	const timestamp = new Date().toLocaleTimeString();
+	const colors = {
+		'info': '#00ff00',
+		'warn': '#ffff00',
+		'error': '#ff4444',
+		'success': '#44ff44',
+		'attack': '#2196F3'
+	};
+	const color = colors[type] || colors.info;
+
+	const entry = document.createElement('div');
+	entry.style.color = color;
+	entry.innerHTML = `[${timestamp}] ${message}`;
+
+	// Remove "waiting" message if present
+	const waiting = logDiv.querySelector('div[style*="color: #888"]');
+	if (waiting) waiting.remove();
+
+	logDiv.appendChild(entry);
+	logDiv.scrollTop = logDiv.scrollHeight;
+
+	// Keep only last 40 entries
+	while (logDiv.children.length > 40) {
+		logDiv.removeChild(logDiv.firstChild);
+	}
+}
+
+// Toggle configuration panel visibility
+function barb_toggleConfig() {
+	const content = document.getElementById('barb_config_content');
+	const arrow = document.getElementById('barb_config_arrow');
+	if (!content || !arrow) return;
+
+	if (content.style.display === 'none') {
+		content.style.display = 'block';
+		arrow.style.transform = 'rotate(0deg)';
+	} else {
+		content.style.display = 'none';
+		arrow.style.transform = 'rotate(-90deg)';
+	}
+}
+
+// Initialize UI after DOM is ready
+setTimeout(() => {
+	barb_loadConfig();
+	barb_rebuildTable();
+	barb_updateQueueDisplay();
+	if (SZEM4_BARB.ENABLED) {
+		const btn = document.getElementById('barb_enable_btn');
+		if (btn) {
+			btn.textContent = 'Enabled';
+			btn.style.backgroundColor = '#27ae60';
+		}
+	}
+}, 500);
 
 /*-----------------ÉPÍTŐ--------------------*/
 function szem4_EPITO_perccsokkento(){try{
