@@ -104,9 +104,21 @@ try{ /*Rendszeradatok*/
 			case 'epit': szem4_EPITO_motor(); break;
 			case 'adatok': szem4_ADAT_motor(); break;
 			case 'gyujto': szem4_GYUJTO_motor(); break;
+			case 'norbi0n_farm': szem4_norbi0n_farm_motor(); break;
+			case 'recruitment': szem4_recruitment_motor(); break;
+			case 'barb': szem4_barb_motor(); break;
 			default: debug('worker','Ismeretlen ID', JSON.stringify(worker_message))
 		}
 	};
+	
+	// Listen for bot detection messages from farm tab
+	window.addEventListener('message', (event) => {
+		if (event.data && event.data.source === 'norbi_farm_bot_detection') {
+			debug('Norbi0N_Farm', '🚨 Received bot detection message from farm tab');
+			BotvedelemBe();
+		}
+	});
+	
 	function createWorker(main){
 		var blob = new Blob(
 			["(" + main.toString() + ")(self)"],
@@ -704,16 +716,17 @@ function init(){try{
 				<div class="profile" onclick="selectTheme(4)">Téma 4</div>
 			</div>
 			<table class="style-settings-table">
-			<tr><td>Bal háttérkép</td><td><input type="text" size="80" name="wallp_left" value="${pic('default_bg_left.jpg')}" onchange="onWallpChange()"><br>
+			<tr><td>Bal háttérkép</td><td><input type="text" size="80" name="wallp_left" value="https://raw.githubusercontent.com/nnoby95/Norni0N/main/Assets/TW3.webp" onchange="onWallpChange()"><br>
 										Videó: <input type="text" size="70" name="wallp_left_vid" value="-" onchange="onWallpChange()"><br>
-										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_left_mirror"></td><td rowspan="2">Videólink. Ha nem szeretnél írj "-" -t, és háttérképet használ. Ha az sincs vagy érvénytelen, akkor háttérszín lesz használva</td></tr>
-			<tr><td>Jobb háttérkép</td><td><input type="text" size="80"  name="wallp_right" value="${pic('default_bg_right.jpg')}" onchange="onWallpChange()"><br>
+										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_left_mirror" checked></td><td rowspan="2">Videólink. Ha nem szeretnél írj "-" -t, és háttérképet használ. Ha az sincs vagy érvénytelen, akkor háttérszín lesz használva</td></tr>
+			<tr><td>Jobb háttérkép</td><td><input type="text" size="80"  name="wallp_right" value="https://raw.githubusercontent.com/nnoby95/Norni0N/main/Assets/TW4.webp" onchange="onWallpChange()"><br>
 										Videó: <input type="text" size="70" name="wallp_right_vid" value="-" onchange="onWallpChange()"><br>
 										Tükrözött? <input type="checkbox" onclick="onWallpChange()" name="wallp_right_mirror"></td></tr>
-			<tr><td>Tartalom háttérszíne</td><td><input type="text" size="30" name="content_bgcolor" value="#111" onchange="onWallpChange()"></td><td>[Default: #111] Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
-			<tr><td>Tartalom betűszíne</td><td><input type="text" size="30" name="content_fontcolor" value="white" onchange="onWallpChange()"></td><td>[Default: white] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
-			<tr><td>Keret színe</td><td><input type="text" size="30" name="content_border" value="yellow" onchange="onWallpChange()"></td><td>[Default: yellow] Valid CSS "border-color" property támogatott. <a href="https://www.w3schools.com/css/css_border_color.asp" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Tartalom háttérszíne</td><td><input type="text" size="80" name="content_bgcolor" value="#d2c09e url('https://dshu.innogamescdn.com/asset/ae6c0149/graphic/background/bg-image.webp')" onchange="onWallpChange()"></td><td>[Default: #d2c09e with TW texture] Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Tartalom betűszíne</td><td><input type="text" size="30" name="content_fontcolor" value="#000" onchange="onWallpChange()"></td><td>[Default: #000] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Keret színe</td><td><input type="text" size="30" name="content_border" value="#8B4513" onchange="onWallpChange()"></td><td>[Default: #8B4513] Valid CSS "border-color" property támogatott. <a href="https://www.w3schools.com/css/css_border_color.asp" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Vetett árnyék</td><td><input type="text" size="30" name="content_shadow" value="0 0 12px black" onchange="onWallpChange()"></td><td>[Default: 0 0 12px black] Valid CSS "box-shadow" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_box-shadow.php" target="_BLANK">W3School link</a></td></tr>
+			<tr><td>Keret szélessége / Frame width</td><td><input type="number" size="10" name="frame_width" value="1024" min="800" max="1920" onchange="onWallpChange(true, 'frame_width')"> px</td><td>[Default: 1024] A fő tartalom szélessége pixelben. Min: 800, Max: 1920</td></tr>
 			<tr><td>Beállítás táblázat háttere</td>       <td><input type="text" size="30" name="table_bgcolor"      value="-" onchange="onWallpChange(true, 'table_bgcolor')"></td>     <td>[Default: -] A háttér cellánként értendő. Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Beállítás táblázat szövegszíne</td>   <td><input type="text" size="30" name="table_color"        value="-" onchange="onWallpChange(true, 'table_color')"></td>       <td>[Default: -] Minden CSS "color" property támogatott. <a href="https://www.w3schools.com/cssref/css_colors_legal.php" target="_BLANK">W3School link</a></td></tr>
 			<tr><td>Táblázatok fejlécének háttere</td>    <td><input type="text" size="30" name="table_head_bgcolor" value="-" onchange="onWallpChange(true, 'table_head_bgcolor')"></td><td>[Default: -] A háttér cellánként értendő. Minden CSS "background" property támogatott. <a href="https://www.w3schools.com/cssref/css3_pr_background.php" target="_BLANK">W3School link</a></td></tr>
@@ -805,6 +818,18 @@ function onWallpChange(isUpdate=true, changedText) {
 	$('.fej > table').css('border-color', settingsForm.content_border.value);
 	$('#content > table').css('box-shadow', settingsForm.content_shadow.value);
 	$('.fej').css('box-shadow', settingsForm.content_shadow.value);
+	if (changedText === 'frame_width' || changedText === 'ALL') {
+		const frameWidth = parseInt(settingsForm.frame_width.value, 10) || 1024;
+		const halfWidth = frameWidth / 2;
+		$('#content').css('width', frameWidth + 'px');
+		$('.fej').css('width', frameWidth + 'px');
+		$('.fej > table').css('background-size', frameWidth + 'px');
+		$('.menuitem').attr('width', frameWidth + 'px');
+		$('.left-background').css('width', `calc(50vw - ${halfWidth}px)`);
+		$('.right-background').css('width', `calc(50vw - ${halfWidth}px)`);
+		// Update the divrow width in menu
+		$('#menuk .divrow').css('width', (frameWidth - 8) + 'px');
+	}
 	if (changedText === 'table_bgcolor' || changedText === 'ALL') {
 		const styleElement = $("<style>")
 			.attr("type", "text/css")
@@ -1047,7 +1072,10 @@ function debug_urit() {
 function ujkieg(id,nev,tartalom){
 	if (document.getElementById(nev)) return false;
 	ALL_EXTENSION.push(id);
-	document.getElementById("kiegs").innerHTML+='<img onclick=\'szunet("'+id+'",this)\' name="'+id+'" onmouseover=\'sugo(this,"Az érintett scriptet tudod megállítani/elindítani.")\' src="'+pic(((id=='farm'||id=='vije'||id=='gyujto')?'pause':'play')+ ".png")+'" alt="Stop" title="Klikk a szüneteltetéshez"> <a href=\'javascript: nyit("'+id+'");\'>'+nev.toUpperCase()+'</a> ';
+	// Motors that start paused should show pause icon initially
+	const pausedMotors = ['farm', 'vije', 'gyujto', 'norbi0n_farm', 'recruitment', 'barb'];
+	const initialIcon = pausedMotors.includes(id) ? 'pause' : 'play';
+	document.getElementById("kiegs").innerHTML+='<img onclick=\'szunet("'+id+'",this)\' name="'+id+'" onmouseover=\'sugo(this,"Az érintett scriptet tudod megállítani/elindítani.")\' src="'+pic(initialIcon + ".png")+'" alt="Stop" title="Klikk a szüneteltetéshez"> <a href=\'javascript: nyit("'+id+'");\'>'+nev.toUpperCase()+'</a> ';
 	document.getElementById("content").innerHTML+='<table class="menuitem" width="1024px" align="center" id="'+id+'" style="display: none">'+tartalom+'</table>';
 	return true;
 }
@@ -1088,6 +1116,18 @@ function szunet(script,kep){try{
 		case 'gyujto':
 			GYUJTO_PAUSE = !GYUJTO_PAUSE;
 			var sw = GYUJTO_PAUSE;
+			break;
+		case 'norbi0n_farm':
+			NORBI0N_FARM_PAUSE = !NORBI0N_FARM_PAUSE;
+			var sw = NORBI0N_FARM_PAUSE;
+			break;
+		case 'recruitment':
+			RECRUITMENT_PAUSE = !RECRUITMENT_PAUSE;
+			var sw = RECRUITMENT_PAUSE;
+			break;
+		case 'barb':
+			BARB_PAUSE = !BARB_PAUSE;
+			var sw = BARB_PAUSE;
 			break;
 		default: {alert2("Sikertelen script megállatás. Nincs ilyen alscript: "+script);return;}
 	}
@@ -1360,7 +1400,8 @@ function emergencyStopAll() {
 			{ ref: 'VIJE_REF1', name: 'Jelentés elemző 1' },
 			{ ref: 'VIJE_REF2', name: 'Jelentés elemző 2' },
 			{ ref: 'EPIT_REF', name: 'Építő' },
-			{ ref: 'GYUJTO_REF', name: 'Gyűjtő' }
+			{ ref: 'GYUJTO_REF', name: 'Gyűjtő' },
+			{ ref: 'NORBI0N_FARM_REF', name: 'Norbi0N Farming' }
 		];
 		
 		refsToClose.forEach(item => {
@@ -1380,6 +1421,15 @@ function emergencyStopAll() {
 		worker.postMessage({'id': 'stopTimer', 'value': 'epit'});
 		worker.postMessage({'id': 'stopTimer', 'value': 'adatok'});
 		worker.postMessage({'id': 'stopTimer', 'value': 'gyujto'});
+		worker.postMessage({'id': 'stopTimer', 'value': 'norbi0n_farm'});
+
+		// Clear Norbi0N_Farm loop timer and next run
+		if (NORBI0N_FARM_LOOP_TIMER) {
+			clearTimeout(NORBI0N_FARM_LOOP_TIMER);
+			NORBI0N_FARM_LOOP_TIMER = null;
+			SZEM4_NORBI0N_FARM.STATS.nextRun = 0;
+			debug('emergencyStopAll', 'Norbi0N_Farm loop timer cleared');
+		}
 		
 		// Clear any setTimeout
 		if (BOTORA) clearTimeout(BOTORA);
@@ -1513,6 +1563,7 @@ function BotvedelemKi(){
 		szem4_VIJE_motor();
 		szem4_EPITO_motor();
 		szem4_GYUJTO_motor();
+		szem4_norbi0n_farm_motor();
 		naplo('✅ Restart', 'Minden motor újraindult');
 	}, 1000);
 	
@@ -1562,12 +1613,16 @@ function loadBotNotifications() {
 			
 			// Load to UI
 			document.getElementById('discord_enabled').checked = BOT_NOTIFICATION_SETTINGS.discord.enabled;
-			document.getElementById('discord_webhook').value = BOT_NOTIFICATION_SETTINGS.discord.webhookUrl;
+			document.getElementById('discord_webhook').value = BOT_NOTIFICATION_SETTINGS.discord.webhookUrl || '';
 			document.getElementById('telegram_enabled').checked = BOT_NOTIFICATION_SETTINGS.telegram.enabled;
-			document.getElementById('telegram_token').value = BOT_NOTIFICATION_SETTINGS.telegram.botToken;
-			document.getElementById('telegram_chatid').value = BOT_NOTIFICATION_SETTINGS.telegram.chatId;
-			document.getElementById('telegram_repeat').value = BOT_NOTIFICATION_SETTINGS.telegram.repeatCount;
-			document.getElementById('telegram_interval').value = BOT_NOTIFICATION_SETTINGS.telegram.interval;
+			document.getElementById('telegram_token').value = BOT_NOTIFICATION_SETTINGS.telegram.botToken || '';
+			document.getElementById('telegram_chatid').value = BOT_NOTIFICATION_SETTINGS.telegram.chatId || '';
+			document.getElementById('telegram_repeat').value = BOT_NOTIFICATION_SETTINGS.telegram.repeatCount || 30;
+			document.getElementById('telegram_interval').value = BOT_NOTIFICATION_SETTINGS.telegram.interval || 1000;
+			
+			debug('loadBotNotifications', 'Értesítési beállítások sikeresen betöltve');
+		} else {
+			debug('loadBotNotifications', 'Nincs mentett értesítési beállítás');
 		}
 	} catch(e) {
 		debug('loadBotNotifications', 'Hiba: ' + e);
@@ -1698,6 +1753,9 @@ function loadSettings() {
 		}
 	});
 	selectTheme(SZEM4_SETTINGS.selectedProfile);
+	
+	// Load bot notification settings after SZEM4_SETTINGS is loaded
+	loadBotNotifications();
 }
 
 function restartKieg(type) {
@@ -1707,6 +1765,7 @@ function restartKieg(type) {
 			case 'farm': szem4_farmolo_motor(); break;
 			case 'vije': szem4_VIJE_motor(); break;
 			case 'epit': szem4_EPITO_motor(); break;
+			case 'recruitment': szem4_recruitment_motor(); break;
 		}
 	}, 133);
 }
@@ -2722,8 +2781,10 @@ function szem4_farmolo_motor(){
 	var isPihen = false;
 	try {
 	nexttime = parseInt(document.getElementById("farmolo_options").sebesseg_m.value,10);
-	
-	if (BOT||FARM_PAUSE||USER_ACTIVITY) { nexttime = 5000; } else {
+
+	if (BOT||FARM_PAUSE||USER_ACTIVITY) { nexttime = 5000; }
+	else if (NORBI0N_FARM_LEPES !== 0) { nexttime = 3000; } // Wait for Norbi0N_Farm
+	else {
 	/*if (FARM_REF!="undefined" && FARM_REF.closed) FARM_LEPES=0;*/
 	if (FARM_HIBA>10) {
 		FARM_HIBA=0; FARM_GHIBA++; FARM_LEPES=0;
@@ -2972,7 +3033,11 @@ function szem4_VIJE_1kivalaszt(){try{
 	var isAnalize=false;
 	let szin = '';
 	for (var i=VT.length-2;i>0;i--) {
-		var reportId=VT[i].cells[1].getElementsByTagName("span")[0].getAttribute("data-id").replace("label_","");
+		// Relic mode: új HTML struktúra - span.quickedit[data-id] vagy span.report-title[data-id]
+		// Régi mód: span[data-id="label_XXX"]
+		var reportIdSpan = VT[i].cells[1].querySelector('span.quickedit[data-id], span.report-title[data-id]')
+			|| VT[i].cells[1].getElementsByTagName("span")[0];
+		var reportId = reportIdSpan.getAttribute("data-id").replace("label_","");
 		if (SZEM4_VIJE.ELEMZETT.includes(reportId)) continue;
 
 		try {
@@ -3002,7 +3067,13 @@ function szem4_VIJE_1kivalaszt(){try{
 		szin = VT[i].cells[1].childNodes;
 		for (var s=0;s<szin.length;s++) {
 			if (szin[s].nodeName=="IMG") {
-				szin=szin[s].src.split(".png")[0].split("/");
+				// Támogatja mind .png és .webp formátumot (új szerverek webp-t használnak)
+				var imgSrc = szin[s].src;
+				if (imgSrc.includes('.webp')) {
+					szin = imgSrc.split(".webp")[0].split("/");
+				} else {
+					szin = imgSrc.split(".png")[0].split("/");
+				}
 				szin=szin[szin.length-1];
 				break;
 			}
@@ -3131,13 +3202,31 @@ function szem4_VIJE_2elemzes(adatok){try{
 	hungarianDate = new Date(Date.parse(hungarianDate.replace(/jan\./g, "Jan").replace(/febr?\./g, "Feb").replace(/márc\./g, "Mar").replace(/ápr\./g, "Apr").replace(/máj\./g, "May").replace(/jún\./g, "Jun").replace(/júl\./g, "Jul").replace(/aug\./g, "Aug").replace(/szept\./g, "Sep").replace(/okt\./g, "Oct").replace(/nov\./g, "Nov").replace(/dec\./g, "Dec")));
 	hungarianDate = hungarianDate.getTime();
 	if (SZEM4_VIJE.ALL_VIJE_SAVED[adatok[1]] >= hungarianDate) isOld = true;
-	if (!isOld && VIJE_REF2.document.querySelector('#attack_spy_resources') !== null && VIJE_REF2.document.querySelector('#attack_spy_resources').rows[0].cells[1].querySelector('a') == null) {
-		var x=VIJE_REF2.document.getElementById("attack_spy_resources").rows[0].cells[1];
+	if (!isOld && VIJE_REF2.document.querySelector('#attack_spy_resources') !== null) {
+		// Relic mode: az első sor a Relikvia, a második a nyersanyagok
+		// Régi mód: az első sor a nyersanyagok
+		var spyResourcesTable = VIJE_REF2.document.getElementById("attack_spy_resources");
+		var isRelicMode = document.getElementById("vije_opts").isRelicMode.checked;
+		var resourceRowIndex = 0;
 
-		if (adatok[4]) { var nyersossz=''; debug("VIJE2","Nem kell elemezni (régi)"); } else {
+		// Relic módban vagy ha az első sor "Relikvia" szót tartalmaz, a második sort használjuk
+		if (isRelicMode || (spyResourcesTable.rows[0] && spyResourcesTable.rows[0].textContent.includes('Relikvia'))) {
+			resourceRowIndex = 1;
+		}
+
+		// Ellenőrizzük, hogy létezik-e a sor és nincs-e benne link (ami arra utal, hogy nem teljes a felderítés)
+		var resourceRow = spyResourcesTable.rows[resourceRowIndex];
+		if (!resourceRow || (resourceRow.cells[1] && resourceRow.cells[1].querySelector('a') != null)) {
+			// Nincs megfelelő sor vagy nem teljes felderítés - skipeljük a nyersanyag elemzést
+			var x = null;
+		} else {
+			var x = resourceRow.cells[1];
+		}
+
+		if (adatok[4]) { var nyersossz=''; debug("VIJE2","Nem kell elemezni (régi)"); } else if (x) {
 			try{
 				if (/\d/.test(x.textContent)) {
-					var nyers=x.textContent.replace(/\./g,"").match(/[0-9]+/g); 
+					var nyers=x.textContent.replace(/\./g,"").match(/[0-9]+/g);
 					var nyersossz=0;
 					for (var i=0;i<nyers.length;i++) nyersossz+=parseInt(nyers[i],10);
 				} else {
@@ -3174,6 +3263,19 @@ function szem4_VIJE_2elemzes(adatok){try{
 				}
 			}
 			SZEM4_FARM.DOMINFO_FARMS[adatok[1]].buildings = JSON.parse(JSON.stringify(spyLevels));
+			// Update barb_intel with building data
+			if (typeof SZEM4_BARB !== 'undefined' && SZEM4_BARB.ENABLED) {
+				// Try to extract defender village ID from the report
+				let defVillageId = null;
+				try {
+					const defLink = VIJE_REF2.document.querySelector('#attack_info_def a[href*="info_village"]');
+					if (defLink) {
+						const idMatch = defLink.href.match(/id=(\d+)/);
+						if (idMatch) defVillageId = parseInt(idMatch[1], 10);
+					}
+				} catch(e) { debug('VIJE', 'Could not extract defender village ID: ' + e); }
+				barb_updateIntel(adatok[1], spyLevels, hungarianDate, defVillageId);
+			}
 			if (spyLevels.wall === 0) {
 				if (spyLevels.barracks === 0) {
 					spyLevels.wall--;
@@ -3218,7 +3320,9 @@ function szem4_VIJE_3torol(){try{
 function szem4_VIJE_motor(){try{
 	var nexttime=1500;
 	if (VIJE_PAUSE) clearAttacks();
-	if (BOT||VIJE_PAUSE||USER_ACTIVITY) {nexttime=5000;} else {
+	if (BOT||VIJE_PAUSE||USER_ACTIVITY) {nexttime=5000;}
+	else if (NORBI0N_FARM_LEPES !== 0) {nexttime=3000;} // Wait for Norbi0N_Farm
+	else {
 	if (VIJE_HIBA>10) {
 		VIJE_HIBA=0; VIJE_GHIBA++; 
 		if(VIJE_GHIBA>3) {
@@ -3307,6 +3411,7 @@ ujkieg("vije","Jelentés Elemző",`<tr><td>
 			<tr><td>${picBuilding('wall')}</td><td>"Fal" a szerver jelenlegi nyelvén</td><td><input type="text" size="15" name="wall" value="Fal"></td></tr>
 		</table>
 		<input type="checkbox" name="isdelete"> Zöld farmjelentések törlése?<br>
+		<input type="checkbox" name="isRelicMode"> Relic mód (új szerverekhez, ahol van Relikvia rendszer)<br>
 		<button onclick="szem4_vije_forgot()" type="button">Jelentések újraelemzése/elfelejtése</button><br><br><br>
 	</form>
 	</td></tr>`);
@@ -3324,6 +3429,978 @@ var SZEM4_VIJE = {
 readUpVijeOpts();
 var PM2;
 szem4_VIJE_motor();
+
+/*-----------------AUTO RECRUITMENT--------------------*/
+
+// Global state variables
+var RECRUITMENT_LEPES = 0;
+var RECRUITMENT_REF = null;
+var RECRUITMENT_PAUSE = true;
+var RECRUITMENT_HIBA = 0;
+var RECRUITMENT_GHIBA = 0;
+
+var SZEM4_RECRUITMENT = {
+	OPTIONS: {
+		checkInterval: 5,      // minutes
+		randomDelay: 1,        // minutes
+		resourceBudget: 60,    // percent
+		buildingDist: {
+			barracks: 50,
+			stable: 30,
+			garage: 20
+		},
+		maxUnits: {
+			barracks: 0,       // 0 = no limit
+			stable: 0,
+			garage: 0
+		},
+		loopMode: true
+	},
+	TEMPLATES: [],
+	ACTIVE_TEMPLATE: null,
+	CURRENT_PLAN: null,  // Store plan between LEPES 2 and 3
+	ROTATION: {
+		barracks: 0,
+		stable: 0,
+		garage: 0
+	},
+	STATS: {
+		lastRun: 0,
+		totalRuns: 0,
+		totalRecruits: 0,
+		errors: 0
+	}
+};
+
+// Template Management Functions
+function recruitment_createTemplate(name, units) {
+	return {
+		id: Date.now(),
+		name: name,
+		units: units  // {spear: 200, axe: 100, ...}
+	};
+}
+
+function recruitment_addTemplate(template) {
+	SZEM4_RECRUITMENT.TEMPLATES.push(template);
+	recruitment_save();
+	return template;
+}
+
+function recruitment_deleteTemplate(templateId) {
+	SZEM4_RECRUITMENT.TEMPLATES = SZEM4_RECRUITMENT.TEMPLATES.filter(t => t.id !== templateId);
+	if (SZEM4_RECRUITMENT.ACTIVE_TEMPLATE && SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.id === templateId) {
+		SZEM4_RECRUITMENT.ACTIVE_TEMPLATE = null;
+	}
+	recruitment_save();
+}
+
+function recruitment_setActive(templateId) {
+	const template = SZEM4_RECRUITMENT.TEMPLATES.find(t => t.id === templateId);
+	if (template) {
+		SZEM4_RECRUITMENT.ACTIVE_TEMPLATE = template;
+		recruitment_save();
+		recruitment_renderTemplates();
+		return true;
+	}
+	return false;
+}
+
+function recruitment_getTemplate(templateId) {
+	return SZEM4_RECRUITMENT.TEMPLATES.find(t => t.id === templateId);
+}
+
+// Data Extraction Functions
+function recruitment_extractResources(doc) {
+	return {
+		wood: parseInt(doc.getElementById('wood')?.textContent || 0),
+		stone: parseInt(doc.getElementById('stone')?.textContent || 0),
+		iron: parseInt(doc.getElementById('iron')?.textContent || 0)
+	};
+}
+
+function recruitment_extractPopulation(doc) {
+	const current = parseInt(doc.getElementById('pop_current_label')?.textContent || 0);
+	const max = parseInt(doc.getElementById('pop_max_label')?.textContent || 0);
+	return {
+		current: current,
+		max: max,
+		available: max - current
+	};
+}
+
+function recruitment_extractTroops(doc) {
+	const troops = {};
+	const unitRows = doc.querySelectorAll('table.vis tbody tr.row_a, table.vis tbody tr.row_b');
+
+	unitRows.forEach(row => {
+		const unitLink = row.querySelector('.unit_link');
+		if (unitLink) {
+			const unitType = unitLink.getAttribute('data-unit');
+			const troopCountCell = row.querySelectorAll('td')[2];
+
+			if (troopCountCell) {
+				const countText = troopCountCell.textContent.trim();
+				const match = countText.match(/(\d+)\/(\d+)/);
+
+				if (match) {
+					troops[unitType] = {
+						inVillage: parseInt(match[1]),
+						total: parseInt(match[2])
+					};
+				}
+			}
+		}
+	});
+
+	return troops;
+}
+
+function recruitment_extractUnitCosts(doc) {
+	const costs = {};
+	const unitRows = doc.querySelectorAll('table.vis tbody tr.row_a, table.vis tbody tr.row_b');
+
+	unitRows.forEach(row => {
+		const unitLink = row.querySelector('.unit_link');
+		if (unitLink) {
+			const unitType = unitLink.getAttribute('data-unit');
+
+			costs[unitType] = {
+				wood: parseInt(doc.getElementById(unitType + '_0_cost_wood')?.textContent || 0),
+				stone: parseInt(doc.getElementById(unitType + '_0_cost_stone')?.textContent || 0),
+				iron: parseInt(doc.getElementById(unitType + '_0_cost_iron')?.textContent || 0),
+				pop: parseInt(doc.getElementById(unitType + '_0_cost_pop')?.textContent || 0)
+			};
+		}
+	});
+
+	return costs;
+}
+
+// Recruitment Calculator Functions
+function recruitment_calculateNeeded(template, currentTroops) {
+	const needed = {};
+
+	for (const [unitType, goalAmount] of Object.entries(template.units)) {
+		const currentAmount = currentTroops[unitType]?.inVillage || 0;
+		const difference = goalAmount - currentAmount;
+
+		if (difference > 0) {
+			needed[unitType] = difference;
+		}
+	}
+
+	return needed;
+}
+
+function recruitment_getNextUnit(building, neededUnits) {
+	const buildingUnits = {
+		barracks: ['spear', 'sword', 'axe', 'archer'],
+		stable: ['spy', 'light', 'marcher', 'heavy'],
+		garage: ['ram', 'catapult']
+	};
+
+	const availableUnits = buildingUnits[building].filter(u => neededUnits[u] > 0);
+	if (availableUnits.length === 0) return null;
+
+	const rotation = SZEM4_RECRUITMENT.ROTATION[building];
+	const nextUnit = availableUnits[rotation % availableUnits.length];
+	SZEM4_RECRUITMENT.ROTATION[building] = (rotation + 1) % availableUnits.length;
+
+	return nextUnit;
+}
+
+function recruitment_calculateAffordable(unitType, resources, population, unitCosts) {
+	const cost = unitCosts[unitType];
+	if (!cost) return 0;
+
+	const affordableByWood = cost.wood > 0 ? Math.floor(resources.wood / cost.wood) : 999999;
+	const affordableByStone = cost.stone > 0 ? Math.floor(resources.stone / cost.stone) : 999999;
+	const affordableByIron = cost.iron > 0 ? Math.floor(resources.iron / cost.iron) : 999999;
+	const affordableByPop = cost.pop > 0 ? Math.floor(population.available / cost.pop) : 999999;
+
+	return Math.min(affordableByWood, affordableByStone, affordableByIron, affordableByPop);
+}
+
+function recruitment_calculatePlan(gameData) {
+	const template = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE;
+	if (!template) return null;
+
+	const needed = recruitment_calculateNeeded(template, gameData.troops);
+	if (Object.keys(needed).length === 0) {
+		return { units: {}, message: 'Template complete' };
+	}
+
+	const result = {};
+
+	// Calculate budget
+	const budget = SZEM4_RECRUITMENT.OPTIONS.resourceBudget / 100;
+	const totalBudget = {
+		wood: Math.floor(gameData.resources.wood * budget),
+		stone: Math.floor(gameData.resources.stone * budget),
+		iron: Math.floor(gameData.resources.iron * budget)
+	};
+
+	// Try each building
+	for (const building of ['barracks', 'stable', 'garage']) {
+		const unitType = recruitment_getNextUnit(building, needed);
+		if (!unitType) continue;
+
+		const buildingBudget = {
+			wood: Math.floor(totalBudget.wood * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100),
+			stone: Math.floor(totalBudget.stone * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100),
+			iron: Math.floor(totalBudget.iron * SZEM4_RECRUITMENT.OPTIONS.buildingDist[building] / 100)
+		};
+
+		const affordable = recruitment_calculateAffordable(unitType, buildingBudget, gameData.population, gameData.unitCosts);
+		let amount = Math.min(affordable, needed[unitType]);
+
+		// Apply max units per cycle limit if set (with safety check for old saves)
+		const maxUnits = SZEM4_RECRUITMENT.OPTIONS.maxUnits || {};
+		const maxLimit = maxUnits[building] || 0;
+		if (maxLimit > 0 && amount > maxLimit) {
+			amount = maxLimit;
+		}
+
+		if (amount > 0) {
+			result[unitType] = amount;
+		}
+	}
+
+	return { units: result, message: Object.keys(result).length > 0 ? 'Plan ready' : 'Insufficient resources' };
+}
+
+// State Machine Motor Function
+function szem4_recruitment_motor() {
+	try {
+		// Check pause state
+		if (RECRUITMENT_PAUSE) {
+			worker.postMessage({'id': 'recruitment', 'time': 5000});
+			return;
+		}
+
+		// Check if template is set
+		if (!SZEM4_RECRUITMENT.ACTIVE_TEMPLATE) {
+			recruitment_log('No active template selected - pausing', 'warn');
+			naplo('Recruitment', 'No active template - paused');
+			RECRUITMENT_PAUSE = true;
+			return;
+		}
+
+		// Error handling
+		if (RECRUITMENT_HIBA > 3) {
+			RECRUITMENT_HIBA = 0;
+			RECRUITMENT_GHIBA++;
+			RECRUITMENT_LEPES = 0;
+			recruitment_log(`Too many errors in cycle, resetting (global errors: ${RECRUITMENT_GHIBA})`, 'error');
+		}
+		if (RECRUITMENT_GHIBA > 5) {
+			recruitment_log('Too many global errors - stopping recruitment', 'error');
+			naplo('Recruitment', 'Stopped due to too many errors');
+			RECRUITMENT_PAUSE = true;
+			SZEM4_RECRUITMENT.STATS.errors++;
+			recruitment_save();
+			return;
+		}
+
+		let nexttime = 5000;
+
+		switch (RECRUITMENT_LEPES) {
+			case 0: // Idle - wait for interval
+				const now = Date.now();
+				const lastRun = SZEM4_RECRUITMENT.STATS.lastRun;
+				const interval = SZEM4_RECRUITMENT.OPTIONS.checkInterval * 60 * 1000;
+				const randomDelay = Math.random() * SZEM4_RECRUITMENT.OPTIONS.randomDelay * 60 * 1000;
+
+				if (now - lastRun >= interval + randomDelay || lastRun === 0) {
+					recruitment_log('Starting recruitment cycle...', 'info');
+					naplo('Recruitment', 'Starting cycle for template: ' + SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.name);
+					RECRUITMENT_LEPES = 1;
+					nexttime = 1000;
+				} else {
+					nexttime = 10000; // Check every 10s
+				}
+				break;
+
+			case 1: // Open worker tab
+				try {
+					recruitment_log('Opening train page...', 'info');
+					const url = `/game.php?village=${game_data.village.id}&screen=train`;
+					RECRUITMENT_REF = window.open(url, '_blank');
+
+					if (!RECRUITMENT_REF) {
+						recruitment_log('Failed to open worker tab (popup blocked?)', 'error');
+						RECRUITMENT_HIBA++;
+						RECRUITMENT_LEPES = 0;
+					} else {
+						recruitment_log('Train page opened, waiting for load...', 'info');
+						RECRUITMENT_LEPES = 2;
+						nexttime = 3000; // Wait for load
+					}
+				} catch(e) {
+					recruitment_log('Error opening tab: ' + e, 'error');
+					RECRUITMENT_HIBA++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			case 2: // Extract data & calculate
+				try {
+					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						recruitment_log('Worker tab was closed unexpectedly', 'warn');
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					recruitment_log('Extracting game data...', 'info');
+					const doc = RECRUITMENT_REF.document;
+					const gameData = {
+						resources: recruitment_extractResources(doc),
+						population: recruitment_extractPopulation(doc),
+						troops: recruitment_extractTroops(doc),
+						unitCosts: recruitment_extractUnitCosts(doc)
+					};
+
+					recruitment_log(`Resources: W:${gameData.resources.wood} S:${gameData.resources.stone} I:${gameData.resources.iron} | Pop: ${gameData.population.available}/${gameData.population.max}`, 'info');
+
+					const planResult = recruitment_calculatePlan(gameData);
+
+					if (!planResult || Object.keys(planResult.units).length === 0) {
+						recruitment_log('No units to recruit: ' + (planResult?.message || 'unknown'), 'info');
+						RECRUITMENT_REF.close();
+						RECRUITMENT_LEPES = 0;
+						SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
+						SZEM4_RECRUITMENT.STATS.totalRuns++;
+						recruitment_save();
+					} else {
+						const planStr = Object.entries(planResult.units).map(([u,q]) => `${u}:${q}`).join(', ');
+						recruitment_log('Recruitment plan: ' + planStr, 'success');
+						SZEM4_RECRUITMENT.CURRENT_PLAN = planResult.units;
+						RECRUITMENT_LEPES = 3;
+						nexttime = 500;
+					}
+				} catch(e) {
+					recruitment_log('Error extracting data: ' + e, 'error');
+					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
+					RECRUITMENT_HIBA++;
+					SZEM4_RECRUITMENT.STATS.errors++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			case 3: // Submit recruitment
+				try {
+					if (!RECRUITMENT_REF || RECRUITMENT_REF.closed) {
+						recruitment_log('Worker tab was closed before submit', 'warn');
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					const doc = RECRUITMENT_REF.document;
+					const form = doc.getElementById('train_form');
+
+					if (!form) {
+						recruitment_log('Train form not found on page', 'error');
+						RECRUITMENT_REF.close();
+						RECRUITMENT_HIBA++;
+						SZEM4_RECRUITMENT.STATS.errors++;
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					// Fill form with plan
+					let filledAny = false;
+					let filledUnits = [];
+					for (const [unitType, quantity] of Object.entries(SZEM4_RECRUITMENT.CURRENT_PLAN)) {
+						const input = doc.getElementById(unitType + '_0');
+						if (input) {
+							input.value = quantity;
+							filledAny = true;
+							filledUnits.push(`${unitType}:${quantity}`);
+						}
+					}
+
+					if (!filledAny) {
+						recruitment_log('No unit inputs could be filled', 'error');
+						RECRUITMENT_REF.close();
+						RECRUITMENT_HIBA++;
+						SZEM4_RECRUITMENT.STATS.errors++;
+						RECRUITMENT_LEPES = 0;
+						break;
+					}
+
+					recruitment_log('Submitting recruitment form...', 'info');
+					form.submit();
+
+					SZEM4_RECRUITMENT.STATS.totalRecruits++;
+					SZEM4_RECRUITMENT.STATS.totalRuns++;
+					SZEM4_RECRUITMENT.STATS.lastRun = Date.now();
+
+					const recruitMsg = filledUnits.join(', ');
+					recruitment_log('SUCCESS! Recruited: ' + recruitMsg, 'success');
+					naplo('Recruitment', 'Recruited: ' + recruitMsg);
+
+					recruitment_save();
+					recruitment_updateStats();
+
+					setTimeout(() => {
+						if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) {
+							RECRUITMENT_REF.close();
+						}
+					}, 2000);
+
+					SZEM4_RECRUITMENT.CURRENT_PLAN = null;
+					RECRUITMENT_LEPES = 0;
+					nexttime = 1000;
+				} catch(e) {
+					recruitment_log('Error submitting: ' + e, 'error');
+					if (RECRUITMENT_REF && !RECRUITMENT_REF.closed) RECRUITMENT_REF.close();
+					RECRUITMENT_HIBA++;
+					SZEM4_RECRUITMENT.STATS.errors++;
+					RECRUITMENT_LEPES = 0;
+				}
+				break;
+
+			default:
+				RECRUITMENT_LEPES = 0;
+		}
+
+		worker.postMessage({'id': 'recruitment', 'time': nexttime});
+
+	} catch(e) {
+		recruitment_log('Motor error: ' + e, 'error');
+		debug('szem4_recruitment_motor()', e + ' Lépés:' + RECRUITMENT_LEPES);
+		RECRUITMENT_LEPES = 0;
+	}
+}
+
+// Save/Load Functions
+function recruitment_save() {
+	try {
+		localStorage.setItem(AZON + "_recruitment", JSON.stringify(SZEM4_RECRUITMENT));
+		return true;
+	} catch(e) {
+		debug('Recruitment', 'Save error: ' + e);
+		return false;
+	}
+}
+
+function recruitment_load() {
+	try {
+		const saved = localStorage.getItem(AZON + "_recruitment");
+		if (saved) {
+			const loaded = JSON.parse(saved);
+			SZEM4_RECRUITMENT = Object.assign(SZEM4_RECRUITMENT, loaded);
+			// Ensure maxUnits exists for old saves that don't have it
+			if (!SZEM4_RECRUITMENT.OPTIONS.maxUnits) {
+				SZEM4_RECRUITMENT.OPTIONS.maxUnits = {
+					barracks: 0,
+					stable: 0,
+					garage: 0
+				};
+			}
+			debug('Recruitment', 'Loaded from storage');
+		}
+	} catch(e) {
+		debug('Recruitment', 'Load error: ' + e);
+	}
+}
+
+// UI Functions
+function recruitment_renderTemplates() {
+	const tbody = document.querySelector('#recruitment_templates tbody');
+	if (!tbody) return;
+
+	// Clear existing rows except header
+	while (tbody.rows.length > 1) {
+		tbody.deleteRow(1);
+	}
+
+	if (SZEM4_RECRUITMENT.TEMPLATES.length === 0) {
+		const row = tbody.insertRow();
+		const cell = row.insertCell(0);
+		cell.colSpan = 3;
+		cell.style.textAlign = 'center';
+		cell.style.fontStyle = 'italic';
+		cell.textContent = 'No templates created yet';
+		return;
+	}
+
+	SZEM4_RECRUITMENT.TEMPLATES.forEach(template => {
+		const row = tbody.insertRow();
+		const isActive = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE && SZEM4_RECRUITMENT.ACTIVE_TEMPLATE.id === template.id;
+
+		if (isActive) {
+			row.style.backgroundColor = '#d4e4bc';
+			row.style.fontWeight = 'bold';
+		}
+
+		// Name cell
+		const nameCell = row.insertCell(0);
+		nameCell.textContent = template.name + (isActive ? ' ★' : '');
+
+		// Units cell
+		const unitsCell = row.insertCell(1);
+		const unitCount = Object.keys(template.units).length;
+		const totalUnits = Object.values(template.units).reduce((sum, val) => sum + val, 0);
+		unitsCell.textContent = `${unitCount} types, ${totalUnits} total`;
+
+		// Actions cell
+		const actionsCell = row.insertCell(2);
+		actionsCell.innerHTML = `
+			<button onclick="recruitment_setActive(${template.id})" class="btn" ${isActive ? 'disabled' : ''}>Select</button>
+			<button onclick="recruitment_showTemplateEditor(${template.id})" class="btn">Edit</button>
+			<button onclick="recruitment_confirmDelete(${template.id})" class="btn">Delete</button>
+		`;
+	});
+
+	recruitment_updateStats();
+}
+
+function recruitment_showTemplateEditor(templateId = null) {
+	const isEdit = templateId !== null;
+	const template = isEdit ? recruitment_getTemplate(templateId) : null;
+
+	const unitTypes = ['spear', 'sword', 'axe', 'archer', 'spy', 'light', 'marcher', 'heavy', 'ram', 'catapult'];
+
+	let unitInputs = '';
+	unitTypes.forEach(unitType => {
+		const currentValue = template ? (template.units[unitType] || 0) : 0;
+		unitInputs += `
+			<tr>
+				<td>${unitType.charAt(0).toUpperCase() + unitType.slice(1)}:</td>
+				<td><input type="number" class="template-unit-input" data-unit="${unitType}" min="0" value="${currentValue}"></td>
+			</tr>
+		`;
+	});
+
+	const dialogHTML = `
+		<div id="templateEditorDialog" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border: 2px solid #7d510f; border-radius: 8px; padding: 20px; z-index: 10000; min-width: 400px; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); color: black;">
+			<h3 style="margin-top: 0; color: black;">${isEdit ? 'Edit Template' : 'Create New Template'}</h3>
+
+			<label style="display: block; margin-bottom: 15px;">
+				Template Name:
+				<input type="text" id="templateName" style="width: 100%; padding: 8px; margin-top: 5px; border: 1px solid #c1a264; border-radius: 3px;" value="${template ? template.name : ''}">
+			</label>
+
+			<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 15px; border-radius: 3px;">
+				<h4 style="margin-top: 0;">Unit Goals</h4>
+				<table class="vis" style="width: 100%;">
+					${unitInputs}
+				</table>
+			</div>
+
+			<div style="display: flex; gap: 10px; justify-content: flex-end;">
+				<button id="templateSave" class="btn">Save</button>
+				<button id="templateCancel" class="btn">Cancel</button>
+			</div>
+		</div>
+
+		<div id="templateEditorOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999;"></div>
+	`;
+
+	const container = document.createElement('div');
+	container.innerHTML = dialogHTML;
+	document.body.appendChild(container);
+
+	// Event listeners
+	document.getElementById('templateSave').addEventListener('click', function() {
+		const name = document.getElementById('templateName').value.trim();
+		if (!name) {
+			alert('Please enter a template name');
+			return;
+		}
+
+		const units = {};
+		document.querySelectorAll('.template-unit-input').forEach(input => {
+			const unitType = input.getAttribute('data-unit');
+			const value = parseInt(input.value) || 0;
+			if (value > 0) {
+				units[unitType] = value;
+			}
+		});
+
+		if (Object.keys(units).length === 0) {
+			alert('Please set at least one unit goal');
+			return;
+		}
+
+		if (isEdit) {
+			const existingTemplate = recruitment_getTemplate(templateId);
+			existingTemplate.name = name;
+			existingTemplate.units = units;
+			recruitment_save();
+			naplo('Recruitment', 'Template updated: ' + name);
+		} else {
+			const newTemplate = recruitment_createTemplate(name, units);
+			recruitment_addTemplate(newTemplate);
+			naplo('Recruitment', 'Template created: ' + name);
+		}
+
+		recruitment_renderTemplates();
+		container.remove();
+	});
+
+	document.getElementById('templateCancel').addEventListener('click', function() {
+		container.remove();
+	});
+
+	document.getElementById('templateEditorOverlay').addEventListener('click', function() {
+		container.remove();
+	});
+}
+
+function recruitment_confirmDelete(templateId) {
+	const template = recruitment_getTemplate(templateId);
+	if (!template) return;
+
+	if (confirm(`Are you sure you want to delete template "${template.name}"?`)) {
+		recruitment_deleteTemplate(templateId);
+		recruitment_renderTemplates();
+		naplo('Recruitment', 'Template deleted: ' + template.name);
+	}
+}
+
+function recruitment_saveSettings() {
+	try {
+		SZEM4_RECRUITMENT.OPTIONS.checkInterval = parseInt(document.getElementById('recruitment_interval').value) || 5;
+		SZEM4_RECRUITMENT.OPTIONS.randomDelay = parseInt(document.getElementById('recruitment_delay').value) || 1;
+		SZEM4_RECRUITMENT.OPTIONS.resourceBudget = parseInt(document.getElementById('recruitment_budget').value) || 60;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks = parseInt(document.getElementById('recruitment_barracks').value) || 50;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable = parseInt(document.getElementById('recruitment_stable').value) || 30;
+		SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage = parseInt(document.getElementById('recruitment_garage').value) || 20;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.barracks = parseInt(document.getElementById('recruitment_max_barracks').value) || 0;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.stable = parseInt(document.getElementById('recruitment_max_stable').value) || 0;
+		SZEM4_RECRUITMENT.OPTIONS.maxUnits.garage = parseInt(document.getElementById('recruitment_max_garage').value) || 0;
+
+		// Validate building distribution
+		const total = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks +
+		              SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable +
+		              SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage;
+
+		if (total !== 100) {
+			alert('Building distribution must total 100%!');
+			return false;
+		}
+
+		recruitment_save();
+		alert2('Settings saved successfully');
+		return true;
+	} catch(e) {
+		debug('Recruitment', 'Error saving settings: ' + e);
+		return false;
+	}
+}
+
+function recruitment_loadSettings() {
+	try {
+		if (document.getElementById('recruitment_interval')) {
+			document.getElementById('recruitment_interval').value = SZEM4_RECRUITMENT.OPTIONS.checkInterval;
+			document.getElementById('recruitment_delay').value = SZEM4_RECRUITMENT.OPTIONS.randomDelay;
+			document.getElementById('recruitment_budget').value = SZEM4_RECRUITMENT.OPTIONS.resourceBudget;
+			document.getElementById('recruitment_barracks').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.barracks;
+			document.getElementById('recruitment_stable').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.stable;
+			document.getElementById('recruitment_garage').value = SZEM4_RECRUITMENT.OPTIONS.buildingDist.garage;
+			// Load max units settings (with fallback to 0 for old saves)
+			document.getElementById('recruitment_max_barracks').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.barracks || 0;
+			document.getElementById('recruitment_max_stable').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.stable || 0;
+			document.getElementById('recruitment_max_garage').value = SZEM4_RECRUITMENT.OPTIONS.maxUnits?.garage || 0;
+		}
+	} catch(e) {
+		debug('Recruitment', 'Error loading settings: ' + e);
+	}
+}
+
+function recruitment_updateStats() {
+	try {
+		if (document.getElementById('recruitment_stat_runs')) {
+			document.getElementById('recruitment_stat_runs').textContent = SZEM4_RECRUITMENT.STATS.totalRuns;
+			document.getElementById('recruitment_stat_recruits').textContent = SZEM4_RECRUITMENT.STATS.totalRecruits;
+			document.getElementById('recruitment_stat_lastrun').textContent =
+				SZEM4_RECRUITMENT.STATS.lastRun ? new Date(SZEM4_RECRUITMENT.STATS.lastRun).toLocaleString() : 'Never';
+			document.getElementById('recruitment_stat_errors').textContent = SZEM4_RECRUITMENT.STATS.errors;
+		}
+	} catch(e) {
+		debug('Recruitment', 'Error updating stats: ' + e);
+	}
+}
+
+// Initialize recruitment
+recruitment_load();
+szem4_recruitment_motor();
+
+// Add Recruitment UI
+ujkieg("recruitment","Recruitment",`<tr><td>
+	<h2 align="center">Auto Recruitment System</h2>
+
+	<!-- Status Section -->
+	<div style="background: #e8d4a0; border: 2px solid #7d510f; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+		<h3 style="margin-top: 0;">Status</h3>
+		<table class="vis" style="width: 100%;">
+			<tr>
+				<td style="width: 150px;"><b>Status:</b></td>
+				<td><span id="recruitment_status" style="padding: 3px 10px; border-radius: 3px; font-weight: bold;">PAUSED</span></td>
+			</tr>
+			<tr>
+				<td><b>Active Template:</b></td>
+				<td id="recruitment_active_template">None selected</td>
+			</tr>
+			<tr>
+				<td><b>Current Step:</b></td>
+				<td id="recruitment_current_step">Idle</td>
+			</tr>
+			<tr>
+				<td><b>Last Run:</b></td>
+				<td id="recruitment_last_run">Never</td>
+			</tr>
+			<tr>
+				<td><b>Next Run:</b></td>
+				<td id="recruitment_next_run">-</td>
+			</tr>
+			<tr>
+				<td><b>Countdown:</b></td>
+				<td><span id="recruitment_countdown" style="font-family: monospace; font-size: 16px; font-weight: bold;">--:--</span></td>
+			</tr>
+		</table>
+	</div>
+
+	<!-- Templates Section -->
+	<h3>Templates</h3>
+	<table class="vis" id="recruitment_templates" style="width: 100%;">
+		<tbody>
+			<tr>
+				<th>Name</th>
+				<th>Units</th>
+				<th>Actions</th>
+			</tr>
+		</tbody>
+	</table>
+	<p align="center">
+		<button onclick="recruitment_showTemplateEditor()" class="btn">Create New Template</button>
+	</p>
+
+	<!-- Settings Section -->
+	<h3>Settings</h3>
+	<table class="vis" style="margin: auto;">
+		<tr>
+			<td>Check Interval (minutes):</td>
+			<td><input type="number" id="recruitment_interval" min="1" value="5" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Random Delay (minutes):</td>
+			<td><input type="number" id="recruitment_delay" min="0" value="1" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Resource Budget (%):</td>
+			<td><input type="number" id="recruitment_budget" min="1" max="100" value="60" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2"><b>Building Distribution (must total 100%)</b></td>
+		</tr>
+		<tr>
+			<td>Barracks (%):</td>
+			<td><input type="number" id="recruitment_barracks" value="50" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Stable (%):</td>
+			<td><input type="number" id="recruitment_stable" value="30" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Garage (%):</td>
+			<td><input type="number" id="recruitment_garage" value="20" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2"><b>Max Units Per Cycle (0 = no limit)</b></td>
+		</tr>
+		<tr>
+			<td>Barracks max:</td>
+			<td><input type="number" id="recruitment_max_barracks" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Stable max:</td>
+			<td><input type="number" id="recruitment_max_stable" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td>Garage max:</td>
+			<td><input type="number" id="recruitment_max_garage" min="0" value="0" style="width: 80px;"></td>
+		</tr>
+		<tr>
+			<td colspan="2" align="center" style="padding-top: 10px;">
+				<button onclick="recruitment_saveSettings()" class="btn">Save Settings</button>
+			</td>
+		</tr>
+	</table>
+
+	<!-- Statistics Section -->
+	<h3>Statistics</h3>
+	<table class="vis" style="margin: auto;">
+		<tr>
+			<td>Total Runs:</td>
+			<td id="recruitment_stat_runs">0</td>
+		</tr>
+		<tr>
+			<td>Successful Recruits:</td>
+			<td id="recruitment_stat_recruits">0</td>
+		</tr>
+		<tr>
+			<td>Errors:</td>
+			<td id="recruitment_stat_errors">0</td>
+		</tr>
+	</table>
+	<p align="center" style="margin-top: 10px;">
+		<button onclick="recruitment_resetStats()" class="btn">Reset Statistics</button>
+	</p>
+
+	<!-- Log Section -->
+	<h3>Activity Log</h3>
+	<div id="recruitment_log" style="background: #1a1a1a; color: #00ff00; font-family: monospace; font-size: 12px; padding: 10px; height: 150px; overflow-y: auto; border: 1px solid #7d510f; border-radius: 4px;">
+		<div style="color: #888;">Waiting for activity...</div>
+	</div>
+
+	<!-- Instructions -->
+	<h3>How to Use</h3>
+	<ol style="text-align: left; max-width: 800px; margin: auto;">
+		<li>Create a template with your desired troop goals</li>
+		<li>Select the template you want to use (click "Select" button)</li>
+		<li>Adjust settings if needed (check interval, resource budget, etc.)</li>
+		<li>Click the RECRUITMENT button in the top menu to start/pause</li>
+		<li>The system will automatically recruit troops based on your template</li>
+	</ol>
+</td></tr>`);
+
+// Recruitment Log Function
+function recruitment_log(message, type = 'info') {
+	const logDiv = document.getElementById('recruitment_log');
+	if (!logDiv) return;
+
+	const timestamp = new Date().toLocaleTimeString();
+	const colors = {
+		'info': '#00ff00',
+		'warn': '#ffff00',
+		'error': '#ff4444',
+		'success': '#44ff44'
+	};
+	const color = colors[type] || colors.info;
+
+	const entry = document.createElement('div');
+	entry.style.color = color;
+	entry.innerHTML = `[${timestamp}] ${message}`;
+
+	// Remove "waiting" message if present
+	const waiting = logDiv.querySelector('div[style*="color: #888"]');
+	if (waiting) waiting.remove();
+
+	logDiv.appendChild(entry);
+	logDiv.scrollTop = logDiv.scrollHeight;
+
+	// Keep only last 50 entries
+	while (logDiv.children.length > 50) {
+		logDiv.removeChild(logDiv.firstChild);
+	}
+}
+
+// Reset Statistics
+function recruitment_resetStats() {
+	if (confirm('Are you sure you want to reset all statistics?')) {
+		SZEM4_RECRUITMENT.STATS = {
+			lastRun: 0,
+			totalRuns: 0,
+			totalRecruits: 0,
+			errors: 0
+		};
+		recruitment_save();
+		recruitment_updateStats();
+		recruitment_log('Statistics reset', 'info');
+		naplo('Recruitment', 'Statistics reset');
+	}
+}
+
+// Update Status UI
+function recruitment_updateStatusUI() {
+	// Status badge
+	const statusEl = document.getElementById('recruitment_status');
+	if (statusEl) {
+		if (RECRUITMENT_PAUSE) {
+			statusEl.textContent = 'PAUSED';
+			statusEl.style.backgroundColor = '#ffcccc';
+			statusEl.style.color = '#8B0000';
+		} else {
+			statusEl.textContent = 'RUNNING';
+			statusEl.style.backgroundColor = '#ccffcc';
+			statusEl.style.color = '#006400';
+		}
+	}
+
+	// Active template
+	const templateEl = document.getElementById('recruitment_active_template');
+	if (templateEl) {
+		if (SZEM4_RECRUITMENT.ACTIVE_TEMPLATE) {
+			const t = SZEM4_RECRUITMENT.ACTIVE_TEMPLATE;
+			const unitCount = Object.keys(t.units).length;
+			templateEl.innerHTML = `<b>${t.name}</b> (${unitCount} unit types)`;
+		} else {
+			templateEl.innerHTML = '<span style="color: red;">None selected - select a template first!</span>';
+		}
+	}
+
+	// Current step
+	const stepEl = document.getElementById('recruitment_current_step');
+	if (stepEl) {
+		const steps = ['Waiting for next cycle', 'Opening train page', 'Extracting data', 'Submitting recruitment'];
+		stepEl.textContent = steps[RECRUITMENT_LEPES] || 'Unknown';
+	}
+
+	// Last run
+	const lastRunEl = document.getElementById('recruitment_last_run');
+	if (lastRunEl) {
+		if (SZEM4_RECRUITMENT.STATS.lastRun) {
+			lastRunEl.textContent = new Date(SZEM4_RECRUITMENT.STATS.lastRun).toLocaleString();
+		} else {
+			lastRunEl.textContent = 'Never';
+		}
+	}
+
+	// Next run & Countdown
+	const nextRunEl = document.getElementById('recruitment_next_run');
+	const countdownEl = document.getElementById('recruitment_countdown');
+
+	if (RECRUITMENT_PAUSE || !SZEM4_RECRUITMENT.STATS.lastRun) {
+		if (nextRunEl) nextRunEl.textContent = '-';
+		if (countdownEl) countdownEl.textContent = '--:--';
+	} else {
+		const interval = SZEM4_RECRUITMENT.OPTIONS.checkInterval * 60 * 1000;
+		const nextRun = SZEM4_RECRUITMENT.STATS.lastRun + interval;
+		const now = Date.now();
+		const remaining = Math.max(0, nextRun - now);
+
+		if (nextRunEl) {
+			nextRunEl.textContent = new Date(nextRun).toLocaleTimeString();
+		}
+
+		if (countdownEl) {
+			if (remaining <= 0) {
+				countdownEl.textContent = 'Running...';
+				countdownEl.style.color = '#00ff00';
+			} else {
+				const mins = Math.floor(remaining / 60000);
+				const secs = Math.floor((remaining % 60000) / 1000);
+				countdownEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+				countdownEl.style.color = remaining < 30000 ? '#ffff00' : '#ffffff';
+			}
+		}
+	}
+}
+
+// Load UI settings after panel is created
+setTimeout(() => {
+	recruitment_loadSettings();
+	recruitment_renderTemplates();
+	recruitment_updateStats();
+	recruitment_updateStatusUI();
+
+	// Start UI update interval
+	setInterval(recruitment_updateStatusUI, 1000);
+}, 500);
 
 /*-----------------TÁMADÁS FIGYELŐ--------------------*/
 
@@ -3347,6 +4424,1184 @@ function TamadUpdt(lap){try{
 
 ujkieg_hang("Bejövő támadások","bejovo");
 ujkieg("idtamad","Bejövő támadások",'<tr><td align="center"><table class="vis" id="idtamad_Bejovok" style="vertical-align:top; display: inline-block;"><tr><th>Időpont</th><th>Támadások száma</th></tr></table> </td></tr>');
+
+/*-----------------BARB (Barbarian Village Control)--------------------*/
+var BARB_LEPES = 0;
+var BARB_REF = null;
+var BARB_PAUSE = true;
+var BARB_HIBA = 0;
+var BARB_GHIBA = 0;
+var BARB_CURRENT_TARGET = null;
+
+var SZEM4_BARB = {
+	ENABLED: false,
+	INTEL: {}, // coord: { buildings, reportAge, lastUpdated, distance, attackSent }
+	CONFIG: {
+		maxMain: 1,
+		maxWall: 0,
+		maxBarracks: 0,
+		maxStable: 0,
+		maxGarage: 0,
+		maxMarket: 20,
+		maxSmith: 20
+	},
+	OPTIONS: {
+		attackDelay: 1250, // ms between attacks (1000-1500 randomized)
+		axesToSend: 10,
+		spyToSend: 1,
+		safetyMargin: 1.2, // 20% extra siege units
+		maxDistance: 30, // max fields from current village
+		fromVillage: '' // source village for attacks
+	},
+	QUEUE: [], // attack queue
+	STATS: {
+		attacksSent: 0,
+		lastAttack: null
+	}
+};
+
+/**
+ * Rams needed per wall level (Tribal Wars practical values)
+ * Index = wall level, value = minimum rams needed to destroy that level
+ * These are conservative estimates assuming rams survive the battle
+ */
+const RAMS_PER_WALL_LEVEL = [
+	0,   // level 0 - no wall
+	3,   // level 1
+	5,   // level 2
+	8,   // level 3
+	10,  // level 4
+	13,  // level 5
+	16,  // level 6
+	19,  // level 7
+	23,  // level 8
+	27,  // level 9
+	31,  // level 10
+	36,  // level 11
+	41,  // level 12
+	46,  // level 13
+	52,  // level 14
+	58,  // level 15
+	65,  // level 16
+	72,  // level 17
+	80,  // level 18
+	88,  // level 19
+	97   // level 20
+];
+
+/**
+ * Catapults needed per building level (Tribal Wars practical values)
+ * These are minimum catapults to reliably destroy ONE level
+ * Formula: ~2-3 catapults per building level for reliable destruction
+ */
+const CATA_PER_BUILDING_LEVEL = [
+	0,   // level 0
+	3,   // level 1
+	5,   // level 2
+	7,   // level 3
+	9,   // level 4
+	12,  // level 5
+	14,  // level 6
+	17,  // level 7
+	20,  // level 8
+	23,  // level 9
+	26,  // level 10
+	30,  // level 11
+	34,  // level 12
+	38,  // level 13
+	42,  // level 14
+	47,  // level 15
+	52,  // level 16
+	57,  // level 17
+	63,  // level 18
+	69,  // level 19
+	75,  // level 20
+	82,  // level 21
+	89,  // level 22
+	97,  // level 23
+	105, // level 24
+	114  // level 25
+];
+
+/**
+ * Calculate number of rams needed to destroy wall from current level to target level
+ * Uses practical Tribal Wars values - rams destroy ALL levels to target in one attack
+ * @param {number} currentLevel - Current wall level
+ * @param {number} targetLevel - Target wall level (from config)
+ * @returns {number} Number of rams needed
+ */
+function barb_calculateRamsNeeded(currentLevel, targetLevel) {
+	if (currentLevel <= targetLevel) return 0;
+
+	// Rams can destroy multiple wall levels in one attack
+	// We need enough rams to destroy the highest level (currentLevel)
+	// Lower levels will be destroyed along the way
+	const baseRams = RAMS_PER_WALL_LEVEL[currentLevel] || (currentLevel * 5);
+
+	// Apply safety margin
+	const ramsNeeded = Math.ceil(baseRams * SZEM4_BARB.OPTIONS.safetyMargin);
+
+	debug('barb_calculateRamsNeeded', `Wall ${currentLevel} -> ${targetLevel}: need ${ramsNeeded} rams (base: ${baseRams})`);
+	return Math.max(ramsNeeded, 1);
+}
+
+/**
+ * Calculate number of catapults needed to destroy building from current level to target level
+ * Catapults destroy ONE level per attack, so we calculate for the current (highest) level
+ * @param {string} buildingType - Type of building (main, barracks, stable, garage, market, smith)
+ * @param {number} currentLevel - Current building level
+ * @param {number} targetLevel - Target building level (from config)
+ * @returns {number} Number of catapults needed for ONE level reduction
+ */
+function barb_calculateCatapultsNeeded(buildingType, currentLevel, targetLevel) {
+	if (currentLevel <= targetLevel) return 0;
+
+	// Get base catapults for current level
+	const baseCata = CATA_PER_BUILDING_LEVEL[currentLevel] || (currentLevel * 3);
+
+	// Apply safety margin
+	const cataNeeded = Math.ceil(baseCata * SZEM4_BARB.OPTIONS.safetyMargin);
+
+	debug('barb_calculateCatapultsNeeded', `${buildingType} ${currentLevel} -> ${targetLevel}: need ${cataNeeded} cata (base: ${baseCata})`);
+	return Math.max(cataNeeded, 1);
+}
+
+/**
+ * Update barb_intel storage with building data from report
+ * @param {string} coord - Village coordinate "xxx|yyy"
+ * @param {object} spyLevels - Building levels from report
+ * @param {number} reportDate - Report timestamp
+ * @param {number} villageId - Village ID (optional)
+ */
+function barb_updateIntel(coord, spyLevels, reportDate, villageId) {
+	try {
+		// Calculate distance from current village (if fromVillage is set) or first player village
+		let distance = 0;
+		const fromVill = SZEM4_BARB.OPTIONS.fromVillage || Object.keys(KTID)[0];
+		if (fromVill) {
+			const [sx, sy] = fromVill.split('|').map(Number);
+			const [tx, ty] = coord.split('|').map(Number);
+			distance = Math.sqrt(Math.pow(tx - sx, 2) + Math.pow(ty - sy, 2));
+		}
+
+		// Preserve existing villageId if not provided in this update
+		const existingVillageId = SZEM4_BARB.INTEL[coord] ? SZEM4_BARB.INTEL[coord].villageId : null;
+
+		SZEM4_BARB.INTEL[coord] = {
+			coordinate: coord,
+			distance: Math.round(distance * 100) / 100,
+			main: spyLevels.main || 0,
+			wall: spyLevels.wall || 0,
+			barracks: spyLevels.barracks || 0,
+			stable: spyLevels.stable || 0,
+			garage: spyLevels.garage || 0,
+			market: spyLevels.market || 0,
+			smith: spyLevels.smith || 0,
+			reportAge: reportDate,
+			lastUpdated: Date.now(),
+			attackSent: SZEM4_BARB.INTEL[coord] ? SZEM4_BARB.INTEL[coord].attackSent : null,
+			villageId: villageId || existingVillageId || null
+		};
+
+		// Refresh UI table if visible
+		if (document.getElementById('barb_intel_table')) {
+			barb_rebuildTable();
+		}
+
+		debug('BARB', `Intel updated for ${coord}: wall=${spyLevels.wall}, barracks=${spyLevels.barracks}`);
+	} catch(e) {
+		debug('barb_updateIntel', 'Error: ' + e);
+	}
+}
+
+/**
+ * Check if a village needs destruction based on config
+ * @param {object} intel - Village intel object
+ * @returns {object|null} - Attack plan or null if no action needed
+ */
+function barb_checkVillageNeeds(intel) {
+	const config = SZEM4_BARB.CONFIG;
+	const plan = {
+		coord: intel.coordinate,
+		distance: intel.distance,
+		rams: 0,
+		catapults: 0,
+		catapultTarget: null,
+		buildings: []
+	};
+
+	// Check wall first
+	if (intel.wall > config.maxWall) {
+		plan.rams = barb_calculateRamsNeeded(intel.wall, config.maxWall);
+		plan.buildings.push({ type: 'wall', current: intel.wall, target: config.maxWall });
+	}
+
+	// Check buildings in priority order - only one catapult target per attack
+	const buildingPriority = ['barracks', 'stable', 'garage', 'main', 'smith', 'market'];
+	for (const building of buildingPriority) {
+		const maxKey = 'max' + building.charAt(0).toUpperCase() + building.slice(1);
+		const currentLevel = intel[building] || 0;
+		const maxLevel = config[maxKey];
+
+		if (currentLevel > maxLevel && !plan.catapultTarget) {
+			plan.catapults = barb_calculateCatapultsNeeded(building, currentLevel, maxLevel);
+			plan.catapultTarget = building;
+			plan.buildings.push({ type: building, current: currentLevel, target: maxLevel });
+		}
+	}
+
+	// Return plan only if there's something to do
+	if (plan.rams > 0 || plan.catapults > 0) {
+		return plan;
+	}
+	return null;
+}
+
+/**
+ * Get list of all villages needing action
+ */
+function barb_getTargetList() {
+	const targets = [];
+	const maxDist = SZEM4_BARB.OPTIONS.maxDistance;
+
+	for (const coord in SZEM4_BARB.INTEL) {
+		const intel = SZEM4_BARB.INTEL[coord];
+		if (intel.distance > maxDist) continue;
+
+		const plan = barb_checkVillageNeeds(intel);
+		if (plan) {
+			targets.push(plan);
+		}
+	}
+
+	// Sort by distance (closest first)
+	targets.sort((a, b) => a.distance - b.distance);
+	return targets;
+}
+
+/**
+ * Rebuild the intel table UI
+ */
+function barb_rebuildTable() {
+	const table = document.getElementById('barb_intel_table');
+	if (!table) return;
+
+	const tbody = table.querySelector('tbody');
+	const config = SZEM4_BARB.CONFIG;
+
+	// Clear existing rows (keep header)
+	while (tbody.rows.length > 1) {
+		tbody.deleteRow(1);
+	}
+
+	// Add rows for each intel entry
+	const sortedIntel = Object.values(SZEM4_BARB.INTEL).sort((a, b) => a.distance - b.distance);
+
+	for (const intel of sortedIntel) {
+		if (intel.distance > SZEM4_BARB.OPTIONS.maxDistance) continue;
+
+		const row = tbody.insertRow();
+
+		// Check if attack is in progress for this village
+		const isInQueue = SZEM4_BARB.QUEUE.some(q => q.coord === intel.coordinate);
+		const hasRecentAttack = intel.attackSent && (Date.now() - intel.attackSent) < 3600000; // Within 1 hour
+
+		// Determine row highlighting
+		let rowStyle = '';
+		if (hasRecentAttack || isInQueue) {
+			rowStyle = 'background-color: #bbdefb;'; // Light blue for attack in progress
+		} else if (intel.wall >= 3) {
+			rowStyle = 'background-color: #ff6b6b;'; // RED for wall >= 3
+		} else if (intel.barracks > 1) {
+			rowStyle = 'background-color: #ffd93d;'; // YELLOW for barracks > 1
+		}
+		row.style.cssText = rowStyle;
+
+		// Coordinate (clickable link to village info if ID available, otherwise map)
+		const coordCell = row.insertCell();
+		coordCell.style.color = '#000';
+		const [cx, cy] = intel.coordinate.split('|');
+		let coordUrl, coordStyle;
+		if (intel.villageId) {
+			// Village info URL with ID
+			coordUrl = `${BASE_URL}game.php?village&screen=info_village&id=${intel.villageId}#${cx};${cy}`;
+			coordStyle = 'color: #8B4513; font-weight: bold; text-decoration: underline;'; // Brown for village info
+		} else {
+			// Map URL as fallback
+			coordUrl = `${BASE_URL}game.php?screen=map&x=${cx}&y=${cy}`;
+			coordStyle = 'color: #0066cc; text-decoration: underline;'; // Blue for map
+		}
+		coordCell.innerHTML = `<a href="${coordUrl}" target="_blank" style="${coordStyle}">${intel.coordinate}</a>`;
+
+		// Distance
+		const distCell = row.insertCell();
+		distCell.style.color = '#000';
+		distCell.textContent = intel.distance.toFixed(1);
+
+		// Building levels with highlighting for values above config
+		const buildingCells = ['main', 'wall', 'barracks', 'stable', 'garage', 'market', 'smith'];
+		for (const building of buildingCells) {
+			const cell = row.insertCell();
+			const level = intel[building] || 0;
+			const maxKey = 'max' + building.charAt(0).toUpperCase() + building.slice(1);
+			const maxLevel = config[maxKey];
+
+			cell.textContent = level;
+			cell.style.textAlign = 'center';
+			if (level > maxLevel) {
+				cell.style.cssText = 'font-weight: bold; color: #c0392b; text-align: center;';
+			} else {
+				cell.style.color = '#000';
+			}
+		}
+
+		// Report age
+		const ageCell = row.insertCell();
+		ageCell.style.color = '#000';
+		const ageMinutes = Math.round((Date.now() - intel.reportAge) / 60000);
+		if (ageMinutes < 60) {
+			ageCell.textContent = ageMinutes + ' min';
+		} else if (ageMinutes < 1440) {
+			ageCell.textContent = Math.round(ageMinutes / 60) + ' hr';
+		} else {
+			ageCell.textContent = Math.round(ageMinutes / 1440) + ' day';
+		}
+
+		// Status column - show attack status
+		const statusCell = row.insertCell();
+		statusCell.style.textAlign = 'center';
+		if (isInQueue) {
+			statusCell.innerHTML = '<span style="color: #2196F3; font-weight: bold;" title="Attack queued">[Q] Queued</span>';
+		} else if (hasRecentAttack) {
+			const attackAge = Math.round((Date.now() - intel.attackSent) / 60000);
+			statusCell.innerHTML = `<span style="color: #2196F3; font-weight: bold;" title="Attack sent ${attackAge}m ago">[ATK] Sent ${attackAge}m</span>`;
+		} else {
+			const plan = barb_checkVillageNeeds(intel);
+			if (plan) {
+				statusCell.innerHTML = '<span style="color: #e74c3c;" title="Needs destruction">[!] Needs work</span>';
+			} else {
+				statusCell.innerHTML = '<span style="color: #27ae60;" title="At target levels">[OK]</span>';
+			}
+		}
+
+		// Action buttons - disable if already in queue or recently attacked
+		const actionCell = row.insertCell();
+		const disableAttack = isInQueue || hasRecentAttack;
+		actionCell.innerHTML = `
+			<button onclick="barb_attackNow('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; background-color: ${disableAttack ? '#999' : '#e74c3c'}; color: white; font-size: 11px;" ${disableAttack ? 'disabled title="Attack already sent/queued"' : ''}>Attack</button>
+			<button onclick="barb_queueSingleAttack('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; font-size: 11px;" ${isInQueue ? 'disabled title="Already in queue"' : ''}>+Q</button>
+			<button onclick="barb_removeIntel('${intel.coordinate}')" class="btn btn-default" style="padding: 2px 6px; font-size: 11px;">X</button>`;
+	}
+
+	// Update stats
+	const statsEl = document.getElementById('barb_stats');
+	if (statsEl) {
+		const targets = barb_getTargetList();
+		const inQueue = SZEM4_BARB.QUEUE.length;
+		const recentAttacks = Object.values(SZEM4_BARB.INTEL).filter(i => i.attackSent && (Date.now() - i.attackSent) < 3600000).length;
+		statsEl.innerHTML = `Intel: ${Object.keys(SZEM4_BARB.INTEL).length} | Need work: ${targets.length} | In queue: ${inQueue} | Recently attacked: ${recentAttacks} | Total sent: ${SZEM4_BARB.STATS.attacksSent}`;
+	}
+
+	// Update motor status
+	const motorStatusEl = document.getElementById('barb_motor_status');
+	if (motorStatusEl) {
+		if (BARB_PAUSE) {
+			motorStatusEl.innerHTML = '<span style="color: #e74c3c;">Paused</span>';
+		} else if (BARB_LEPES === 0) {
+			motorStatusEl.innerHTML = '<span style="color: #27ae60;">Ready</span>';
+		} else {
+			motorStatusEl.innerHTML = `<span style="color: #2196F3;">Working (step ${BARB_LEPES})</span>`;
+		}
+	}
+}
+
+/**
+ * Queue a single attack for a village
+ */
+function barb_queueSingleAttack(coord) {
+	const intel = SZEM4_BARB.INTEL[coord];
+	if (!intel) {
+		naplo('BARB', `No intel for ${coord}`);
+		return;
+	}
+
+	const plan = barb_checkVillageNeeds(intel);
+	if (plan) {
+		SZEM4_BARB.QUEUE.push(plan);
+		naplo('BARB', `Queued attack on ${coord}: ${plan.rams} rams, ${plan.catapults} catapults → ${plan.catapultTarget || 'none'}`);
+	} else {
+		naplo('BARB', `${coord} doesn't need action based on config`);
+	}
+}
+
+/**
+ * Attack a village immediately (skip queue)
+ */
+function barb_attackNow(coord) {
+	const intel = SZEM4_BARB.INTEL[coord];
+	if (!intel) {
+		naplo('BARB', `No intel for ${coord}`);
+		return;
+	}
+
+	const plan = barb_checkVillageNeeds(intel);
+	if (plan) {
+		// Add to FRONT of queue for immediate processing
+		SZEM4_BARB.QUEUE.unshift(plan);
+		barb_updateQueueDisplay();
+		naplo('BARB', `Immediate attack on ${coord}: ${plan.rams} rams, ${plan.catapults} catapults → ${plan.catapultTarget || 'none'}`);
+
+		// Reset state machine to process immediately
+		BARB_LEPES = 0;
+		BARB_HIBA = 0;
+
+		// Trigger motor immediately
+		szem4_barb_motor();
+	} else {
+		naplo('BARB', `${coord} doesn't need action based on config`);
+	}
+}
+
+/**
+ * Queue all villages needing action
+ */
+function barb_queueAllAttacks() {
+	SZEM4_BARB.QUEUE = barb_getTargetList();
+	naplo('BARB', `Queued ${SZEM4_BARB.QUEUE.length} attacks`);
+	barb_updateQueueDisplay();
+}
+
+/**
+ * Clear attack queue
+ */
+function barb_clearQueue() {
+	SZEM4_BARB.QUEUE = [];
+	barb_updateQueueDisplay();
+	naplo('BARB', 'Attack queue cleared');
+}
+
+/**
+ * Update queue display
+ */
+function barb_updateQueueDisplay() {
+	const el = document.getElementById('barb_queue_count');
+	if (el) {
+		el.textContent = SZEM4_BARB.QUEUE.length;
+	}
+}
+
+/**
+ * Remove intel for a village
+ */
+function barb_removeIntel(coord) {
+	delete SZEM4_BARB.INTEL[coord];
+	barb_rebuildTable();
+	naplo('BARB', `Removed intel for ${coord}`);
+}
+
+/**
+ * Save BARB config from UI
+ */
+function barb_saveConfig() {
+	const form = document.getElementById('barb_config_form');
+	if (!form) return;
+
+	SZEM4_BARB.CONFIG.maxMain = parseInt(form.maxMain.value, 10);
+	SZEM4_BARB.CONFIG.maxWall = parseInt(form.maxWall.value, 10);
+	SZEM4_BARB.CONFIG.maxBarracks = parseInt(form.maxBarracks.value, 10);
+	SZEM4_BARB.CONFIG.maxStable = parseInt(form.maxStable.value, 10);
+	SZEM4_BARB.CONFIG.maxGarage = parseInt(form.maxGarage.value, 10);
+	SZEM4_BARB.CONFIG.maxMarket = parseInt(form.maxMarket.value, 10);
+	SZEM4_BARB.CONFIG.maxSmith = parseInt(form.maxSmith.value, 10);
+
+	SZEM4_BARB.OPTIONS.maxDistance = parseInt(form.maxDistance.value, 10);
+	SZEM4_BARB.OPTIONS.axesToSend = parseInt(form.axesToSend.value, 10);
+	SZEM4_BARB.OPTIONS.spyToSend = parseInt(form.spyToSend.value, 10);
+	SZEM4_BARB.OPTIONS.fromVillage = form.fromVillage.value;
+
+	naplo('BARB', 'Configuration saved');
+	barb_rebuildTable();
+}
+
+/**
+ * Load BARB config to UI
+ */
+function barb_loadConfig() {
+	const form = document.getElementById('barb_config_form');
+	if (!form) return;
+
+	form.maxMain.value = SZEM4_BARB.CONFIG.maxMain;
+	form.maxWall.value = SZEM4_BARB.CONFIG.maxWall;
+	form.maxBarracks.value = SZEM4_BARB.CONFIG.maxBarracks;
+	form.maxStable.value = SZEM4_BARB.CONFIG.maxStable;
+	form.maxGarage.value = SZEM4_BARB.CONFIG.maxGarage;
+	form.maxMarket.value = SZEM4_BARB.CONFIG.maxMarket;
+	form.maxSmith.value = SZEM4_BARB.CONFIG.maxSmith;
+
+	form.maxDistance.value = SZEM4_BARB.OPTIONS.maxDistance;
+	form.axesToSend.value = SZEM4_BARB.OPTIONS.axesToSend;
+	form.spyToSend.value = SZEM4_BARB.OPTIONS.spyToSend;
+	form.fromVillage.value = SZEM4_BARB.OPTIONS.fromVillage || '';
+
+	// Populate fromVillage dropdown with player villages
+	const villSelect = form.fromVillage;
+	villSelect.innerHTML = '<option value="">Auto (current)</option>';
+	for (const coord in KTID) {
+		const opt = document.createElement('option');
+		opt.value = coord;
+		opt.textContent = coord;
+		if (SZEM4_BARB.OPTIONS.fromVillage === coord) opt.selected = true;
+		villSelect.appendChild(opt);
+	}
+}
+
+/**
+ * Enable/disable BARB system
+ */
+function barb_toggleEnabled() {
+	SZEM4_BARB.ENABLED = !SZEM4_BARB.ENABLED;
+	const btn = document.getElementById('barb_enable_btn');
+	if (btn) {
+		btn.textContent = SZEM4_BARB.ENABLED ? 'Enabled' : 'Disabled';
+		btn.style.backgroundColor = SZEM4_BARB.ENABLED ? '#27ae60' : '#e74c3c';
+	}
+	naplo('BARB', SZEM4_BARB.ENABLED ? 'Intel collection enabled' : 'Intel collection disabled');
+}
+
+/**
+ * Import existing DOMINFO_FARMS data to barb_intel
+ */
+function barb_importFromFarms() {
+	let imported = 0;
+	for (const coord in SZEM4_FARM.DOMINFO_FARMS) {
+		const farm = SZEM4_FARM.DOMINFO_FARMS[coord];
+		if (farm.buildings && !farm.isJatekos) {
+			const reportDate = SZEM4_VIJE.ALL_VIJE_SAVED[coord] || Date.now();
+			barb_updateIntel(coord, farm.buildings, reportDate);
+			imported++;
+		}
+	}
+	barb_rebuildTable();
+	naplo('BARB', `Imported ${imported} villages from farming data`);
+}
+
+/**
+ * Main motor function for BARB attacks
+ */
+function szem4_barb_motor() {
+	let nexttime = 5000;
+
+	try {
+		// Check if paused
+		if (BARB_PAUSE) {
+			nexttime = 10000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Check for bot protection
+		if (BOT || USER_ACTIVITY) {
+			nexttime = 10000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Wait for Farming motors to finish - MOTOR COORDINATION
+		if (!FARM_PAUSE && FARM_LEPES !== 0) {
+			barb_log('Waiting for Farm motor to finish...', 'info');
+			nexttime = 3000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+		if (NORBI0N_FARM_LEPES !== 0) {
+			barb_log('Waiting for Norbi0N Farm to finish...', 'info');
+			nexttime = 3000;
+			worker.postMessage({'id': 'barb', 'time': nexttime});
+			return;
+		}
+
+		// Error handling
+		if (BARB_HIBA > 10) {
+			BARB_HIBA = 0;
+			BARB_GHIBA++;
+			if (BARB_GHIBA > 3) {
+				if (BARB_GHIBA > 5) {
+					naplo('BARB', 'Too many errors, pausing');
+					nexttime = 60000;
+				}
+				if (BARB_REF && !BARB_REF.closed) BARB_REF.close();
+			}
+			BARB_LEPES = 0;
+		}
+
+		// State machine
+		switch (BARB_LEPES) {
+			case 0: // Check queue and prepare next attack
+				if (SZEM4_BARB.QUEUE.length === 0) {
+					nexttime = 30000; // Nothing to do, check again in 30s
+					break;
+				}
+
+				BARB_CURRENT_TARGET = SZEM4_BARB.QUEUE[0];
+				barb_log(`Starting attack on ${BARB_CURRENT_TARGET.coord} (${BARB_CURRENT_TARGET.rams} rams, ${BARB_CURRENT_TARGET.catapults} cata → ${BARB_CURRENT_TARGET.catapultTarget || 'none'})`, 'attack');
+
+				// Open rally point
+				const fromVill = SZEM4_BARB.OPTIONS.fromVillage || Object.keys(KTID)[0];
+				if (!fromVill) {
+					barb_log('No source village configured!', 'error');
+					naplo('BARB', 'No source village configured');
+					nexttime = 60000;
+					break;
+				}
+
+				barb_log(`Opening rally point from ${fromVill}...`, 'info');
+				const villId = KTID[fromVill];
+				const url = VILL1ST.replace(/village=[0-9]+/, 'village=' + villId).replace('screen=overview', 'screen=place');
+				BARB_REF = windowOpener('barb', url, AZON + '_barb');
+				BARB_LEPES = 1;
+				nexttime = 2000;
+				barb_rebuildTable(); // Update status display
+				break;
+
+			case 1: // Fill attack form
+				if (!BARB_REF || BARB_REF.closed) {
+					barb_log('Rally point window closed unexpectedly', 'warn');
+					BARB_LEPES = 0;
+					break;
+				}
+
+				if (isPageLoaded(BARB_REF, -1, 'screen=place')) {
+					BARB_HIBA = 0;
+					barb_log('Filling attack form...', 'info');
+					const result = barb_fillAttackForm();
+					if (result === 'success') {
+						barb_log('Attack form filled, confirming...', 'info');
+						BARB_LEPES = 2;
+						nexttime = 2000;
+					} else if (result === 'insufficient') {
+						// Not enough troops, skip this target
+						barb_log(`Skipping ${BARB_CURRENT_TARGET.coord} - insufficient troops`, 'warn');
+						naplo('BARB', `Skipping ${BARB_CURRENT_TARGET.coord} - insufficient troops`);
+						SZEM4_BARB.QUEUE.shift();
+						barb_updateQueueDisplay();
+						barb_rebuildTable();
+						BARB_LEPES = 0;
+						nexttime = 1000;
+					} else {
+						BARB_HIBA++;
+					}
+				} else {
+					BARB_HIBA++;
+				}
+				break;
+
+			case 2: // Confirm attack and select catapult target
+				if (!BARB_REF || BARB_REF.closed) {
+					barb_log('Confirmation window closed unexpectedly', 'warn');
+					BARB_LEPES = 0;
+					break;
+				}
+
+				if (isPageLoaded(BARB_REF, -1, 'try=confirm')) {
+					BARB_HIBA = 0;
+
+					// Check for bot protection
+					if (BARB_REF.document.getElementById('botprotection_quest') ||
+						BARB_REF.document.getElementById('bot_check')) {
+						barb_log('Bot protection detected! Pausing...', 'error');
+						naplo('BARB', 'Bot protection detected!');
+						BotvedelemBe();
+						BARB_LEPES = 0;
+						nexttime = 10000;
+						break;
+					}
+
+					// Select catapult target if needed
+					if (BARB_CURRENT_TARGET.catapultTarget) {
+						barb_log(`Selecting catapult target: ${BARB_CURRENT_TARGET.catapultTarget}`, 'info');
+						barb_selectCatapultTarget();
+					}
+
+					// Confirm attack
+					const confirmBtn = BARB_REF.document.getElementById('troop_confirm_submit');
+					if (confirmBtn) {
+						confirmBtn.click();
+
+						// Update stats
+						SZEM4_BARB.STATS.attacksSent++;
+						SZEM4_BARB.STATS.lastAttack = Date.now();
+						SZEM4_BARB.INTEL[BARB_CURRENT_TARGET.coord].attackSent = Date.now();
+
+						barb_log(`Attack #${SZEM4_BARB.STATS.attacksSent} sent to ${BARB_CURRENT_TARGET.coord}!`, 'success');
+						naplo('BARB', `Attack sent to ${BARB_CURRENT_TARGET.coord}`);
+						playSound('farmolas_1', 'mp3');
+
+						// Remove from queue
+						SZEM4_BARB.QUEUE.shift();
+						barb_updateQueueDisplay();
+						barb_rebuildTable();
+
+						BARB_LEPES = 0;
+						// Random delay 1000-1500ms
+						nexttime = 1000 + Math.floor(Math.random() * 500);
+					} else {
+						barb_log('Confirm button not found, retrying...', 'warn');
+						BARB_HIBA++;
+					}
+				} else {
+					BARB_HIBA++;
+				}
+				break;
+
+			default:
+				BARB_LEPES = 0;
+		}
+	} catch(e) {
+		debug('szem4_barb_motor', 'Error: ' + e);
+		BARB_LEPES = 0;
+	}
+
+	// Add randomization to timing
+	const inga = 100 / ((Math.random() * 40) + 80);
+	nexttime = Math.round(nexttime * inga);
+
+	worker.postMessage({'id': 'barb', 'time': nexttime});
+}
+
+/**
+ * Fill the attack form on rally point
+ * @returns {string} 'success', 'insufficient', or 'error'
+ */
+function barb_fillAttackForm() {
+	try {
+		const doc = BARB_REF.document;
+		const form = doc.forms['units'] || doc.getElementById('command-data-form');
+		if (!form) {
+			debug('barb_fillAttackForm', 'Form not found');
+			return 'error';
+		}
+
+		const target = BARB_CURRENT_TARGET;
+		debug('barb_fillAttackForm', `Starting attack on ${target.coord}: rams=${target.rams}, cata=${target.catapults}`);
+
+		// Check available troops
+		const availableRam = barb_getAvailableTroops('ram');
+		const availableCata = barb_getAvailableTroops('catapult');
+		const availableAxe = barb_getAvailableTroops('axe');
+		const availableSpy = barb_getAvailableTroops('spy');
+
+		debug('barb_fillAttackForm', `Available: ram=${availableRam}, cata=${availableCata}, axe=${availableAxe}, spy=${availableSpy}`);
+
+		// Check if we have enough troops
+		if (target.rams > 0 && availableRam < target.rams) {
+			debug('barb_fillAttackForm', `Insufficient rams: need ${target.rams}, have ${availableRam}`);
+			return 'insufficient';
+		}
+		if (target.catapults > 0 && availableCata < target.catapults) {
+			debug('barb_fillAttackForm', `Insufficient catapults: need ${target.catapults}, have ${availableCata}`);
+			return 'insufficient';
+		}
+		if (availableAxe < SZEM4_BARB.OPTIONS.axesToSend) {
+			debug('barb_fillAttackForm', `Insufficient axes: need ${SZEM4_BARB.OPTIONS.axesToSend}, have ${availableAxe}`);
+			return 'insufficient';
+		}
+
+		// Fill coordinates
+		const [x, y] = target.coord.split('|');
+		form.x.value = x;
+		form.y.value = y;
+		debug('barb_fillAttackForm', `Coordinates set: ${x}|${y}`);
+
+		// Fill troops using getElementById (more reliable than form[name])
+		const setTroopValue = (unitType, value) => {
+			const input = doc.getElementById('unit_input_' + unitType);
+			if (input) {
+				input.value = value;
+				debug('barb_fillAttackForm', `Set ${unitType} = ${value}`);
+				return true;
+			}
+			debug('barb_fillAttackForm', `Input not found for ${unitType}`);
+			return false;
+		};
+
+		// Set siege units
+		if (target.rams > 0) setTroopValue('ram', target.rams);
+		if (target.catapults > 0) setTroopValue('catapult', target.catapults);
+
+		// Set escort troops
+		setTroopValue('axe', SZEM4_BARB.OPTIONS.axesToSend);
+
+		// Set spy if available
+		if (availableSpy >= SZEM4_BARB.OPTIONS.spyToSend) {
+			setTroopValue('spy', SZEM4_BARB.OPTIONS.spyToSend);
+		}
+
+		// Clear other troops to avoid accidental sends
+		const otherTroops = ['spear', 'sword', 'archer', 'light', 'marcher', 'heavy', 'snob'];
+		for (const troop of otherTroops) {
+			const input = doc.getElementById('unit_input_' + troop);
+			if (input) input.value = 0;
+		}
+
+		// Click attack button
+		const attackBtn = form.attack || doc.getElementById('target_attack');
+		if (attackBtn) {
+			debug('barb_fillAttackForm', 'Clicking attack button');
+			attackBtn.click();
+			return 'success';
+		}
+
+		debug('barb_fillAttackForm', 'Attack button not found');
+		return 'error';
+	} catch(e) {
+		debug('barb_fillAttackForm', 'Error: ' + e);
+		return 'error';
+	}
+}
+
+/**
+ * Get available troop count from rally point form
+ * @param {string} unitType - Unit type (ram, catapult, axe, spy, etc.)
+ * @returns {number} Available count
+ */
+function barb_getAvailableTroops(unitType) {
+	try {
+		const doc = BARB_REF.document;
+		const input = doc.getElementById('unit_input_' + unitType);
+		if (!input) {
+			debug('barb_getAvailableTroops', `Input not found for ${unitType}`);
+			return 0;
+		}
+
+		// Use data-all-count attribute - this is the most reliable source
+		const dataCount = input.getAttribute('data-all-count');
+		if (dataCount !== null) {
+			const count = parseInt(dataCount, 10);
+			debug('barb_getAvailableTroops', `${unitType}: ${count} (from data-all-count)`);
+			return count;
+		}
+
+		// Fallback: try to read from the anchor tag like "(70)"
+		const anchor = doc.getElementById('units_entry_all_' + unitType);
+		if (anchor) {
+			const match = anchor.textContent.match(/\d+/);
+			if (match) {
+				const count = parseInt(match[0], 10);
+				debug('barb_getAvailableTroops', `${unitType}: ${count} (from anchor text)`);
+				return count;
+			}
+		}
+
+		debug('barb_getAvailableTroops', `${unitType}: 0 (no source found)`);
+		return 0;
+	} catch(e) {
+		debug('barb_getAvailableTroops', `Error for ${unitType}: ${e.message}`);
+		return 0;
+	}
+}
+
+/**
+ * Select catapult target on confirmation page
+ */
+function barb_selectCatapultTarget() {
+	try {
+		const target = BARB_CURRENT_TARGET.catapultTarget;
+		if (!target) return;
+
+		debug('barb_selectCatapultTarget', `Trying to select catapult target: ${target}`);
+
+		// Get i18n building name from VIJE settings if available
+		const i18nTarget = SZEM4_VIJE.i18ns[target] || target;
+		debug('barb_selectCatapultTarget', `i18n target name: ${i18nTarget}`);
+
+		// Find catapult target select element
+		const selects = BARB_REF.document.querySelectorAll('select');
+		for (const select of selects) {
+			// Look for the building dropdown
+			if (select.name && (select.name.includes('building') || select.name.includes('catapult') || select.name.includes('target'))) {
+				debug('barb_selectCatapultTarget', `Found select: ${select.name}, options: ${select.options.length}`);
+				// Try to select the target building
+				for (const option of select.options) {
+					const optText = option.textContent.toLowerCase().trim();
+					const optVal = option.value.toLowerCase();
+					// Match by building ID, i18n name, or text content
+					if (optVal.includes(target.toLowerCase()) ||
+						optText.includes(target.toLowerCase()) ||
+						optText.includes(i18nTarget.toLowerCase())) {
+						select.value = option.value;
+						select.dispatchEvent(new Event('change', { bubbles: true }));
+						debug('BARB', `Selected catapult target: ${target} (option: ${option.textContent})`);
+						return;
+					}
+				}
+			}
+		}
+
+		// Alternative: look for specific ID patterns
+		const catSelect = BARB_REF.document.querySelector('#target_building, select[name="building"], select[name="catapult_target"]');
+		if (catSelect) {
+			debug('barb_selectCatapultTarget', `Found alternative select with ${catSelect.options.length} options`);
+			for (const option of catSelect.options) {
+				const optText = option.textContent.toLowerCase().trim();
+				if (optText.includes(target.toLowerCase()) || optText.includes(i18nTarget.toLowerCase())) {
+					catSelect.value = option.value;
+					catSelect.dispatchEvent(new Event('change', { bubbles: true }));
+					debug('BARB', `Selected catapult target via alternative: ${target}`);
+					return;
+				}
+			}
+		}
+
+		debug('barb_selectCatapultTarget', `Could not find option for target: ${target}`);
+	} catch(e) {
+		debug('barb_selectCatapultTarget', 'Error: ' + e);
+	}
+}
+
+/**
+ * Save BARB data to localStorage
+ */
+function barb_save() {
+	localStorage.setItem(AZON + '_barb', JSON.stringify(SZEM4_BARB));
+	debug('BARB', 'Data saved');
+}
+
+/**
+ * Load BARB data from localStorage
+ */
+function barb_load() {
+	try {
+		const saved = localStorage.getItem(AZON + '_barb');
+		if (saved) {
+			const data = JSON.parse(saved);
+			SZEM4_BARB = Object.assign({}, SZEM4_BARB, data);
+		}
+		barb_loadConfig();
+		barb_rebuildTable();
+	} catch(e) {
+		debug('barb_load', 'Error: ' + e);
+	}
+}
+
+// Initialize BARB motor
+barb_load();
+szem4_barb_motor();
+
+// Add to save system
+const orig_barb_szem4_ADAT_saveNow = szem4_ADAT_saveNow;
+szem4_ADAT_saveNow = function(tipus) {
+	if (tipus === 'barb') {
+		barb_save();
+		return;
+	}
+	orig_barb_szem4_ADAT_saveNow(tipus);
+};
+
+// UI for BARB module
+// Building icon URL helper for BARB
+const BARB_BUILDING_ICONS = {
+	main: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png',
+	wall: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png',
+	barracks: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png',
+	stable: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png',
+	garage: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png',
+	market: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png',
+	smith: 'https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png'
+};
+
+function barb_getBuildingIcon(building, size = 18) {
+	const url = BARB_BUILDING_ICONS[building] || '';
+	return url ? `<img src="${url}" style="width:${size}px; height:${size}px; vertical-align:middle;" title="${building}">` : '';
+}
+
+ujkieg('barb', 'Barb Control', `<tr><td style="color: black;">
+	<h2 align="center" style="color: black;">Barbarian Village Control System</h2>
+	<p align="center" style="color: #666;">Automatically destroy buildings in barbarian villages to configured max levels</p>
+
+	<!-- Status Section -->
+	<div style="background: #e8d4a0; border: 2px solid #7d510f; border-radius: 8px; padding: 15px; margin-bottom: 15px; color: black;">
+		<h3 style="margin-top: 0; color: black;">Status</h3>
+		<table class="vis" style="width: 100%; color: black;">
+			<tr>
+				<td style="width: 150px;"><b>Intel Collection:</b></td>
+				<td><button id="barb_enable_btn" onclick="barb_toggleEnabled()" class="btn" style="background-color: #e74c3c; color: white;">Disabled</button></td>
+			</tr>
+			<tr>
+				<td><b>Motor Status:</b></td>
+				<td id="barb_motor_status">Idle</td>
+			</tr>
+			<tr>
+				<td><b>Attack Queue:</b></td>
+				<td><span id="barb_queue_count">0</span> attacks queued</td>
+			</tr>
+			<tr>
+				<td><b>Statistics:</b></td>
+				<td id="barb_stats">Loading...</td>
+			</tr>
+		</table>
+		<p align="center" style="margin-top: 10px;">
+			<button onclick="barb_queueAllAttacks()" class="btn">Queue All Attacks</button>
+			<button onclick="barb_clearQueue()" class="btn">Clear Queue</button>
+			<button onclick="barb_importFromFarms()" class="btn">Import from Farms</button>
+		</p>
+	</div>
+
+	<!-- Configuration Section (Collapsible) -->
+	<div style="background: #f5f5f5; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 15px; color: black;">
+		<h3 onclick="barb_toggleConfig()" style="margin: 0; padding: 15px; cursor: pointer; color: black; user-select: none;">
+			<span id="barb_config_arrow" style="display: inline-block; transition: transform 0.3s;">&#9660;</span> Configuration
+			<span style="font-size: 11px; font-weight: normal; color: #666; margin-left: 10px;">(click to collapse/expand)</span>
+		</h3>
+		<div id="barb_config_content" style="padding: 0 15px 15px 15px;">
+			<form id="barb_config_form">
+				<table class="vis" style="margin: auto; color: black;">
+					<tr><th colspan="4">Max Allowed Building Levels (destroy if above)</th></tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png" style="width:20px; height:20px; vertical-align:middle;"> Main:</td>
+						<td><input type="number" name="maxMain" min="0" max="30" value="1" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png" style="width:20px; height:20px; vertical-align:middle;"> Wall:</td>
+						<td><input type="number" name="maxWall" min="0" max="20" value="0" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png" style="width:20px; height:20px; vertical-align:middle;"> Barracks:</td>
+						<td><input type="number" name="maxBarracks" min="0" max="25" value="0" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png" style="width:20px; height:20px; vertical-align:middle;"> Stable:</td>
+						<td><input type="number" name="maxStable" min="0" max="20" value="0" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png" style="width:20px; height:20px; vertical-align:middle;"> Workshop:</td>
+						<td><input type="number" name="maxGarage" min="0" max="15" value="0" style="width: 50px;"></td>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png" style="width:20px; height:20px; vertical-align:middle;"> Smithy:</td>
+						<td><input type="number" name="maxSmith" min="0" max="20" value="20" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png" style="width:20px; height:20px; vertical-align:middle;"> Market:</td>
+						<td><input type="number" name="maxMarket" min="0" max="25" value="20" style="width: 50px;"></td>
+						<td></td><td></td>
+					</tr>
+					<tr><th colspan="4">Attack Options</th></tr>
+					<tr>
+						<td>Max Distance:</td>
+						<td><input type="number" name="maxDistance" min="1" max="100" value="30" style="width: 50px;"></td>
+						<td>Axes to send:</td>
+						<td><input type="number" name="axesToSend" min="0" max="100" value="10" style="width: 50px;"></td>
+					</tr>
+					<tr>
+						<td>Spy to send:</td>
+						<td><input type="number" name="spyToSend" min="0" max="10" value="1" style="width: 50px;"></td>
+						<td>From Village:</td>
+						<td><select name="fromVillage" style="width: 100px;"><option value="">Auto</option></select></td>
+					</tr>
+				</table>
+				<p align="center" style="margin-top: 10px;">
+					<button type="button" onclick="barb_saveConfig()" class="btn">Save Config</button>
+					<button type="button" onclick="barb_save()" class="btn">Save All Data</button>
+				</p>
+			</form>
+		</div>
+	</div>
+
+	<!-- Intel Table -->
+	<h3 style="color: black;">Village Intel</h3>
+	<div style="max-height: 400px; overflow-y: auto;">
+		<table class="vis" id="barb_intel_table" style="width: 100%; color: black;">
+			<tbody>
+				<tr>
+					<th>Coord</th>
+					<th>Dist</th>
+					<th title="Main Building"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/main1.png" style="width:18px; height:18px;"></th>
+					<th title="Wall"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/wall1.png" style="width:18px; height:18px;"></th>
+					<th title="Barracks"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/barracks1.png" style="width:18px; height:18px;"></th>
+					<th title="Stable"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/stable1.png" style="width:18px; height:18px;"></th>
+					<th title="Workshop"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/garage1.png" style="width:18px; height:18px;"></th>
+					<th title="Market"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/market1.png" style="width:18px; height:18px;"></th>
+					<th title="Smithy"><img src="https://dshu.innogamescdn.com/asset/88651122/graphic/buildings/mid/smith1.png" style="width:18px; height:18px;"></th>
+					<th>Age</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+
+	<!-- Legend -->
+	<div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px; color: black;">
+		<b>Legend:</b>
+		<span style="background: #ffd93d; padding: 2px 8px; margin-left: 10px; color: black;">Yellow = Barracks > 1</span>
+		<span style="background: #ff6b6b; padding: 2px 8px; margin-left: 10px; color: black;">Red = Wall >= 3</span>
+		<span style="color: #c0392b; font-weight: bold; margin-left: 10px;">Bold red = Above max</span>
+		<span style="color: #2196F3; font-weight: bold; margin-left: 10px;">Blue = Attack incoming</span>
+	</div>
+
+	<!-- Activity Log Section (at bottom) -->
+	<div style="background: #f5f5f5; border: 1px solid #ccc; border-radius: 8px; padding: 15px; margin-top: 15px; color: black;">
+		<h3 style="margin-top: 0; color: black;">Activity Log</h3>
+		<div id="barb_log" style="background: #1a1a1a; color: #00ff00; font-family: monospace; font-size: 11px; padding: 10px; height: 180px; overflow-y: auto; border: 1px solid #7d510f; border-radius: 4px;">
+			<div style="color: #888;">Waiting for activity...</div>
+		</div>
+	</div>
+</td></tr>`);
+
+// BARB Log Function
+function barb_log(message, type = 'info') {
+	const logDiv = document.getElementById('barb_log');
+	if (!logDiv) return;
+
+	const timestamp = new Date().toLocaleTimeString();
+	const colors = {
+		'info': '#00ff00',
+		'warn': '#ffff00',
+		'error': '#ff4444',
+		'success': '#44ff44',
+		'attack': '#2196F3'
+	};
+	const color = colors[type] || colors.info;
+
+	const entry = document.createElement('div');
+	entry.style.color = color;
+	entry.innerHTML = `[${timestamp}] ${message}`;
+
+	// Remove "waiting" message if present
+	const waiting = logDiv.querySelector('div[style*="color: #888"]');
+	if (waiting) waiting.remove();
+
+	logDiv.appendChild(entry);
+	logDiv.scrollTop = logDiv.scrollHeight;
+
+	// Keep only last 40 entries
+	while (logDiv.children.length > 40) {
+		logDiv.removeChild(logDiv.firstChild);
+	}
+}
+
+// Toggle configuration panel visibility
+function barb_toggleConfig() {
+	const content = document.getElementById('barb_config_content');
+	const arrow = document.getElementById('barb_config_arrow');
+	if (!content || !arrow) return;
+
+	if (content.style.display === 'none') {
+		content.style.display = 'block';
+		arrow.style.transform = 'rotate(0deg)';
+	} else {
+		content.style.display = 'none';
+		arrow.style.transform = 'rotate(-90deg)';
+	}
+}
+
+// Initialize UI after DOM is ready
+setTimeout(() => {
+	barb_loadConfig();
+	barb_rebuildTable();
+	barb_updateQueueDisplay();
+	if (SZEM4_BARB.ENABLED) {
+		const btn = document.getElementById('barb_enable_btn');
+		if (btn) {
+			btn.textContent = 'Enabled';
+			btn.style.backgroundColor = '#27ae60';
+		}
+	}
+}, 500);
 
 /*-----------------ÉPÍTŐ--------------------*/
 function szem4_EPITO_perccsokkento(){try{
@@ -3421,7 +5676,15 @@ function szem4_EPITO_ujFalu() {
 			var ZR = Z.insertRow(-1);
 			var ZC = ZR.insertCell(0); ZC.innerHTML = `${ID_TO_INFO[KTID[faluCoord[i]]].name} (${faluCoord[i]})`; ZC.setAttribute("ondblclick", "sortorol(this)");
 			ZC = ZR.insertCell(1); ZC.innerHTML = lista; ZC.getElementsByTagName("select")[0].value = adat.getElementsByTagName("select")[0].value;
-			ZC = ZR.insertCell(2); ZC.style.fontSize = "x-small"; var d = getServerTime(); ZC.innerHTML = d.toLocaleString(); ZC.setAttribute("ondblclick", "szem4_EPITO_most(this)");
+			ZC = ZR.insertCell(2); 
+				ZC.style.fontSize = "x-small"; 
+				ZC.style.cursor = "pointer";
+				ZC.style.backgroundColor = "#e8f5e9";
+				var d = getServerTime(); 
+				ZC.setAttribute('data-timestamp', d.getTime());
+				ZC.innerHTML = `⏰ ${d.toLocaleString()}`;
+				ZC.setAttribute("ondblclick", "szem4_EPITO_forceReturn(this.parentNode)");
+				ZC.setAttribute("title", "Dupla klikk: Return MOST! / Double click: Return NOW!");
 			ZC = ZR.insertCell(3); ZC.innerHTML = "<i>Feldolgozás alatt...</i>" + ' <a href="' + VILL1ST.replace(/(village=)[0-9]+/g, "village=" + KTID[faluCoord[i]]).replace('screen=overview', 'screen=main') + '" target="_BLANK"><img alt="Nyit" title="Falu megnyitása" src="' + pic("link.png") + '"></a>';; ZC.setAttribute("ondblclick", 'szem4_EPITO_infoCell(this.parentNode,\'alap\',"")');
 		}
 		if (str != "") alert2("Dupla megadások/nem létező faluk kiszűrve: " + str);
@@ -3485,27 +5748,57 @@ function szem4_EPITO_csopToList(csoport){try{
 function szem4_EPITO_Wopen(){try{
 	/*Eredmény: faluID, teljes építendő lista, pointer a sorra*/
 	var TT=document.getElementById("epit_lista").rows;
-	var now=getServerTime();
+	var now=getServerTime().getTime();
+	let readyVillages = [];
+	let waitingVillages = [];
+	
 	for (var i=1;i<TT.length;i++) {
-		var datum=new Date(TT[i].cells[2].textContent);
-		if (datum<now) {
+		let coord = TT[i].cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+		
+		// Use timestamp attribute for reliable comparison
+		var returnTimestamp = TT[i].cells[2].getAttribute('data-timestamp');
+		if (returnTimestamp) {
+			returnTimestamp = parseInt(returnTimestamp, 10);
+		} else {
+			// Fallback: try to parse text (less reliable)
+			var datum = new Date(TT[i].cells[2].textContent);
+			returnTimestamp = datum.getTime();
+			debug('szem4_EPITO_Wopen', `WARNING: No timestamp attribute for ${coord}, using text parsing (unreliable)`);
+		}
+		
+		if (returnTimestamp < now) {
 			var lista=szem4_EPITO_csopToList(TT[i].cells[1].getElementsByTagName("select")[0].value);
-			let coord = TT[i].cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+			debug('szem4_EPITO_Wopen', `Village ${coord} is READY (Return: ${returnTimestamp}, Now: ${now}, Diff: ${Math.round((now-returnTimestamp)/1000)}s)`);
 			return [ KTID[coord], lista, TT[i] ];
+		} else {
+			let minutesUntil = Math.round((returnTimestamp - now) / 60000);
+			waitingVillages.push(`${coord} (${minutesUntil}m)`);
 		}
 	}
+	
+	if (waitingVillages.length > 0) {
+		debug('szem4_EPITO_Wopen', `No village ready. Waiting: ${waitingVillages.join(', ')}`);
+	} else {
+		debug('szem4_EPITO_Wopen', 'No villages in builder list');
+	}
+	
 	return [0,";"];
 }catch(e){debug("Epito_Wopen",e);}}
 
 function szem4_EPITO_addIdo(sor, perc){try{
 	if (perc == "del") {
 		document.getElementById("epit_lista").deleteRow(sor.rowIndex);
+		debug('szem4_EPITO_addIdo', `Village removed from builder list: ${sor.cells[0].textContent}`);
 	} else {
 		if (perc === 0) perc = 30;
 		if (isNaN(perc)) perc = 5;
 		var d=getServerTime();
-		d.setSeconds(d.getMinutes() + (perc * 60));
+		// FIX: Should add MINUTES, not set seconds to minutes!
+		d.setMinutes(d.getMinutes() + perc);
+		// Store timestamp for reliable comparison
+		sor.cells[2].setAttribute('data-timestamp', d.getTime());
 		sor.cells[2].innerHTML=d.toLocaleString();
+		debug('szem4_EPITO_addIdo', `Return time set to ${d.toLocaleString()} [${d.getTime()}] (in ${perc} minutes) for ${sor.cells[0].textContent}`);
 	}
 }catch(e){debug("epito_addIdo",e); return false;}}
 
@@ -3532,6 +5825,121 @@ function szem4_EPITO_getBuildLink(ref, type) {
 	}
 }
 
+/**
+ * Collects quest rewards when resources are needed
+ * Works with quest popup dialog
+ * @param {Window} ref - Builder window reference
+ * @param {string} buildingType - Building that needs resources
+ * @param {Object} resNeed - Required resources {wood, stone, iron}
+ * @param {HTMLElement} villageRow - Village row in builder table
+ * @returns {Promise<boolean>} True if rewards collected and resources now sufficient
+ */
+async function szem4_EPITO_collectRewards(ref, buildingType, resNeed, villageRow) {
+	try {
+		debug('szem4_EPITO_collectRewards', `Attempting to collect rewards for ${buildingType}`);
+		
+		// Step 1: Click quest notification button to open dialog
+		const questButton = ref.document.getElementById('new_quest');
+		if (!questButton || questButton.style.display === 'none') {
+			debug('szem4_EPITO_collectRewards', 'No quest notification available');
+			return false;
+		}
+		
+		questButton.click();
+		await new Promise(resolve => setTimeout(resolve, 1500));
+		
+		// Step 2: Find and click Rewards tab in the popup
+		const tabs = ref.document.querySelectorAll('.tab-link');
+		let rewardsTab = null;
+		tabs.forEach(tab => {
+			if (tab.textContent.includes('Jutalmak') || tab.textContent.includes('Rewards')) {
+				rewardsTab = tab;
+			}
+		});
+		
+		if (!rewardsTab) {
+			debug('szem4_EPITO_collectRewards', 'Rewards tab not found in dialog');
+			// Close dialog
+			const closeBtn = ref.document.querySelector('.popup_box_close');
+			if (closeBtn) closeBtn.click();
+			return false;
+		}
+		
+		rewardsTab.click();
+		await new Promise(resolve => setTimeout(resolve, 1000));
+		
+		// Step 3: Claim ALL rewards until storage warning
+		let claimedCount = 0;
+		const maxIterations = 100; // High limit to collect everything
+		
+		for (let i = 0; i < maxIterations; i++) {
+			const claimButton = ref.document.querySelector('#reward-system-rewards .reward-system-claim-button:not([disabled])');
+			
+			if (!claimButton) {
+				debug('szem4_EPITO_collectRewards', `No more rewards available. Total collected: ${claimedCount}`);
+				break;
+			}
+			
+			// Check storage warning BEFORE clicking
+			const buttonRow = claimButton.closest('tr');
+			const warning = buttonRow ? buttonRow.querySelector('.small.warn') : null;
+			if (warning && (warning.textContent.includes('túl kevés a hely') || warning.textContent.includes('not enough space'))) {
+				debug('szem4_EPITO_collectRewards', `Storage warning detected. Stopping. Collected: ${claimedCount}`);
+				break;
+			}
+			
+			claimButton.click();
+			claimedCount++;
+			
+			await new Promise(resolve => setTimeout(resolve, 250));
+		}
+		
+		// Close dialog
+		await new Promise(resolve => setTimeout(resolve, 500));
+		const closeBtn = ref.document.querySelector('.popup_box_close');
+		if (closeBtn) {
+			closeBtn.click();
+			debug('szem4_EPITO_collectRewards', 'Closed rewards dialog');
+		}
+		
+		// Return result based on how many rewards collected
+		if (claimedCount >= 2) {
+			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve! Builder újraellenőrzés 1 percen belül / ${claimedCount} rewards collected! Builder recheck within 1 minute`);
+			debug('szem4_EPITO_collectRewards', `Collected ${claimedCount} rewards - quick recheck enabled`);
+			return true; // Signal: collected enough to warrant quick recheck
+		} else if (claimedCount > 0) {
+			naplo('Építő', `🎁 ${claimedCount} jutalom összegyűjtve / ${claimedCount} reward collected (kevés / few)`);
+			debug('szem4_EPITO_collectRewards', `Only ${claimedCount} reward collected - not enough for quick recheck`);
+			return false;
+		} else {
+			debug('szem4_EPITO_collectRewards', 'No rewards collected');
+			return false;
+		}
+		
+	} catch(e) {
+		debug('szem4_EPITO_collectRewards', `Error: ${e}`);
+		// Try to close any open dialog
+		try {
+			const closeBtn = ref.document.querySelector('.popup_box_close');
+			if (closeBtn) closeBtn.click();
+		} catch(e2) {}
+		return false;
+	}
+}
+
+function szem4_EPITO_forceReturn(villageRow) {
+	try {
+		const now = getServerTime();
+		villageRow.cells[2].setAttribute('data-timestamp', now.getTime());
+		villageRow.cells[2].innerHTML = now.toLocaleString();
+		naplo('Építő', `⚡ Kényszerített Return: ${villageRow.cells[0].textContent} - Azonnal újraellenőrzés / Forced Return - Immediate recheck`);
+		debug('szem4_EPITO_forceReturn', `Forced return for ${villageRow.cells[0].textContent}`);
+		alert2('✅ Return idő azonnal beállítva! / Return time set to NOW!');
+	} catch(e) {
+		debug('szem4_EPITO_forceReturn', `Error: ${e}`);
+	}
+}
+
 function szem4_EPITO_IntettiBuild(buildOrder){try{
 	try{TamadUpdt(EPIT_REF);}catch(e){}
 	var buildList=""; /*Current BuildingList IDs*/
@@ -3543,12 +5951,27 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (!EPIT_REF.document.getElementById("buildqueue")) throw 'No queue';
 		var buildQueueRows=EPIT_REF.document.getElementById("buildqueue").rows;
 		for (var i=1;i<buildQueueRows.length;i++) {try{
-			buildList+=buildQueueRows[i].cells[0].getElementsByTagName("img")[0].src.match(/[A-Za-z0-9]+\.(png)/g)[0].replace(/[0-9]+/g,"").replace(".png","");
-			textTime=buildQueueRows[i].cells[1].textContent.split(":");
-			allBuildTime+=parseInt(textTime[0])*60+parseInt(textTime[1])+(parseInt(textTime[2])/60);
-			if (firstBuildTime==0) firstBuildTime=allBuildTime;
-			buildList+=";";
-		}catch(e){}}
+			// Skip rows without images (progress bars, separators)
+			var imgElement = buildQueueRows[i].cells[0].getElementsByTagName("img")[0];
+			if (!imgElement) continue;
+			
+			// Support both .png and .webp image formats
+			var imgSrc = imgElement.src;
+			var buildingMatch = imgSrc.match(/[A-Za-z0-9]+\.(png|webp)/g);
+			if (buildingMatch) {
+				buildList += buildingMatch[0].replace(/[0-9]+/g,"").replace(".png","").replace(".webp","");
+				buildList += ";";
+				
+				// Calculate build times only for actual building rows
+				textTime=buildQueueRows[i].cells[1].textContent.split(":");
+				if (textTime.length >= 3) {
+					allBuildTime+=parseInt(textTime[0])*60+parseInt(textTime[1])+(parseInt(textTime[2])/60);
+					if (firstBuildTime==0) firstBuildTime=allBuildTime;
+				}
+			}
+		}catch(e){
+			// Silently skip invalid rows (progress bars, etc.)
+		}}
 
 		allBuildTime = Math.round(allBuildTime);
 		firstBuildTime = Math.ceil(firstBuildTime);
@@ -3556,14 +5979,56 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		if (isNaN(allBuildTime)) allBuildTime = 5;
 		if (isNaN(firstBuildTime)) firstBuildTime = 5;
 		if (firstBuildTime>180) firstBuildTime=180;
-	}catch(e){var buildList=";"; var allBuildTime=0; var firstBuildTime=0;}
+		
+		debug('szem4_EPITO_IntettiBuild', `Build queue detected: ${buildList} (${buildList.split(';').filter(x=>x).length} buildings)`);
+	}catch(e){
+		var buildList=";"; 
+		var allBuildTime=0; 
+		var firstBuildTime=0;
+		debug('szem4_EPITO_IntettiBuild', `Error reading build queue: ${e}`);
+	}
 	
 	if (buildList === '') buildList = ';';
 	buildList=buildList.split(";");
 	buildList.pop();
-	if (buildList.length>4) {
-		szem4_EPITO_infoCell(PMEP[2],"alap","Építési sor megtelt. " + writeAllBuildTime(allBuildTime));
+	
+	// Check premium status for queue size limit (multiple detection methods)
+	let isPremiumUser = false;
+	try {
+		// Method 1: game_data.player.premium
+		if (EPIT_REF.game_data && EPIT_REF.game_data.player && EPIT_REF.game_data.player.premium) {
+			isPremiumUser = true;
+		}
+		// Method 2: Check for 3+ buildings in queue (only premium can do this)
+		else if (buildList.length >= 3) {
+			isPremiumUser = true;
+			debug('szem4_EPITO_IntettiBuild', 'Premium detected by queue size (3+ buildings)');
+		}
+		// Method 3: Check DOM for premium indicator
+		else if (EPIT_REF.document.querySelector('.icon.header.premium')) {
+			isPremiumUser = true;
+			debug('szem4_EPITO_IntettiBuild', 'Premium detected by DOM premium icon');
+		}
+	} catch(e) {
+		debug('szem4_EPITO_IntettiBuild', `Premium detection error: ${e}. Assuming Free account.`);
+		isPremiumUser = false;
+	}
+	
+	const maxQueueCapacity = isPremiumUser ? 5 : 2;
+	
+	if (buildList.length >= maxQueueCapacity) {
+		const premiumBadge = isPremiumUser ? '👑 Premium' : '🆓 Free';
+		szem4_EPITO_infoCell(PMEP[2],"alap",`✅ Építési sor megtelt! / Build queue full! ${premiumBadge} (${buildList.length}/${maxQueueCapacity}). ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2],firstBuildTime);
+		
+		// Keep window open but set title to show waiting status
+		if (EPIT_REF && !EPIT_REF.closed) {
+			let nextCheck = new Date(parseInt(PMEP[2].cells[2].getAttribute('data-timestamp'), 10));
+			EPIT_REF.document.title = `⏳ Szem4/építő - Waiting until ${nextCheck.toLocaleTimeString()}`;
+			debug('szem4_EPITO_IntettiBuild', `Builder window kept open - queue full (${buildList.length}/${maxQueueCapacity}), waiting until ${nextCheck.toLocaleString()}`);
+		}
+		
+		debug('szem4_EPITO_IntettiBuild', `Early queue check: Queue is full (${buildList.length}/${maxQueueCapacity}), Premium: ${isPremiumUser}. Next check: ${new Date(parseInt(PMEP[2].cells[2].getAttribute('data-timestamp'), 10)).toLocaleString()}`);
 		return;
 	}
 	
@@ -3606,17 +6071,19 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 
 	/* Minden épület kész */
 	if (nextToBuild === '') {
-		naplo("Építő",'<a href="'+VILL1ST.replace(/(village=)[0-9]+/g,"village="+PMEP[0])+'" target="_BLANK">'+EPIT_REF.game_data.village.name+" ("+EPIT_REF.game_data.village.x+"|"+EPIT_REF.game_data.village.y+")</a> falu teljesen felépült és törlődött a listából");
+		naplo("Építő",'🎉 <a href="'+VILL1ST.replace(/(village=)[0-9]+/g,"village="+PMEP[0])+'" target="_BLANK">'+EPIT_REF.game_data.village.name+" ("+EPIT_REF.game_data.village.x+"|"+EPIT_REF.game_data.village.y+")</a> falu teljesen felépült és törlődött a listából / Village fully built and removed from list");
 		setTimeout(() => playSound("falu_kesz"), 1500);
 		szem4_EPITO_addIdo(PMEP[2],"del");
+		debug('szem4_EPITO_IntettiBuild', `Village ${EPIT_REF.game_data.village.name} completed all buildings in list`);
 		return;
 	}
 
 	/* Cél szükségeletének lekérése */
 	var nextToBuildRow = EPIT_REF.document.getElementById('main_buildrow_' + nextToBuild);
 	if (!nextToBuildRow) {
-		szem4_EPITO_infoCell(PMEP[2],firstBuildTime==0?"red":"yellow", nextToBuild+" nem építhető. Előfeltétel szükséges? " + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],firstBuildTime==0?"red":"yellow", `⚠️ ${nextToBuild} nem építhető. / ${nextToBuild} cannot be built. Előfeltétel szükséges? / Prerequisite required? ` + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], firstBuildTime>0?firstBuildTime:60);
+		debug('szem4_EPITO_IntettiBuild', `Building row not found for ${nextToBuild} - prerequisite missing or invalid building ID`);
 		return;
 	}
 	var resNeed = {
@@ -3628,12 +6095,13 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	if (Math.max(resNeed.wood, resNeed.stone, resNeed.iron) > EPIT_REF.game_data.village.storage_max) nextToBuild = 'storage+';
 	if (resNeed.pop > (EPIT_REF.game_data.village.pop_max - EPIT_REF.game_data.village.pop)) nextToBuild = 'farm+';
 	if (nextToBuild == 'farm+' && EPIT_REF.game_data.village.buildings.farm == 30) {
-		szem4_EPITO_infoCell(PMEP[2],"red","Tanya megtelt, építés nem folytatható. " + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],"red","❌ Tanya megtelt (30), építés nem folytatható! / Farm maxed (30), cannot continue building! " + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], 120);
+		debug('szem4_EPITO_IntettiBuild', 'Farm is maxed at level 30, cannot build further');
 		return;
 	}
 	if (nextToBuild == 'farm+' && buildList.includes('farm')) {
-		szem4_EPITO_infoCell(PMEP[2],'yellow', 'Tanya megtelt, de már építés alatt... ' + writeAllBuildTime(allBuildTime));
+		szem4_EPITO_infoCell(PMEP[2],'yellow', '⏳ Tanya megtelt, de már építés alatt... / Farm full, but already building... ' + writeAllBuildTime(allBuildTime));
 		szem4_EPITO_addIdo(PMEP[2], 120);
 		return;
 	}
@@ -3660,45 +6128,214 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	}
 
 	if (EPIT_REF.game_data.village.wood < resNeed.wood || EPIT_REF.game_data.village.stone < resNeed.stone || EPIT_REF.game_data.village.iron < resNeed.iron) {
-		szem4_EPITO_infoCell(PMEP[2],"yellow","Nyersanyag hiány lépett fel. " + writeAllBuildTime(allBuildTime));
-		szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+		const missing = [];
+		if (EPIT_REF.game_data.village.wood < resNeed.wood) missing.push(`🪵 ${resNeed.wood - EPIT_REF.game_data.village.wood}`);
+		if (EPIT_REF.game_data.village.stone < resNeed.stone) missing.push(`🧱 ${resNeed.stone - EPIT_REF.game_data.village.stone}`);
+		if (EPIT_REF.game_data.village.iron < resNeed.iron) missing.push(`⚒️ ${resNeed.iron - EPIT_REF.game_data.village.iron}`);
+		
+		// Check if quest rewards are available
+		const questButton = EPIT_REF.document.getElementById('new_quest');
+		const hasQuestRewards = questButton && questButton.style.display !== 'none';
+		
+		if (hasQuestRewards) {
+			// Try to collect ALL quest rewards to get resources
+			szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! 🎁 Összes jutalom gyűjtése... / Resource shortage! Collecting ALL rewards... ${nextToBuild}`);
+			debug('szem4_EPITO_IntettiBuild', `Resource shortage. Collecting ALL available rewards. Missing: ${missing.join(', ')}`);
+			
+			// Start async reward collection and handle result
+			szem4_EPITO_collectRewards(EPIT_REF, nextToBuild, resNeed, PMEP[2]).then((collectedEnough) => {
+				// Get fresh reference to village row (PMEP might be stale)
+				const allRows = document.getElementById("epit_lista").rows;
+				let targetRow = null;
+				for (let i = 1; i < allRows.length; i++) {
+					if (allRows[i].cells[0].textContent === PMEP[2].cells[0].textContent) {
+						targetRow = allRows[i];
+						break;
+					}
+				}
+				
+				if (targetRow) {
+					if (collectedEnough) {
+						// Collected >= 2 rewards → Quick recheck in 1 minute
+						szem4_EPITO_addIdo(targetRow, 1);
+						szem4_EPITO_infoCell(targetRow, "yellow", `🎁 Jutalmak gyűjtve! Újraellenőrzés 1 percen belül / Rewards collected! Recheck in 1 min`);
+						debug('szem4_EPITO_collectRewards', 'Quick recheck scheduled (1 minute)');
+					} else {
+						// Collected < 2 or none → Normal waiting
+						szem4_EPITO_addIdo(targetRow, firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+						szem4_EPITO_infoCell(targetRow, "yellow", `⚠️ Kevés jutalom. Normál várakozás / Few rewards. Normal wait`);
+						debug('szem4_EPITO_collectRewards', 'Normal wait time scheduled');
+					}
+				}
+			});
+			
+			// Set initial return time (will be updated by callback)
+			szem4_EPITO_addIdo(PMEP[2], 2);
+		} else {
+			// No quest rewards - wait for production
+			szem4_EPITO_infoCell(PMEP[2],"yellow",`⚠️ Nyersanyag hiány! / Resource shortage! ${nextToBuild} - Hiányzik/Missing: ${missing.join(', ')}. ` + writeAllBuildTime(allBuildTime));
+			szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?Math.min(firstBuildTime, 60):20);
+			debug('szem4_EPITO_IntettiBuild', `Resource shortage for ${nextToBuild}. Missing: ${missing.join(', ')}. No quest rewards available, waiting for production.`);
+		}
 		return;
 	} 
 
 	/* Minden rendben, építhető, klikk */
-	szem4_EPITO_infoCell(PMEP[2],"alap","Építés folyamatban.");
+	szem4_EPITO_infoCell(PMEP[2],"alap","Építés folyamatban. / Building in progress.");
 	var buildBtn = nextToBuildRow.querySelector('.btn.btn-build');
-	if (buildBtn.style.display == 'none') {
-		if (buildList.length < 2) {
-			szem4_EPITO_infoCell(PMEP[2],"red","Ismeretlen hiba. " + writeAllBuildTime(allBuildTime));
-		} else {
-			szem4_EPITO_infoCell(PMEP[2],"alap","Építkezési sor megtelt. " + writeAllBuildTime(allBuildTime));
+	if (!buildBtn || buildBtn.style.display == 'none') {
+		// Enhanced error detection
+		let errorMsg = '';
+		let errorColor = 'red';
+		let retryTime = 60;
+		
+		// Detect premium status to determine max queue size (use same detection as above)
+		let isPremium = false;
+		try {
+			if (EPIT_REF.game_data && EPIT_REF.game_data.player && EPIT_REF.game_data.player.premium) {
+				isPremium = true;
+			} else if (buildList.length >= 3) {
+				isPremium = true;
+			} else if (EPIT_REF.document.querySelector('.icon.header.premium')) {
+				isPremium = true;
+			}
+		} catch(e) {
+			isPremium = false;
 		}
-		szem4_EPITO_addIdo(PMEP[2],firstBuildTime>0?firstBuildTime:60);
+		const maxQueueSize = isPremium ? 5 : 2;
+		const queueLimit = isPremium ? 5 : 2;
+		
+		// Check if building is already at max level
+		const currentLevel = currentBuildLvls[nextToBuild];
+		if (currentLevel >= 30) {
+			errorMsg = `❌ ${nextToBuild} már maximális szinten (30)! / ${nextToBuild} already at max level (30)! Építési lista frissítése szükséges. / Update build list needed.`;
+			errorColor = 'red';
+			retryTime = 300; // 5 minutes
+			debug('szem4_EPITO_IntettiBuild', `Building ${nextToBuild} is maxed at level ${currentLevel}`);
+		}
+		// Check if page is fully loaded
+		else if (!EPIT_REF.document.querySelector('#buildings')) {
+			errorMsg = `⚠️ Oldal nem töltődött be teljesen. / Page not fully loaded. Újrapróbálás... / Retrying...`;
+			errorColor = 'yellow';
+			retryTime = 10;
+			debug('szem4_EPITO_IntettiBuild', 'Buildings div not found - page not loaded');
+		}
+		// Check if build button exists at all
+		else if (!buildBtn) {
+			// Check if building requires prerequisites
+			const buildRow = EPIT_REF.document.getElementById('main_buildrow_' + nextToBuild);
+			if (buildRow && buildRow.querySelector('.inactive')) {
+				errorMsg = `⚠️ ${nextToBuild} előfeltétele hiányzik! / ${nextToBuild} prerequisite missing! Ellenőrizd a listát. / Check your list.`;
+				errorColor = 'yellow';
+				retryTime = 120;
+				debug('szem4_EPITO_IntettiBuild', `Building ${nextToBuild} has missing prerequisite`);
+			} else {
+				errorMsg = `❌ ${nextToBuild} építési gomb nem található! / ${nextToBuild} build button not found! Esetleg nem létező épület? / Invalid building ID?`;
+				errorColor = 'red';
+				retryTime = 300;
+				debug('szem4_EPITO_IntettiBuild', `Build button for ${nextToBuild} not found in DOM`);
+			}
+		}
+		// Build button exists but is hidden
+		else {
+			// Check if queue is full based on premium status
+			if (buildList.length >= maxQueueSize) {
+				const premiumStatus = isPremium ? '👑 Premium' : '🆓 Free';
+				errorMsg = `✅ Építkezési sor megtelt! / Build queue full! ${premiumStatus} (${buildList.length}/${queueLimit}). ` + writeAllBuildTime(allBuildTime);
+				errorColor = 'alap';
+				retryTime = firstBuildTime > 0 ? firstBuildTime : 60;
+				
+				// Keep window open but update title
+				if (EPIT_REF && !EPIT_REF.closed) {
+					EPIT_REF.document.title = `⏳ Szem4/építő - Queue full, waiting...`;
+					debug('szem4_EPITO_IntettiBuild', `Builder window kept open - queue full at button check (${buildList.length}/${queueLimit})`);
+				}
+				
+				debug('szem4_EPITO_IntettiBuild', `Queue full: ${buildList.length}/${queueLimit} (Premium: ${isPremium})`);
+			} else {
+				// Button is hidden for unknown reason
+				const buildingInfo = EPIT_REF.document.querySelector(`#main_buildrow_${nextToBuild}`);
+				if (buildingInfo) {
+					const infoText = buildingInfo.textContent;
+					if (infoText.includes('max') || infoText.includes('Max')) {
+						errorMsg = `❌ ${nextToBuild} elérte a maximumot! / ${nextToBuild} reached maximum! Töröld a listából. / Remove from list.`;
+						errorColor = 'red';
+						retryTime = 300;
+					} else if (infoText.includes('pontok') || infoText.includes('points')) {
+						errorMsg = `⚠️ Nem elég pontod ehhez az épülethez! / Not enough points for this building! ${nextToBuild}`;
+						errorColor = 'yellow';
+						retryTime = 120;
+					} else {
+						const premiumStatus = isPremium ? '👑 Premium' : '🆓 Free';
+						errorMsg = `❓ ${nextToBuild} nem építhető (ismeretlen ok). / ${nextToBuild} cannot be built (unknown reason). Gomb rejtett de sor nem telt. / Button hidden but queue not full. ${premiumStatus} Queue: ${buildList.length}/${queueLimit}. ` + writeAllBuildTime(allBuildTime);
+						errorColor = 'yellow';
+						retryTime = 30;
+					}
+				} else {
+					errorMsg = `❌ ${nextToBuild} sor nem található az oldalon! / ${nextToBuild} row not found on page! Érvénytelen épület ID? / Invalid building ID?`;
+					errorColor = 'red';
+					retryTime = 300;
+				}
+				debug('szem4_EPITO_IntettiBuild', `Build button hidden but queue not full. Premium: ${isPremium}, Queue: ${buildList.length}/${queueLimit}, List: ${buildList.join(',')}, NextToBuild: ${nextToBuild}`);
+			}
+		}
+		
+		szem4_EPITO_infoCell(PMEP[2], errorColor, errorMsg);
+		szem4_EPITO_addIdo(PMEP[2], retryTime);
 		return;
 	}
+	
+	// Everything OK, click the button
 	buildBtn.click();
 	playSound("epites");
-}catch(e){debug("epit_IntelliB",e);}}
+	debug('szem4_EPITO_IntettiBuild', `Successfully clicked build button for ${nextToBuild}`);
+}catch(e){
+	debug("epit_IntelliB", `ERROR: ${e} | Village: ${EPIT_REF.game_data.village.name} | NextToBuild: ${nextToBuild || 'unknown'}`);
+	szem4_EPITO_infoCell(PMEP[2],"red",`💥 Kritikus hiba / Critical error: ${e.message || e}`);
+	szem4_EPITO_addIdo(PMEP[2], 120);
+}}
 
 function szem4_EPITO_motor(){try{
 	var nexttime=750;
-	if (BOT||EPIT_PAUSE||USER_ACTIVITY) {nexttime=5000;} else {
+	if (BOT||EPIT_PAUSE||USER_ACTIVITY) {nexttime=5000;}
+	else if (NORBI0N_FARM_LEPES !== 0) {nexttime=3000;} // Wait for Norbi0N_Farm
+	else {
 	if (EPIT_HIBA>10) {EPIT_HIBA=0; EPIT_GHIBA++; if(EPIT_GHIBA>3) {if (EPIT_GHIBA>5) {naplo("Globál","Nincs internet? Folyamatos hiba az építőnél"); nexttime=60000; playSound("bot2");} EPIT_REF.close();} EPIT_LEPES=0;}
 	switch (EPIT_LEPES) {
 		case 0: PMEP=szem4_EPITO_Wopen(); /*FaluID;lista;link_a_faluhoz*/
 				if (PMEP[0]) {
-					EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
+					// Village is ready - open or reuse window
+					if (!EPIT_REF || EPIT_REF.closed) {
+						EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
+						debug('szem4_EPITO_motor', `Opening NEW window for village: ${PMEP[0]}`);
+					} else {
+						// Reuse existing window, just navigate to new village
+						EPIT_REF.location.href = VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]);
+						debug('szem4_EPITO_motor', `Reusing window, navigating to village: ${PMEP[0]}`);
+					}
 					EPIT_LEPES=1;
 				} else {
-					if (document.getElementById("epit_lista").rows.length==1) 
+					// No village ready - keep window open but update title
+					if (EPIT_REF && !EPIT_REF.closed) {
+						if (MOBILE_MODE) {
+							// On mobile, close to save resources
+							EPIT_REF.close();
+							debug('szem4_EPITO_motor', 'No village ready, closing window (MOBILE_MODE)');
+						} else {
+							// On desktop, keep open for faster response
+							EPIT_REF.document.title = '💤 Szem4/építő - Várakozás / Waiting';
+							debug('szem4_EPITO_motor', 'No village ready, keeping window open but idle');
+						}
+					}
+					if (document.getElementById("epit_lista").rows.length==1) {
 						nexttime=5000;
-					else {
+						debug('szem4_EPITO_motor', 'No villages in builder list, waiting 5s');
+					} else {
 						nexttime=60000;
-						if (MOBILE_MODE) EPIT_REF.close();
+						debug('szem4_EPITO_motor', 'Villages waiting for Return time, next check in 60s');
 					}
 				}
-				if (EPIT_REF && EPIT_REF.document) EPIT_REF.document.title = 'szem4/építő';
+				if (EPIT_REF && !EPIT_REF.closed && EPIT_LEPES == 1) EPIT_REF.document.title = '🔨 Szem4/építő - Építés / Building';
 				break;
 		case 1: if (isPageLoaded(EPIT_REF,PMEP[0],"screen=main", ['#buildings'])) {EPIT_HIBA=0; EPIT_GHIBA=0;
 					szem4_EPITO_IntettiBuild(PMEP[1]);
@@ -3721,7 +6358,7 @@ try{
 }catch(e){debug('epit', 'Worker engine error: ' + e);setTimeout(function(){szem4_EPITO_motor();}, 3000);}}
 
 ujkieg_hang("Építő","epites;falu_kesz;kritikus_hiba");
-ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr><tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"Rendezhető. Ekkor fogom újranézni a falut, hogy lehet e már építeni.<br>Dupla klikk=idő azonnalira állítása.")\'>Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről. Sárga hátterű szöveg orvosolható; kék jelentése hogy nem tud haladni; piros pedig kritikus hibát jelöl; a szín nélküli a normális működést jelzi.<br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a></p></td></tr>');
+ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr><tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"⏰ Return idő = Ekkor nézi újra a falut<br><br>🎁 AUTOMATIKUS: Nyersanyag hiány esetén jutalmakat próbál gyűjteni!<br><br>⚡ MANUÁLIS: Dupla klikk = Return MOST! (azonnal újraellenőrzés)")\'>⏰ Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről.<br><br>Színek:<br>🟢 Alap = Normális működés<br>🟡 Sárga = Orvosolható (vár nyersre/építésre)<br>🔴 Piros = Kritikus hiba (beavatkozás kell)<br><br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a></p></td></tr>');
 
 var EPIT_LEPES=0;
 var EPIT_REF; var EPIT_HIBA=0; var EPIT_GHIBA=0;
@@ -3859,6 +6496,8 @@ function szem4_GYUJTO_motor() {
 	try {
 		if (BOT||GYUJTO_PAUSE||USER_ACTIVITY) {
 			nexttime=5000;
+		} else if (NORBI0N_FARM_LEPES !== 0) {
+			nexttime=3000; // Wait for Norbi0N_Farm
 		} else {
 			if (GYUJTO_HIBA > 30) {
 				naplo('szem4_GYUJTO_motor', 'Valami baj van a gyűjtögetőnél - újraindítom...');
@@ -3942,6 +6581,607 @@ ujkieg('gyujto','Gyűjtő',`<tr><td>
 </td></tr>`);
 szem4_GYUJTO_motor();
 
+/*-----------------🚜 NORBI0N FARMING--------------------*/
+var NORBI0N_FARM_LEPES = 0;
+var NORBI0N_FARM_REF;
+var NORBI0N_FARM_HIBA = 0;
+var NORBI0N_FARM_GHIBA = 0;
+var NORBI0N_FARM_PAUSE = true;
+var NORBI0N_FARM_LOOP_TIMER = null;
+var NORBI0N_FARM_SHOULD_RUN = false; // NEW: Flag to control when to actually run
+var NORBI0N_FARM_WAIT_COUNTER = 0; // Counter for waiting after injection
+var NORBI0N_FARM_INJECTED = false; // Flag to prevent multiple injections
+
+var SZEM4_NORBI0N_FARM = {
+	OPTIONS: {
+		loopInterval: 10,
+		randomDelay: 3,
+		loopMode: false
+	},
+	STATS: {
+		lastRun: 0,
+		totalRuns: 0
+	}
+};
+
+function norbi0n_farm_isAnyModuleBusy() {
+	if (!FARM_PAUSE && FARM_LEPES !== 0) return true;
+	if (!EPIT_PAUSE && EPIT_LEPES !== 0) return true;
+	if (!GYUJTO_PAUSE && GYUJTO_STATE !== 0) return true;
+	return false;
+}
+
+function norbi0n_farm_injectFarmGod(ref) {
+	try {
+		const script = ref.document.createElement('script');
+		script.textContent = `(function() {
+			console.log('🚜 Norbi0N FarmGod automation initializing...');
+			const FarmHandler = {
+				farmTimer: null, totalClicks: 0, isRunning: false, isPaused: false,
+				startTime: null, recheckTimeout: null,
+				startFarming: function() {
+					console.log('Starting continuous farming with button clicking...');
+					this.isRunning = true; this.isPaused = false; this.totalClicks = 0; this.startTime = Date.now();
+					const self = this;
+					this.farmTimer = setInterval(() => {
+						if (self.isPaused) return;
+						if (self.checkBotProtection()) return;
+						if (self.monitorProgress()) return;
+						self.clickFarmButton();
+					}, 220);
+				},
+				detectBotProtection: function() {
+					try {
+						if (document.getElementById('botprotection_quest')) return 'botprotection_quest element';
+						if (document.querySelector('.bot-protection-row')) return '.bot-protection-row element';
+						if (document.querySelector('.captcha')) return '.captcha element';
+						const bodyText = document.body.textContent || document.body.innerText || '';
+						if (bodyText.indexOf('Bot védelem') !== -1) return '"Bot védelem" text';
+						if (bodyText.indexOf('Kezdd meg a botvédelem ellenőrzését') !== -1) return '"Kezdd meg a botvédelem ellenőrzését" text';
+						if (bodyText.indexOf('botvédelem ellenőrzését') !== -1) return '"botvédelem ellenőrzését" text';
+						if (bodyText.indexOf('Start the bot protection check') !== -1) return '"Start the bot protection check" text';
+					} catch (error) {
+						console.error('Error in detectBotProtection:', error);
+					}
+					return null;
+				},
+				checkBotProtection: function() {
+					if (!this.isRunning) return false;
+					const detectionMethod = this.detectBotProtection();
+					if (detectionMethod) {
+						if (!this.isPaused) {
+							console.log('BOT PROTECTION DETECTED! Method: ' + detectionMethod);
+							console.log('Pausing farming for 10 seconds... (captcha solver working)');
+							this.isPaused = true;
+							const self = this;
+							this.recheckTimeout = setTimeout(() => {
+								console.log('Rechecking bot protection after 10 seconds...');
+								const recheckMethod = self.detectBotProtection();
+								if (recheckMethod) {
+									console.log('BOT PROTECTION STILL PRESENT! Method: ' + recheckMethod);
+									console.log('Captcha solver failed or timeout. Stopping farming...');
+									self.stopFarming();
+									if (window.opener) {
+										window.opener.postMessage({
+											source: 'norbi_farm_bot_detection',
+											message: 'Bot protection detected - farming stopped after recheck',
+											detectionMethod: recheckMethod,
+											totalClicks: self.totalClicks,
+											timestamp: Date.now()
+										}, '*');
+									}
+									localStorage.setItem('norbi_farm_result', JSON.stringify({
+										status: 'error',
+										message: 'Bot protection detected - farming stopped after recheck',
+										error: 'Bot protection still present after 10 seconds',
+										detectionMethod: recheckMethod,
+										totalClicks: self.totalClicks,
+										timestamp: Date.now()
+									}));
+								} else {
+									console.log('BOT PROTECTION CLEARED! Captcha solver successful!');
+									console.log('Resuming farming...');
+									self.isPaused = false;
+								}
+							}, 10000);
+						}
+						return true;
+					}
+					return false;
+				},
+				clickFarmButton: function() {
+					if (!this.isRunning) return;
+					try {
+						const buttonA = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_a');
+						const buttonB = document.querySelector('a.farmGod_icon.farm_icon.farm_icon_b');
+						const button = buttonA || buttonB;
+						if (button) {
+							button.click();
+							this.totalClicks++;
+							if (this.totalClicks % 50 === 0) {
+								console.log(\`Clicked farm button \${this.totalClicks} times\`);
+							}
+						} else {
+							if (this.totalClicks % 50 === 0) {
+								console.log('No farm button found, waiting...');
+							}
+						}
+					} catch (error) {
+						console.error('Error clicking farm button:', error);
+					}
+				},
+				monitorProgress: function() {
+					if (!this.isRunning) return false;
+					const progressBar = document.getElementById('FarmGodProgessbar');
+					if (!progressBar) return false;
+					const labelSpan = progressBar.querySelector('span.label');
+					if (!labelSpan) return false;
+					const cleanText = labelSpan.innerText || labelSpan.textContent;
+					const parts = cleanText.split(' / ');
+					if (parts.length !== 2) return false;
+					let currentStr = parts[0].trim().replace(/\\./g, '');
+					let totalStr = parts[1].trim().replace(/\\./g, '');
+					const current = parseInt(currentStr);
+					const total = parseInt(totalStr);
+					if (isNaN(current) || isNaN(total)) return false;
+					const percentage = total > 0 ? (current / total) * 100 : 0;
+					if (current >= total) {
+						console.log('Farming completed!');
+						this.stopFarming();
+						const durationMs = Date.now() - this.startTime;
+						const minutes = Math.floor(durationMs / 60000);
+						const seconds = Math.floor((durationMs % 60000) / 1000);
+						localStorage.setItem('norbi_farm_result', JSON.stringify({
+							status: 'success',
+							message: 'Farming completed successfully',
+							villages: total,
+							totalClicks: this.totalClicks,
+							finalProgress: cleanText,
+							timeMinutes: minutes,
+							timeSeconds: seconds,
+							timestamp: Date.now()
+						}));
+						setTimeout(() => window.close(), 3000);
+						return true;
+					}
+					return false;
+				},
+				stopFarming: function() {
+					this.isRunning = false;
+					this.isPaused = false;
+					if (this.farmTimer) {
+						clearInterval(this.farmTimer);
+						this.farmTimer = null;
+					}
+					if (this.recheckTimeout) {
+						clearTimeout(this.recheckTimeout);
+						this.recheckTimeout = null;
+					}
+					console.log(\`Stopped. Total clicks: \${this.totalClicks}\`);
+				}
+			};
+			setTimeout(() => {
+				if (typeof window.$ === 'undefined') {
+					console.error('jQuery not available');
+					localStorage.setItem('norbi_farm_result', JSON.stringify({
+						status: 'error',
+						message: 'jQuery not available',
+						error: 'initialization_failed',
+						timestamp: Date.now()
+					}));
+					setTimeout(() => window.close(), 2000);
+					return;
+				}
+				window.$.getScript('https://media.innogamescdn.com/com_DS_HU/scripts/farmgod.js')
+					.done(() => {
+						console.log('FarmGod loaded');
+						setTimeout(() => {
+							const planButton = document.querySelector('input.btn.optionButton[value="Farm megtervezése"]');
+							if (planButton) {
+								planButton.click();
+								console.log('Waiting for loading throbber to disappear...');
+								function waitForThrobberToDisappear(callback) {
+									const checkInterval = setInterval(() => {
+										const throbber = document.querySelector('img[src="/graphic/throbber.gif"]');
+										if (!throbber) {
+											console.log('Throbber disappeared, loading complete!');
+											clearInterval(checkInterval);
+											callback();
+										} else {
+											console.log('Still loading... (throbber visible)');
+										}
+									}, 500);
+									setTimeout(() => {
+										clearInterval(checkInterval);
+										console.log('Throbber wait timeout, continuing anyway...');
+										callback();
+									}, 30000);
+								}
+								waitForThrobberToDisappear(() => {
+									console.log('Farm plan created, starting farming...');
+									FarmHandler.startFarming();
+								});
+							} else {
+								console.error('Farm button not found');
+								localStorage.setItem('norbi_farm_result', JSON.stringify({
+									status: 'error',
+									message: 'Farm button not found',
+									error: 'button_not_found',
+									timestamp: Date.now()
+								}));
+								setTimeout(() => window.close(), 2000);
+							}
+						}, 2000);
+					})
+					.fail(() => {
+						console.error('FarmGod failed to load');
+						localStorage.setItem('norbi_farm_result', JSON.stringify({
+							status: 'error',
+							message: 'FarmGod script failed to load',
+							error: 'script_load_failed',
+							timestamp: Date.now()
+						}));
+						setTimeout(() => window.close(), 2000);
+					});
+			}, 3000);
+			window.NorbiFarmHandler = FarmHandler;
+		})();`;
+		ref.document.head.appendChild(script);
+		debug('Norbi0N_Farm', 'FarmGod automation injected');
+		return true;
+	} catch(e) { debug('Norbi0N_Farm', `Injection error: ${e}`); return false; }
+}
+
+function szem4_norbi0n_farm_motor() {
+	var nexttime = 500;
+	try {
+		if (BOT || NORBI0N_FARM_PAUSE || USER_ACTIVITY) { nexttime = 5000; } 
+		else if (norbi0n_farm_isAnyModuleBusy()) { nexttime = 3000; } 
+		else {
+			// Only run if explicitly triggered
+			if (!NORBI0N_FARM_SHOULD_RUN) {
+				nexttime = 5000; // Idle - waiting for trigger
+			} else {
+				debug('Norbi0N_Farm', `Motor running: SHOULD_RUN=true, LEPES=${NORBI0N_FARM_LEPES}`);
+				if (NORBI0N_FARM_HIBA > 10) {
+					NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA++;
+					if (NORBI0N_FARM_GHIBA > 3) {
+						naplo("Norbi0N_Farm", "Folyamatos hiba");
+						if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) NORBI0N_FARM_REF.close();
+					}
+					NORBI0N_FARM_LEPES = 0;
+					NORBI0N_FARM_WAIT_COUNTER = 0;
+					NORBI0N_FARM_INJECTED = false;
+					NORBI0N_FARM_SHOULD_RUN = false;
+				}
+				switch (NORBI0N_FARM_LEPES) {
+				case 0:
+					// Open CURRENT village's farm assistant (ONCE)
+					// Safety check: if window is already open and farming, don't refresh it!
+					if (NORBI0N_FARM_REF && !NORBI0N_FARM_REF.closed) {
+						debug('Norbi0N_Farm', 'Window already open, skipping case 0 to prevent refresh');
+						NORBI0N_FARM_LEPES = 1; // Skip to next case
+						break;
+					}
+					NORBI0N_FARM_INJECTED = false; // Reset injection flag
+					const url = VILL1ST.replace("screen=overview", "screen=am_farm");
+					NORBI0N_FARM_REF = windowOpener('norbi0n_farm', url, AZON + "_Norbi0N_Farm");
+					debug('Norbi0N_Farm', `Opening farm assistant - SHOULD_RUN triggered`);
+					NORBI0N_FARM_LEPES = 1;
+					break;
+				case 1:
+					if (isPageLoaded(NORBI0N_FARM_REF, -1, 'screen=am_farm')) {
+						NORBI0N_FARM_HIBA = 0; NORBI0N_FARM_GHIBA = 0;
+						// Inject ONCE - check if already injected
+						if (!NORBI0N_FARM_INJECTED && !NORBI0N_FARM_REF.NorbiFarmHandler) {
+							norbi0n_farm_injectFarmGod(NORBI0N_FARM_REF);
+							NORBI0N_FARM_INJECTED = true; // Mark as injected
+							NORBI0N_FARM_WAIT_COUNTER = 0; // Reset counter
+							debug('Norbi0N_Farm', `FarmGod injected, waiting 15 cycles (~7.5s) for initialization`);
+						}
+						// Wait for injection to initialize (15 cycles × 500ms = 7.5s)
+						NORBI0N_FARM_WAIT_COUNTER++;
+						if (NORBI0N_FARM_WAIT_COUNTER >= 15) {
+							NORBI0N_FARM_REF.document.title = '🚜 Norbi0N_Farm - Running';
+							naplo('Norbi0N_Farm', `🚜 FarmGod elindítva`);
+							norbi0n_farm_updateUI(); // Update UI when farming starts
+							NORBI0N_FARM_WAIT_COUNTER = 0;
+							NORBI0N_FARM_LEPES = 2;
+						}
+					} else { NORBI0N_FARM_HIBA++; }
+					break;
+				case 2:
+					if (NORBI0N_FARM_REF.closed) {
+						debug('Norbi0N_Farm', 'Window closed - farm completed by user or completion');
+						SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
+						SZEM4_NORBI0N_FARM.STATS.totalRuns++;
+						NORBI0N_FARM_LEPES = 0;
+						NORBI0N_FARM_WAIT_COUNTER = 0;
+						NORBI0N_FARM_INJECTED = false;
+						NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
+						NORBI0N_FARM_HIBA = 0; // Reset error counter
+						NORBI0N_FARM_GHIBA = 0;
+						NORBI0N_FARM_REF = null; // Clear window reference
+						debug('Norbi0N_Farm', `Loop mode check: ${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}`);
+						if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+							debug('Norbi0N_Farm', `✅ Loop mode ENABLED - scheduling next run`);
+							norbi0n_farm_scheduleLoop();
+						} else {
+							debug('Norbi0N_Farm', `❌ Loop mode DISABLED - stopping`);
+							norbi0n_farm_updateUI(); // Update UI when farming completes
+						}
+					} else {
+						try {
+							const result = NORBI0N_FARM_REF.localStorage.getItem('norbi_farm_result');
+							if (result) {
+								const data = JSON.parse(result);
+								if (data.status === 'success') {
+									const timeMsg = data.timeMinutes > 0 ? `${data.timeMinutes}m ${data.timeSeconds}s` : `${data.timeSeconds}s`;
+									naplo('Norbi0N_Farm', `✅ Befejezve: ${data.villages} falu, ${timeMsg}, ${data.totalClicks || data.totalPresses} klikk`);
+									SZEM4_NORBI0N_FARM.STATS.lastRun = getServerTime().getTime();
+									SZEM4_NORBI0N_FARM.STATS.totalRuns++;
+									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
+									NORBI0N_FARM_LEPES = 0;
+									NORBI0N_FARM_WAIT_COUNTER = 0;
+									NORBI0N_FARM_INJECTED = false;
+									NORBI0N_FARM_SHOULD_RUN = false; // Reset flag
+									NORBI0N_FARM_HIBA = 0; // Reset error counter
+									NORBI0N_FARM_GHIBA = 0;
+									// Window will close automatically in 3 seconds, don't close it here
+									debug('Norbi0N_Farm', `Loop mode check: ${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}`);
+									if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+										debug('Norbi0N_Farm', `✅ Loop mode ENABLED - scheduling next run`);
+										norbi0n_farm_scheduleLoop();
+									} else {
+										debug('Norbi0N_Farm', `❌ Loop mode DISABLED - stopping`);
+										norbi0n_farm_updateUI(); // Update UI when farming completes
+									}
+								} else if (data.status === 'error') {
+									naplo('Norbi0N_Farm', `❌ Hiba: ${data.message}`);
+									NORBI0N_FARM_REF.localStorage.removeItem('norbi_farm_result');
+
+									// Handle different error types
+									if (data.error === 'Bot protection quest appeared') {
+										debug('Norbi0N_Farm', '🚨 Bot detected in farm tab - stopping all');
+										NORBI0N_FARM_LEPES = 0;
+										NORBI0N_FARM_WAIT_COUNTER = 0;
+										NORBI0N_FARM_INJECTED = false;
+										NORBI0N_FARM_SHOULD_RUN = false;
+										NORBI0N_FARM_HIBA = 0;
+										NORBI0N_FARM_GHIBA = 0;
+									} else if (data.error === 'button_not_found' || data.error === 'script_load_failed' || data.error === 'initialization_failed') {
+										// Initialization errors - retry after 1 minute
+										debug('Norbi0N_Farm', `⚠️ Initialization error: ${data.error} - will retry in 1 minute`);
+										naplo('Norbi0N_Farm', `⏳ Újrapróbálkozás 1 perc múlva...`);
+										NORBI0N_FARM_LEPES = 0;
+										NORBI0N_FARM_WAIT_COUNTER = 0;
+										NORBI0N_FARM_INJECTED = false;
+										NORBI0N_FARM_SHOULD_RUN = false;
+										NORBI0N_FARM_HIBA = 0;
+										NORBI0N_FARM_GHIBA = 0;
+
+										// Schedule retry in 1 minute (or use loop if enabled)
+										if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+											debug('Norbi0N_Farm', '🔄 Loop mode enabled - will retry on next scheduled run');
+											norbi0n_farm_scheduleLoop();
+										} else {
+											debug('Norbi0N_Farm', '🔄 One-time retry in 1 minute');
+											setTimeout(() => {
+												if (NORBI0N_FARM_LEPES === 0) {
+													debug('Norbi0N_Farm', '⏰ Retry timer fired');
+													NORBI0N_FARM_SHOULD_RUN = true;
+												}
+											}, 60000);
+										}
+									} else {
+										// Unknown error
+										NORBI0N_FARM_LEPES = 0;
+										NORBI0N_FARM_WAIT_COUNTER = 0;
+										NORBI0N_FARM_INJECTED = false;
+										NORBI0N_FARM_SHOULD_RUN = false;
+										NORBI0N_FARM_HIBA = 0;
+										NORBI0N_FARM_GHIBA = 0;
+									}
+									norbi0n_farm_updateUI(); // Update UI on error
+								}
+							} else {
+								// No result yet - farming still in progress, reset error counter
+								NORBI0N_FARM_HIBA = 0;
+							}
+						} catch(e) {
+							// Only increment error if we can't access the window at all
+							debug('Norbi0N_Farm', `Case 2 error accessing window: ${e}`);
+							NORBI0N_FARM_HIBA++;
+						}
+					}
+					break;
+				default: 
+					NORBI0N_FARM_LEPES = 0;
+					NORBI0N_FARM_WAIT_COUNTER = 0;
+					NORBI0N_FARM_INJECTED = false;
+				}
+			}
+		}
+	} catch(e) { debug('Norbi0N_Farm_motor', `ERROR: ${e}`); NORBI0N_FARM_LEPES = 0; NORBI0N_FARM_WAIT_COUNTER = 0; NORBI0N_FARM_INJECTED = false; NORBI0N_FARM_SHOULD_RUN = false; }
+	var inga = 100/((Math.random()*40)+80);
+	nexttime = Math.round(nexttime*inga);
+	try { worker.postMessage({'id': 'norbi0n_farm', 'time': nexttime}); } 
+	catch(e) { setTimeout(function(){ szem4_norbi0n_farm_motor(); }, 3000); }
+}
+
+function norbi0n_farm_scheduleLoop() {
+	const interval = SZEM4_NORBI0N_FARM.OPTIONS.loopInterval;
+	const randomDelay = SZEM4_NORBI0N_FARM.OPTIONS.randomDelay;
+	const randomMs = (Math.random() * randomDelay * 2 - randomDelay) * 60000;
+	const totalMs = (interval * 60000) + randomMs;
+	const minutes = Math.round(totalMs/60000);
+	const nextRunTime = new Date(Date.now() + totalMs);
+
+	// Store next run time
+	SZEM4_NORBI0N_FARM.STATS.nextRun = nextRunTime.getTime();
+
+	naplo('Norbi0N_Farm', `🔄 Loop: következő futás ${minutes} perc múlva (${nextRunTime.toLocaleTimeString()})`);
+	debug('Norbi0N_Farm', `Scheduling loop: interval=${interval}min, random=${randomDelay}min, total=${minutes}min`);
+
+	// Clear any existing timer
+	if (NORBI0N_FARM_LOOP_TIMER) {
+		clearTimeout(NORBI0N_FARM_LOOP_TIMER);
+		debug('Norbi0N_Farm', 'Cleared existing loop timer');
+	}
+
+	NORBI0N_FARM_LOOP_TIMER = setTimeout(() => {
+		debug('Norbi0N_Farm', `⏰ Loop timer FIRED! Current LEPES: ${NORBI0N_FARM_LEPES}`);
+		if (NORBI0N_FARM_LEPES !== 0) {
+			debug('Norbi0N_Farm', `Loop timer fired but farming still running (LEPES=${NORBI0N_FARM_LEPES}), rescheduling...`);
+			norbi0n_farm_scheduleLoop(); // Reschedule for next interval
+			return;
+		}
+		NORBI0N_FARM_SHOULD_RUN = true; // Set flag for next run
+		NORBI0N_FARM_LEPES = 0;
+		debug('Norbi0N_Farm', `✅ Loop timer triggered - SHOULD_RUN = true, LEPES = 0`);
+		naplo('Norbi0N_Farm', `🚜 Loop: új farmolás indítása...`);
+	}, totalMs);
+
+	norbi0n_farm_updateUI();
+}
+
+function norbi0n_farm_runNow() {
+	if (!NORBI0N_FARM_PAUSE) {
+		if (NORBI0N_FARM_LEPES !== 0) {
+			alert2('⚠️ Norbi0N_Farming már fut! Várj amíg befejeződik!<br>Farming already running! Wait for completion!');
+			return;
+		}
+		NORBI0N_FARM_SHOULD_RUN = true;
+		NORBI0N_FARM_LEPES = 0;
+		debug('Norbi0N_Farm', `Manual trigger - SHOULD_RUN set to true`);
+		naplo('Norbi0N_Farm', `⚡ Manuális indítás / Manual start`);
+	} else {
+		alert2('⚠️ Norbi0N_Farming szünetel! Indítsd el először a ▶️ gombbal a menüben!<br>Module is paused! Start it first with ▶️ button in menu!');
+	}
+}
+
+function norbi0n_farm_updateSettings() {
+	const form = document.getElementById('norbi0n_farm_settings');
+	const wasLoopEnabled = SZEM4_NORBI0N_FARM.OPTIONS.loopMode;
+
+	SZEM4_NORBI0N_FARM.OPTIONS.loopInterval = parseInt(form.loopInterval.value, 10);
+	SZEM4_NORBI0N_FARM.OPTIONS.randomDelay = parseInt(form.randomDelay.value, 10);
+	SZEM4_NORBI0N_FARM.OPTIONS.loopMode = form.loopMode.checked;
+
+	debug('Norbi0N_Farm', `Settings updated: Loop=${SZEM4_NORBI0N_FARM.OPTIONS.loopMode}, Interval=${SZEM4_NORBI0N_FARM.OPTIONS.loopInterval}min, Random=±${SZEM4_NORBI0N_FARM.OPTIONS.randomDelay}min`);
+
+	// If loop was just enabled, schedule the first run
+	if (!wasLoopEnabled && SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+		if (NORBI0N_FARM_LEPES === 0 && !NORBI0N_FARM_SHOULD_RUN) {
+			debug('Norbi0N_Farm', '✅ Loop enabled - scheduling first run');
+			norbi0n_farm_scheduleLoop();
+		}
+	}
+	// If loop was disabled, clear timer
+	else if (wasLoopEnabled && !SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+		if (NORBI0N_FARM_LOOP_TIMER) {
+			clearTimeout(NORBI0N_FARM_LOOP_TIMER);
+			NORBI0N_FARM_LOOP_TIMER = null;
+			debug('Norbi0N_Farm', '❌ Loop disabled - timer cleared');
+		}
+		SZEM4_NORBI0N_FARM.STATS.nextRun = 0; // Clear next run time
+	}
+	// If loop is enabled and interval changed, reschedule
+	else if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode && NORBI0N_FARM_LOOP_TIMER) {
+		debug('Norbi0N_Farm', '🔄 Interval changed - rescheduling loop');
+		norbi0n_farm_scheduleLoop();
+	}
+
+	norbi0n_farm_updateUI();
+}
+
+function norbi0n_farm_updateUI() {
+	// Update loop status indicator
+	const loopStatusEl = document.getElementById('norbi0n_loop_status');
+	const nextRunEl = document.getElementById('norbi0n_next_run');
+
+	if (!loopStatusEl || !nextRunEl) return;
+
+	if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode) {
+		if (NORBI0N_FARM_LEPES > 0) {
+			// Currently farming
+			loopStatusEl.innerHTML = '<b style="color:#ff8c00;">🟠 Farmolás folyamatban...</b>';
+			nextRunEl.innerHTML = '---';
+		} else if (SZEM4_NORBI0N_FARM.STATS.nextRun && NORBI0N_FARM_LOOP_TIMER) {
+			// Scheduled for next run
+			const nextTime = new Date(SZEM4_NORBI0N_FARM.STATS.nextRun);
+			const now = Date.now();
+			const remaining = Math.max(0, Math.ceil((SZEM4_NORBI0N_FARM.STATS.nextRun - now) / 60000));
+			loopStatusEl.innerHTML = '<b style="color:#00cc00;">🟢 Loop Aktív</b>';
+			nextRunEl.innerHTML = `${nextTime.toLocaleTimeString()} <i>(~${remaining} perc)</i>`;
+		} else {
+			// Loop enabled but not scheduled yet
+			loopStatusEl.innerHTML = '<b style="color:#00cc00;">🟢 Loop Aktív</b>';
+			nextRunEl.innerHTML = 'Ütemezés alatt...';
+		}
+	} else {
+		loopStatusEl.innerHTML = '<b style="color:#999;">⚫ Loop Inaktív</b>';
+		nextRunEl.innerHTML = '---';
+	}
+}
+
+function norbi0n_farm_loadSettings() {
+	const form = document.getElementById('norbi0n_farm_settings');
+	if (!form) return;
+	form.loopInterval.value = SZEM4_NORBI0N_FARM.OPTIONS.loopInterval;
+	form.randomDelay.value = SZEM4_NORBI0N_FARM.OPTIONS.randomDelay;
+	form.loopMode.checked = SZEM4_NORBI0N_FARM.OPTIONS.loopMode;
+	if (SZEM4_NORBI0N_FARM.STATS.lastRun > 0) {
+		document.getElementById('norbi0n_last_run').innerHTML = new Date(SZEM4_NORBI0N_FARM.STATS.lastRun).toLocaleString();
+	}
+	if (SZEM4_NORBI0N_FARM.STATS.totalRuns > 0) {
+		document.getElementById('norbi0n_total_runs').innerHTML = SZEM4_NORBI0N_FARM.STATS.totalRuns;
+	}
+	norbi0n_farm_updateUI();
+}
+
+ujkieg_hang("Norbi0N_Farm", "norbi0n_start;norbi0n_complete");
+ujkieg("norbi0n_farm", "Norbi0N Farming", `<tr><td>
+	<h2 align="center">🚜 Norbi0N Farming Engine</h2>
+	<p align="center"><i>A hivatalos FarmGod scriptet használja az AKTUÁLIS faluban.<br>Uses official FarmGod script on CURRENT village.</i></p>
+	<p align="center"><b>🔴 Bot védelem: 7 módszer + újraellenőrzés | 🟢 Gomb kattintás: 220ms</b></p>
+	<br>
+	<form id="norbi0n_farm_settings" onchange="norbi0n_farm_updateSettings()">
+		<table class="vis" style="margin: auto;">
+			<tr><th colspan="2" style="background: #c1a264;">⚙️ Loop Beállítások</th></tr>
+			<tr><td style="width: 50%;">Loop intervallum:</td><td><input type="number" name="loopInterval" min="1" max="999" value="10" size="3"> perc</td></tr>
+			<tr><td>Véletlen késleltetés:</td><td>± <input type="number" name="randomDelay" min="0" max="99" value="3" size="3"> perc</td></tr>
+			<tr><td><b>Loop mód:</b></td><td><input type="checkbox" name="loopMode"> Folyamatos ismétlés</td></tr>
+			<tr style="background:#f4e4bc;"><td><b>Állapot:</b></td><td id="norbi0n_loop_status"><b style="color:#999;">⚫ Loop Inaktív</b></td></tr>
+			<tr style="background:#f4e4bc;"><td><b>Következő futás:</b></td><td id="norbi0n_next_run">---</td></tr>
+		</table>
+	</form>
+	<br>
+	<p align="center">
+		<input type="button" value="🚀 FARMOLÁS MOST! / RUN NOW!" onclick="norbi0n_farm_runNow()" style="font-size:14px; padding:10px 20px;">
+	</p>
+	<p align="center" style="font-size:10px; color:#666;">
+		<i>1. Klikk ▶️ a menüben (modul aktiválása)<br>
+		2. Loop mód BE: Automatikus futás X percenként<br>
+		3. Loop mód KI: Klikk "RUN NOW!" gombra manuális futtatáshoz</i>
+	</p>
+	<br>
+	<table class="vis" style="margin: auto;">
+		<tr><th colspan="2" style="background: #c1a264;">📊 Statisztikák</th></tr>
+		<tr><td style="width: 50%;">Összes futás:</td><td id="norbi0n_total_runs">0</td></tr>
+		<tr><td>Utolsó futás:</td><td id="norbi0n_last_run">---</td></tr>
+	</table>
+</td></tr>`);
+
+szem4_norbi0n_farm_motor();
+setTimeout(() => norbi0n_farm_loadSettings(), 500);
+// Periodic UI refresh every 30 seconds to update countdown
+setInterval(() => {
+	if (SZEM4_NORBI0N_FARM.OPTIONS.loopMode && NORBI0N_FARM_LOOP_TIMER) {
+		norbi0n_farm_updateUI();
+	}
+}, 30000);
+
 /*-----------------Adatmentő kezelő--------------------*/
 function szem4_ADAT_saveNow(tipus) {
 	let dateEl = document.querySelector(`#adat_opts input[name=${tipus}]`);
@@ -3952,6 +7192,7 @@ function szem4_ADAT_saveNow(tipus) {
 		case "vije":   localStorage.setItem(AZON+"_vije", JSON.stringify(SZEM4_VIJE)); break;
 		case "sys":    localStorage.setItem(AZON+"_sys", JSON.stringify(SZEM4_SETTINGS)); break;
 		case "gyujto": localStorage.setItem(AZON + '_gyujto', JSON.stringify(SZEM4_GYUJTO)); break;
+		case "norbi0n_farm": localStorage.setItem(AZON + '_norbi0n_farm', JSON.stringify(SZEM4_NORBI0N_FARM)); break;
 		case 'cloud':  saveLocalDataToCloud(false, false);
 	}
 	if (dateEl) dateEl.innerHTML = new Date().toLocaleString();
@@ -3982,6 +7223,10 @@ function szem4_ADAT_loadNow(tipus) {try{
 		case "gyujto":
 			SZEM4_GYUJTO = Object.assign({}, SZEM4_GYUJTO, dataObj);
 			rebuildDOM_gyujto();
+			break;
+		case "norbi0n_farm":
+			SZEM4_NORBI0N_FARM = Object.assign({}, SZEM4_NORBI0N_FARM, dataObj);
+			norbi0n_farm_loadSettings();
 			break;
 		default: debug('szem4_ADAT_loadNow', `Nincs ilyen típus: ${tipus}`);
 	}
@@ -4223,6 +7468,7 @@ ujkieg("adatok","Adatmentő",'<tr><td>\
 <tr><td><input type="checkbox" name="vije" checked></td><td>Jelentés elemző</td><td></td><td>'+szem4_ADAT_AddImageRow("vije")+'</td></tr>\
 <tr><td><input type="checkbox" name="sys" checked></td><td>Hangok, témák</td><td></td><td>'+szem4_ADAT_AddImageRow("sys")+'</td></tr>\
 <tr><td><input type="checkbox" name="gyujto" checked></td><td>Gyűjtögető</td><td></td><td>'+szem4_ADAT_AddImageRow("gyujto")+'</td></tr>\
+<tr><td><input type="checkbox" name="norbi0n_farm" checked></td><td>🚜 Norbi0N Farming</td><td></td><td>'+szem4_ADAT_AddImageRow("norbi0n_farm")+'</td></tr>\
 <tr><td><input type="checkbox" name="cloud" unchecked></td><td><img height="17px" src="'+pic('cloud.png')+'"> Cloud sync</td><td></td><td>\
 			<img title="Cloud adat betöltése a jelenlegi rendszerbe" alt="Import" onclick="loadCloudDataIntoLocal()" width="17px" src="'+pic("Import.png")+'"> \
 			<img title="Local adat lementése a Cloud rendszerbe" alt="Save" onclick="saveLocalDataToCloud(true, true)" width="17px" src="'+pic("saveNow.png")+'">\
@@ -4241,9 +7487,6 @@ $(document).ready(function(){
 	soundVolume(0.0);
 	playSound("bot2"); /* Ha elmegy a net, tudjon csipogni */
 	
-	// Load bot notification settings
-	loadBotNotifications();
-	
 	if (confirm("Engedélyezed az adatok mentését?\nKésőbb is elindíthatja, ha visszapipálja a mentés engedélyezését - ekkor szükséges kézi adatbetöltés is előtte.")) {
 		if (CLOUD_AUTHS) {
 			naplo("☁️ Sync","Connecting to Firebase Cloud System...");
@@ -4256,6 +7499,8 @@ $(document).ready(function(){
 	} else {
 		szem4_ADAT_StopAll();
 		onWallpChange();
+		// Still need to load bot notifications even if not saving data
+		loadBotNotifications();
 	}
 	setTimeout(function(){soundVolume(1.0);},2000);
 	
