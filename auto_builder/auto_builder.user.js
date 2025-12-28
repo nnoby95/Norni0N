@@ -39,6 +39,145 @@ const STORAGE_KEYS = {
     settings: "autoBuilderSettings"
 };
 
+// Default template: Norbi0N_BotStart
+// MINES = stone (clay) -> wood (timber) -> iron in exact order
+const DEFAULT_TEMPLATE = {
+    name: "Norbi0N_BotStart",
+    sequence: [
+        // MINES 1
+        { building: "stone", level: 1 }, { building: "wood", level: 1 }, { building: "iron", level: 1 },
+        { building: "main", level: 2 },
+        { building: "farm", level: 2 },
+        // MINES 2
+        { building: "stone", level: 2 }, { building: "wood", level: 2 }, { building: "iron", level: 2 },
+        { building: "storage", level: 3 },
+        { building: "farm", level: 3 },
+        // MINES 3
+        { building: "stone", level: 3 }, { building: "wood", level: 3 }, { building: "iron", level: 3 },
+        { building: "main", level: 3 },
+        { building: "barracks", level: 1 },
+        { building: "market", level: 1 },
+        // MINES 4
+        { building: "stone", level: 4 }, { building: "wood", level: 4 }, { building: "iron", level: 4 },
+        { building: "market", level: 2 },
+        { building: "main", level: 5 },
+        { building: "barracks", level: 3 },
+        { building: "smith", level: 1 },
+        { building: "storage", level: 4 },
+        { building: "farm", level: 4 },
+        // MINES 8
+        { building: "stone", level: 8 }, { building: "wood", level: 8 }, { building: "iron", level: 8 },
+        { building: "storage", level: 5 },
+        { building: "main", level: 7 },
+        { building: "farm", level: 5 },
+        // MINES 10
+        { building: "stone", level: 10 }, { building: "wood", level: 10 }, { building: "iron", level: 10 },
+        { building: "storage", level: 6 },
+        { building: "main", level: 10 },
+        { building: "farm", level: 6 },
+        { building: "storage", level: 7 },
+        { building: "smith", level: 5 },
+        { building: "barracks", level: 5 },
+        { building: "stable", level: 3 },
+        { building: "farm", level: 7 },
+        { building: "storage", level: 9 },
+        // MINES 11
+        { building: "stone", level: 11 }, { building: "wood", level: 11 }, { building: "iron", level: 11 },
+        { building: "farm", level: 8 },
+        { building: "storage", level: 10 },
+        // MINES 13
+        { building: "stone", level: 13 }, { building: "wood", level: 13 }, { building: "iron", level: 13 },
+        { building: "market", level: 5 },
+        { building: "storage", level: 11 },
+        // MINES 14
+        { building: "stone", level: 14 }, { building: "wood", level: 14 }, { building: "iron", level: 14 },
+        { building: "storage", level: 12 },
+        { building: "barracks", level: 8 },
+        { building: "stable", level: 5 },
+        { building: "main", level: 13 },
+        // MINES 15
+        { building: "stone", level: 15 }, { building: "wood", level: 15 }, { building: "iron", level: 15 },
+        { building: "main", level: 15 },
+        { building: "storage", level: 13 },
+        { building: "market", level: 10 },
+        { building: "farm", level: 9 },
+        { building: "storage", level: 14 },
+        { building: "wall", level: 5 },
+        // MINES 16
+        { building: "stone", level: 16 }, { building: "wood", level: 16 }, { building: "iron", level: 16 },
+        { building: "storage", level: 15 },
+        // MINES 18
+        { building: "stone", level: 18 }, { building: "wood", level: 18 }, { building: "iron", level: 18 },
+        { building: "farm", level: 10 },
+        { building: "market", level: 15 },
+        // MINES 20
+        { building: "stone", level: 20 }, { building: "wood", level: 20 }, { building: "iron", level: 20 },
+        { building: "main", level: 17 },
+        { building: "storage", level: 18 },
+        { building: "main", level: 20 },
+        // MINES 22
+        { building: "stone", level: 22 }, { building: "wood", level: 22 }, { building: "iron", level: 22 },
+        { building: "farm", level: 11 },
+        { building: "storage", level: 21 },
+        { building: "smith", level: 10 },
+        { building: "garage", level: 3 },
+        { building: "barracks", level: 10 },
+        { building: "stable", level: 7 },
+        // MINES 25
+        { building: "stone", level: 25 }, { building: "wood", level: 25 }, { building: "iron", level: 25 },
+        { building: "farm", level: 12 },
+        { building: "storage", level: 23 },
+        { building: "barracks", level: 12 },
+        { building: "stable", level: 8 },
+        { building: "farm", level: 13 },
+        { building: "wall", level: 15 },
+        // MINES 27
+        { building: "stone", level: 27 }, { building: "wood", level: 27 }, { building: "iron", level: 27 },
+        { building: "storage", level: 25 },
+        { building: "market", level: 20 },
+        { building: "barracks", level: 15 },
+        { building: "stable", level: 10 },
+        { building: "smith", level: 15 },
+        { building: "farm", level: 15 },
+        { building: "storage", level: 27 },
+        // MINES 30
+        { building: "stone", level: 30 }, { building: "wood", level: 30 }, { building: "iron", level: 30 },
+        { building: "barracks", level: 18 },
+        { building: "stable", level: 13 },
+        { building: "smith", level: 20 },
+        { building: "farm", level: 17 },
+        { building: "storage", level: 29 },
+        { building: "snob", level: 1 },
+        { building: "barracks", level: 20 },
+        { building: "stable", level: 15 },
+        { building: "barracks", level: 23 },
+        { building: "stable", level: 17 },
+        { building: "barracks", level: 25 },
+        { building: "stable", level: 20 },
+        { building: "storage", level: 30 },
+        { building: "farm", level: 30 }
+    ],
+    created: "2024-12-28"
+};
+
+function installDefaultTemplate() {
+    const templates = getTemplates();
+    // Check if Norbi0N_BotStart already exists
+    let exists = false;
+    for (const id in templates) {
+        if (templates[id].name === "Norbi0N_BotStart") {
+            exists = true;
+            break;
+        }
+    }
+    if (!exists) {
+        const templateId = "norbi0n_botstart_" + Date.now();
+        templates[templateId] = DEFAULT_TEMPLATE;
+        saveTemplates(templates);
+        console.log("[Auto Builder] Installed default template: Norbi0N_BotStart");
+    }
+}
+
 // Default settings
 const DEFAULT_SETTINGS = {
     forceFarmEnabled: false,
@@ -2069,6 +2208,9 @@ function init() {
         console.log("[Auto Builder] Not on main page, skipping initialization");
         return;
     }
+
+    // Install default template if not exists
+    installDefaultTemplate();
 
     createWidget();
     updateUI();
