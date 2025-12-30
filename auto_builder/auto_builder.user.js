@@ -197,6 +197,8 @@ const DEFAULT_SETTINGS = {
 
 // ============ STATE ============
 let isBuilding = false;
+let isCollectingRewards = false; // Flag to prevent building while collecting rewards
+let rewardsCheckedForBuilding = null; // Track which building we already checked rewards for (e.g., "smith_12")
 let scriptInterval = null;
 let questSolveInterval = null;
 let questPopupInterval = null;
@@ -362,6 +364,40 @@ function getMaxQueueLength() {
     return game_data.features.Premium.active ? 5 : 2;
 }
 
+function getBuildingQueueCount(buildingId) {
+    // Count how many times a specific building is in the build queue
+    // The queue rows have class like "buildorder_market", "buildorder_barracks", etc.
+    const queue = document.getElementById("buildqueue");
+    if (!queue) return 0;
+
+    // Method 1: Count rows by class name (most reliable)
+    // The class format is "buildorder_<buildingId>" e.g. "buildorder_market"
+    const rowsByClass = queue.querySelectorAll(`tr.buildorder_${buildingId}`);
+    if (rowsByClass.length > 0) {
+        console.log(`[Queue Check] Found ${rowsByClass.length} ${buildingId} in queue (by class)`);
+        return rowsByClass.length;
+    }
+
+    // Method 2: Fallback - check by image src which contains building name
+    let count = 0;
+    const rows = queue.querySelectorAll("tr");
+    rows.forEach(row => {
+        const img = row.querySelector("img.bmain_list_img");
+        if (img && img.src) {
+            // Image src contains building name like "market2.webp" or "barracks.webp"
+            if (img.src.includes(`/${buildingId}`) || img.src.includes(`${buildingId}.`) || img.src.includes(`${buildingId}2.`)) {
+                count++;
+            }
+        }
+    });
+
+    if (count > 0) {
+        console.log(`[Queue Check] Found ${count} ${buildingId} in queue (by image)`);
+    }
+
+    return count;
+}
+
 // ============ POPULATION FUNCTIONS ============
 function getPopulationInfo() {
     const popMax = parseInt(game_data.village.pop_max, 10) || 0;
@@ -409,23 +445,11 @@ function getStorageCapacity() {
 }
 
 function canAffordAnyBuilding() {
-    // Check if we can afford ANY building in the queue
-    const state = getVillageState();
-    if (!state.activeTemplateId) return false;
+    // Check if we can afford the CURRENT building we need to build
+    const next = getNextStep();
+    if (!next) return false; // No next step means template complete
 
-    const templates = getTemplates();
-    const template = templates[state.activeTemplateId];
-    if (!template) return false;
-
-    // Check current step and a few ahead
-    for (let i = state.currentIndex; i < Math.min(state.currentIndex + 3, template.sequence.length); i++) {
-        const step = template.sequence[i];
-        const currentLevel = getBuildingLevel(step.building);
-        if (currentLevel < step.level && canAfford(step.building)) {
-            return true;
-        }
-    }
-    return false;
+    return canAfford(next.step.building);
 }
 
 function getQuestRewardResources(quest) {
@@ -458,56 +482,170 @@ function wouldOverflowStorage(questResources) {
     return newWood > storageMax || newStone > storageMax || newIron > storageMax;
 }
 
+function getCurrentBuildingKey() {
+    // Get the current building we're trying to build (e.g., "smith_12")
+    const state = getVillageState();
+    if (!state.activeTemplateId) return null;
+
+    const templates = getTemplates();
+    const template = templates[state.activeTemplateId];
+    if (!template || state.currentIndex >= template.sequence.length) return null;
+
+    const step = template.sequence[state.currentIndex];
+    return `${step.building}_${step.level}`;
+}
+
 function collectQuestResources() {
     const settings = getSettings();
     if (!settings.questCollectResources) return 0;
 
+    // Don't start if already collecting
+    if (isCollectingRewards) {
+        console.log("[Reward] Already collecting rewards, waiting...");
+        return 0;
+    }
+
     // Only collect if we CAN'T afford the next building
     if (canAffordAnyBuilding()) {
-        console.log("[Quest] Can still afford buildings, skipping quest collection");
+        // Reset the check flag when we CAN afford a building (means resources regenerated or we got rewards)
+        rewardsCheckedForBuilding = null;
+        console.log("[Reward] Can still afford buildings, skipping reward collection");
         return 0;
     }
 
-    if (typeof Quests === "undefined") {
-        console.log("[Quest] Quests API not available");
+    // Check if we already tried to collect rewards for this building and found none
+    const currentBuildingKey = getCurrentBuildingKey();
+    if (currentBuildingKey && rewardsCheckedForBuilding === currentBuildingKey) {
+        // We already checked rewards for this building and found none
+        // Don't check again until a new building is completed (which will change currentBuildingKey)
+        // or until we can afford a building (which resets rewardsCheckedForBuilding above)
+        console.log(`[Reward] Already checked rewards for ${currentBuildingKey}, waiting for new building to complete...`);
         return 0;
     }
 
-    const allQuests = Quests.getAll();
-    let collected = 0;
+    console.log("[Reward] Can't afford building, attempting to collect rewards...");
 
-    Object.keys(allQuests).forEach(id => {
-        const quest = Quests.getQuest(id);
-        const data = quest.getData();
+    // Set flag to prevent building while collecting
+    isCollectingRewards = true;
 
-        // Quest must be finished and active (ready to collect)
-        if (data.finished && data.state === "active") {
-            const rewards = getQuestRewardResources(quest);
-            const hasResources = rewards.wood > 0 || rewards.stone > 0 || rewards.iron > 0;
+    // Step 1: Click on #new_quest to open the quest popup
+    const questButton = document.getElementById("new_quest");
+    if (!questButton) {
+        console.log("[Reward] Quest button (#new_quest) not found");
+        isCollectingRewards = false;
+        return 0;
+    }
 
-            // Only process quests with resource rewards
-            if (hasResources) {
-                // Check if it would overflow storage
-                if (wouldOverflowStorage(rewards)) {
-                    console.log(`[Quest] Skipping "${data.title}" - would overflow storage`);
-                    return;
-                }
+    questButton.click();
+    console.log("[Reward] Opened quest popup");
 
-                try {
-                    quest.complete();
-                    collected++;
-                    console.log(`[Quest] Collected: ${data.title} (+${rewards.wood}W, +${rewards.stone}S, +${rewards.iron}I)`);
+    // Step 2: Wait for popup to load, then click on Rewards tab
+    setTimeout(() => {
+        const rewardTab = document.querySelector('a.tab-link[data-tab="reward-tab"]');
+        if (!rewardTab) {
+            console.log("[Reward] Rewards tab not found");
+            closeRewardPopup();
+            isCollectingRewards = false;
+            // Mark that we checked for this building
+            rewardsCheckedForBuilding = currentBuildingKey;
+            return;
+        }
 
-                    // Handle popup after a delay
-                    setTimeout(() => closeQuestPopup(), 1000);
-                } catch (e) {
-                    console.error(`[Quest] Failed to collect ${id}:`, e);
-                }
-            }
+        rewardTab.click();
+        console.log("[Reward] Clicked on Rewards tab");
+
+        // Step 3: Wait for rewards to load, then collect
+        setTimeout(() => {
+            collectAvailableRewards(currentBuildingKey);
+        }, 200);
+    }, 250);
+
+    return 1; // Return 1 to indicate we started the process
+}
+
+function collectAvailableRewards(currentBuildingKey) {
+    // Find all claim buttons
+    const claimButtons = document.querySelectorAll(".reward-system-claim-button");
+
+    if (claimButtons.length === 0) {
+        console.log("[Reward] No rewards available to claim");
+        closeRewardPopup();
+        isCollectingRewards = false;
+        // Mark that we checked for this building - no need to check again until new building completes
+        rewardsCheckedForBuilding = currentBuildingKey;
+        console.log(`[Reward] Marked ${currentBuildingKey} as checked, will wait for new building`);
+        return 0;
+    }
+
+    console.log(`[Reward] Found ${claimButtons.length} reward(s) available`);
+
+    // First pass: identify which buttons we can click (no storage warning)
+    const buttonsToClick = [];
+    const buttonsToSkip = [];
+
+    claimButtons.forEach((btn, index) => {
+        const parentTd = btn.closest("td");
+        const warning = parentTd ? parentTd.querySelector(".small.warn") : null;
+
+        if (warning) {
+            buttonsToSkip.push(index + 1);
+            console.log(`[Reward] Will skip reward ${index + 1} - storage full warning`);
+        } else {
+            buttonsToClick.push({ btn, index: index + 1 });
         }
     });
 
-    return collected;
+    // If ALL rewards were skipped due to storage warning, mark as checked
+    if (buttonsToClick.length === 0) {
+        console.log("[Reward] All rewards skipped due to storage warnings");
+        closeRewardPopup();
+        isCollectingRewards = false;
+        rewardsCheckedForBuilding = currentBuildingKey;
+        console.log(`[Reward] Marked ${currentBuildingKey} as checked (all skipped), will wait for new building`);
+        return 0;
+    }
+
+    console.log(`[Reward] Will collect ${buttonsToClick.length} reward(s), skip ${buttonsToSkip.length}`);
+
+    // Second pass: click each collectable button with delay
+    buttonsToClick.forEach((item, clickIndex) => {
+        setTimeout(() => {
+            console.log(`[Reward] Collecting reward ${item.index}... (${clickIndex + 1}/${buttonsToClick.length})`);
+            item.btn.click();
+        }, clickIndex * 200); // 200ms between clicks
+    });
+
+    // Calculate total time: all clicks + buffer
+    const totalTime = buttonsToClick.length * 200 + 300;
+
+    // Close popup after collecting and clear flag
+    setTimeout(() => {
+        closeRewardPopup();
+        console.log(`[Reward] Finished! Collected ${buttonsToClick.length} reward(s), skipped ${buttonsToSkip.length}`);
+
+        // Clear the flag - building can resume
+        isCollectingRewards = false;
+        // Reset the checked flag since we collected rewards - might have more next time
+        rewardsCheckedForBuilding = null;
+        // No reload needed - DOM updates automatically, next processQueue() cycle will check resources
+    }, totalTime);
+
+    return buttonsToClick.length;
+}
+
+function closeRewardPopup() {
+    // Try to close the quest/reward popup
+    const closeBtn = document.querySelector(".popup_box_close, .popup_cross, [class*='close']");
+    if (closeBtn) {
+        closeBtn.click();
+        console.log("[Reward] Closed popup");
+    }
+
+    // Also try clicking outside or pressing escape
+    const overlay = document.querySelector(".fader, .popup_helper");
+    if (overlay) {
+        overlay.click();
+    }
 }
 
 function autoSolveQuests() {
@@ -911,6 +1049,7 @@ function processQueue() {
 
     // Check if we can build
     if (isBuilding) return;
+    if (isCollectingRewards) return; // Don't build while collecting rewards
     if (getQueueLength() >= getMaxQueueLength()) return;
 
     // Check if we need to force build farm due to low population
@@ -949,38 +1088,44 @@ function processQueue() {
     }
 
     const { step } = next;
+    const currentLevel = getBuildingLevel(step.building);
+    const queuedCount = getBuildingQueueCount(step.building);
+    const levelAfterQueue = currentLevel + queuedCount;
+
+    // Check if target will be reached after queue completes
+    if (levelAfterQueue >= step.level) {
+        console.log(`[Queue] ${BUILDINGS[step.building]} already queued to reach target (${currentLevel} + ${queuedCount} queued = ${levelAfterQueue} >= ${step.level})`);
+        // Target will be reached, move to next step
+        state.currentIndex++;
+        saveVillageState(state);
+        return; // Will check next step on next cycle
+    }
 
     // Check if we can afford it
     if (!canAfford(step.building)) {
         // Try to collect quest resources if enabled
         const settings = getSettings();
         if (settings.questCollectResources) {
-            const collected = collectQuestResources();
-            if (collected > 0) {
-                console.log(`[Quest] Collected ${collected} quest(s) for resources`);
-                // Check again after a short delay to allow resources to update
-                setTimeout(() => {
-                    if (canAfford(step.building)) {
-                        window.location.reload();
-                    }
-                }, 2000);
-            }
+            collectQuestResources();
+            // Don't reload here - let the reward collection complete
+            // The isCollectingRewards flag will prevent building during collection
+            // After collection completes, the next processQueue() cycle will handle building
         }
         return;
     }
 
     // Build it
     isBuilding = true;
-    console.log(`Building ${BUILDINGS[step.building]} to level ${step.level}`);
+    console.log(`Building ${BUILDINGS[step.building]} (${currentLevel} + ${queuedCount} queued → ${levelAfterQueue + 1}, target: ${step.level})`);
 
     setTimeout(() => {
         buildBuilding(step.building, (success) => {
             isBuilding = false;
             if (success) {
-                // Move to next step
-                const currentState = getVillageState();
-                currentState.currentIndex++;
-                saveVillageState(currentState);
+                // DON'T increment currentIndex here!
+                // The page will reload and getNextStep() will check if the building
+                // has reached the target level. If not, it will build again.
+                // Only when building level >= target level, getNextStep() will skip to next step.
 
                 // Reload after short delay
                 setTimeout(() => {
