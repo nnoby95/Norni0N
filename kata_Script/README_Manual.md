@@ -24,10 +24,11 @@ The script follows a strict priority order:
 | Priority | Target | Unit | Behavior |
 |----------|--------|------|----------|
 | 1 | **Wall** | Rams | Destroys wall to level 0 in ONE attack |
-| 2 | **Main (HQ)** | Catapults | Reduces to target level (default: 1) |
-| 3 | **Other buildings** | Catapults | Only checked when Wall=0 AND Main≤1 |
+| 2 | **Barracks** | Catapults | Reduces to level 0 (sent together with wall!) |
+| 3 | **Main (HQ)** | Catapults | Reduces to target level (default: 1) |
+| 4 | **Other buildings** | Catapults | Only checked when Wall=0 AND Barracks=0 AND Main≤1 |
 
-**Important:** Wall and Main are ALWAYS processed together in the same session. Other buildings (barracks, stable, etc.) are only attacked after Wall and Main are done.
+**Important:** Wall and Barracks are ALWAYS processed together in the same session. Main is only attacked when Wall=0 AND Barracks=0. Other buildings (stable, garage, etc.) are only attacked after Wall, Barracks and Main are done.
 
 #### Attack Mechanics
 
@@ -88,23 +89,32 @@ When AUTO is enabled:
 #### Scenario 1: Wall=10, Main=5, Barracks=3
 ```
 Wave 1: 45 rams → wall (10→0)
-Wave 2: 9 catapults → main (5→4)
-Wave 3: 8 catapults → main (4→3)
-Wave 4: 8 catapults → main (3→2)
-Wave 5: 7 catapults → main (2→1) + spy
+Wave 2: 2 catapults → barracks (3→2)
+Wave 3: 2 catapults → barracks (2→1)
+Wave 4: 2 catapults → barracks (1→0) + spy
 [DONE - Next report]
 ```
-Barracks is NOT attacked (will be handled on next spy report).
+Main is NOT attacked yet (will be handled on next spy report when wall=0 AND barracks=0).
 
-#### Scenario 2: Wall=0, Main=1, Barracks=3
+#### Scenario 2: Wall=0, Main=5, Barracks=0
+```
+Wave 1: 9 catapults → main (5→4)
+Wave 2: 8 catapults → main (4→3)
+Wave 3: 8 catapults → main (3→2)
+Wave 4: 7 catapults → main (2→1) + spy
+[DONE - Next report]
+```
+
+#### Scenario 3: Wall=0, Main=1, Barracks=3
 ```
 Wave 1: 2 catapults → barracks (3→2)
 Wave 2: 2 catapults → barracks (2→1)
 Wave 3: 2 catapults → barracks (1→0) + spy
 [DONE - Next report]
 ```
+Main is already at target level (1), so only barracks is attacked.
 
-#### Scenario 3: Wall=0, Main=1, Barracks=0
+#### Scenario 4: Wall=0, Main=1, Barracks=0
 ```
 No attack needed - move to next report
 ```
@@ -142,10 +152,11 @@ A script szigorú prioritási sorrendet követ:
 | Prioritás | Célpont | Egység | Viselkedés |
 |-----------|---------|--------|------------|
 | 1 | **Fal** | Faltörő | Lerombolja a falat 0 szintre EGY támadással |
-| 2 | **Főhadiszállás** | Katapult | Csökkenti a cél szintre (alapértelmezett: 1) |
-| 3 | **Többi épület** | Katapult | Csak ha Fal=0 ÉS Főhadi≤1 |
+| 2 | **Barakk** | Katapult | Csökkenti 0 szintre (együtt küldve a fallal!) |
+| 3 | **Főhadiszállás** | Katapult | Csökkenti a cél szintre (alapértelmezett: 1) |
+| 4 | **Többi épület** | Katapult | Csak ha Fal=0 ÉS Barakk=0 ÉS Főhadi≤1 |
 
-**Fontos:** A Fal és Főhadiszállás MINDIG együtt kerül feldolgozásra ugyanabban a munkamenetben. A többi épület (barakk, istálló, stb.) csak a Fal és Főhadi után támadható.
+**Fontos:** A Fal és Barakk MINDIG együtt kerül feldolgozásra ugyanabban a munkamenetben. A Főhadiszállás csak akkor támadható, ha Fal=0 ÉS Barakk=0. A többi épület (istálló, műhely, stb.) csak a Fal, Barakk és Főhadi után támadható.
 
 #### Támadási Mechanika
 
@@ -206,23 +217,32 @@ Amikor az AUTO engedélyezve van:
 #### 1. Forgatókönyv: Fal=10, Főhadi=5, Barakk=3
 ```
 1. hullám: 45 faltörő → fal (10→0)
-2. hullám: 9 katapult → főhadi (5→4)
-3. hullám: 8 katapult → főhadi (4→3)
-4. hullám: 8 katapult → főhadi (3→2)
-5. hullám: 7 katapult → főhadi (2→1) + kém
+2. hullám: 2 katapult → barakk (3→2)
+3. hullám: 2 katapult → barakk (2→1)
+4. hullám: 2 katapult → barakk (1→0) + kém
 [KÉSZ - Következő jelentés]
 ```
-A barakk NEM kerül támadásra (következő kémjelentésnél lesz kezelve).
+A főhadi MÉG NEM kerül támadásra (következő kémjelentésnél lesz kezelve, amikor fal=0 ÉS barakk=0).
 
-#### 2. Forgatókönyv: Fal=0, Főhadi=1, Barakk=3
+#### 2. Forgatókönyv: Fal=0, Főhadi=5, Barakk=0
+```
+1. hullám: 9 katapult → főhadi (5→4)
+2. hullám: 8 katapult → főhadi (4→3)
+3. hullám: 8 katapult → főhadi (3→2)
+4. hullám: 7 katapult → főhadi (2→1) + kém
+[KÉSZ - Következő jelentés]
+```
+
+#### 3. Forgatókönyv: Fal=0, Főhadi=1, Barakk=3
 ```
 1. hullám: 2 katapult → barakk (3→2)
 2. hullám: 2 katapult → barakk (2→1)
 3. hullám: 2 katapult → barakk (1→0) + kém
 [KÉSZ - Következő jelentés]
 ```
+A főhadi már a cél szinten van (1), így csak a barakk kerül támadásra.
 
-#### 3. Forgatókönyv: Fal=0, Főhadi=1, Barakk=0
+#### 4. Forgatókönyv: Fal=0, Főhadi=1, Barakk=0
 ```
 Nincs szükséges támadás - következő jelentésre lép
 ```
