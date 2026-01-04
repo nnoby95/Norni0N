@@ -21,8 +21,8 @@
         wallTargetLevel: 0,
         buildingTargetLevel: 1,
 
-        // Building priority for catapult targeting (main is most important!)
-        buildingPriority: ['main', 'barracks', 'stable', 'garage', 'wall', 'smith', 'market'],
+        // Building priority for catapult targeting (wall->barracks->main)
+        buildingPriority: ['barracks', 'main', 'stable', 'garage', 'wall', 'smith', 'market'],
 
         // Maximum levels - target buildings above these levels
         // Main stays at 1, everything else goes to 0
@@ -617,7 +617,32 @@
                 log('Wall attack added to queue');
             }
 
-            // PRIORITY 2: Check MAIN building (sent together with wall!)
+            // PRIORITY 2: Check BARRACKS (sent together with wall!)
+            const barracksLevel = levels.barracks || 0;
+            const barracksMaxLevel = CONFIG.maxLevels.barracks || 0;
+            if (barracksLevel > barracksMaxLevel) {
+                const attack = SiegeCalculator.calculateSingleAttack('barracks', barracksLevel);
+                const waveInfo = SiegeCalculator.calculateTotalWaves('barracks', barracksLevel, barracksMaxLevel);
+                result.attacks.push({
+                    type: 'catapult',
+                    target: 'barracks',
+                    currentLevel: barracksLevel,
+                    targetLevel: attack.targetLevel,
+                    finalTargetLevel: barracksMaxLevel,
+                    unitsNeeded: { catapult: attack.unitsNeeded, ...CONFIG.catapultEscort },
+                    wavesRemaining: waveInfo.waves,
+                    totalUnitsForAll: waveInfo.totalUnits
+                });
+                log('Barracks attack added to queue');
+            }
+
+            // If wall OR barracks need attacks, return now (don't check main yet!)
+            if (result.attacks.length > 0) {
+                log('Wall/Barracks attacks queued - main waits for next report');
+                return result;
+            }
+
+            // PRIORITY 3: Check MAIN (only when wall=0 AND barracks=0)
             const mainLevel = levels.main || 0;
             const mainMaxLevel = CONFIG.maxLevels.main || 0;
             if (mainLevel > mainMaxLevel) {
@@ -634,17 +659,12 @@
                     totalUnitsForAll: waveInfo.totalUnits
                 });
                 log('Main attack added to queue');
-            }
-
-            // If wall OR main need attacks, return now (don't check other buildings!)
-            if (result.attacks.length > 0) {
-                log('Wall/Main attacks queued - other buildings wait for next report');
                 return result;
             }
 
-            // PRIORITY 3: Only check other buildings when wall=0 AND main<=maxLevel
+            // PRIORITY 4: Check other buildings when wall=0 AND barracks=0 AND main<=1
             for (const building of CONFIG.buildingPriority) {
-                if (building === 'wall' || building === 'main') continue; // Already handled above
+                if (building === 'wall' || building === 'barracks' || building === 'main') continue; // Already handled above
 
                 const currentLevel = levels[building] || 0;
                 const maxLevel = CONFIG.maxLevels[building] || 0;
