@@ -77,7 +77,11 @@
         // Auto settings
         autoAdvanceReport: true,
         autoAttack: false,
-        debug: true
+        debug: true,
+
+        // Spirit mode: Send all building attacks in one batch (wall → barracks → main → others)
+        // Default mode: Send one building type per report
+        spiritMode: false
     };
 
     // Building name translations (Hungarian/English/German)
@@ -597,6 +601,9 @@
                 attacks: []
             };
 
+            // SPIRIT MODE: Collect ALL buildings in one batch
+            // DEFAULT MODE: Prioritize one building type at a time
+
             // PRIORITY 1: Check if wall needs rams
             // WALL: Breaks to 0 in ONE attack (not waves like catapults!)
             const wallLevel = levels.wall || 0;
@@ -617,7 +624,7 @@
                 log('Wall attack added to queue');
             }
 
-            // PRIORITY 2: Check BARRACKS (sent together with wall!)
+            // PRIORITY 2: Check BARRACKS
             const barracksLevel = levels.barracks || 0;
             const barracksMaxLevel = CONFIG.maxLevels.barracks || 0;
             if (barracksLevel > barracksMaxLevel) {
@@ -636,13 +643,13 @@
                 log('Barracks attack added to queue');
             }
 
-            // If wall OR barracks need attacks, return now (don't check main yet!)
-            if (result.attacks.length > 0) {
-                log('Wall/Barracks attacks queued - main waits for next report');
+            // DEFAULT MODE: If wall OR barracks need attacks, return now (don't check main yet!)
+            if (!CONFIG.spiritMode && result.attacks.length > 0) {
+                log('DEFAULT MODE: Wall/Barracks attacks queued - main waits for next report');
                 return result;
             }
 
-            // PRIORITY 3: Check MAIN (only when wall=0 AND barracks=0)
+            // PRIORITY 3: Check MAIN
             const mainLevel = levels.main || 0;
             const mainMaxLevel = CONFIG.maxLevels.main || 0;
             if (mainLevel > mainMaxLevel) {
@@ -659,10 +666,14 @@
                     totalUnitsForAll: waveInfo.totalUnits
                 });
                 log('Main attack added to queue');
-                return result;
+
+                // DEFAULT MODE: Return after adding main
+                if (!CONFIG.spiritMode) {
+                    return result;
+                }
             }
 
-            // PRIORITY 4: Check other buildings when wall=0 AND barracks=0 AND main<=1
+            // PRIORITY 4: Check other buildings
             for (const building of CONFIG.buildingPriority) {
                 if (building === 'wall' || building === 'barracks' || building === 'main') continue; // Already handled above
 
@@ -682,8 +693,12 @@
                         wavesRemaining: waveInfo.waves,
                         totalUnitsForAll: waveInfo.totalUnits
                     });
-                    // Only target one building at a time
-                    break;
+
+                    // DEFAULT MODE: Only target one building at a time
+                    // SPIRIT MODE: Continue adding all buildings
+                    if (!CONFIG.spiritMode) {
+                        break;
+                    }
                 }
             }
 
@@ -712,6 +727,8 @@
         },
 
         // Send attack via worker
+        // DEFAULT MODE: Process one building at a time (attacks[0])
+        // SPIRIT MODE: Process ALL buildings in one batch
         // WALL: ONE wave with all rams to break to 0
         // BUILDING: Multiple waves (1 level per wave, spy only on last)
         sendAttack: async function(attackInfo) {
@@ -720,53 +737,80 @@
                 return false;
             }
 
-            const attack = attackInfo.attacks[0]; // Process one target at a time
             const waves = [];
+            let targetBuilding = '';
+            let attackType = '';
 
-            if (attack.type === 'ram') {
-                // WALL: ONE wave with all rams to break to 0
-                const wallTemplate = getWallTemplate(attack.currentLevel);
-                // Ram count comes from template (customizable!)
-                const ramsNeeded = wallTemplate.ram || SiegeCalculator.ramsToBreakWall(attack.currentLevel);
+            // SPIRIT MODE: Process ALL attacks
+            // DEFAULT MODE: Process only attacks[0]
+            const attacksToProcess = CONFIG.spiritMode ? attackInfo.attacks : [attackInfo.attacks[0]];
 
-                waves.push({
-                    waveNumber: 1,
-                    fromLevel: attack.currentLevel,
-                    toLevel: 0,
-                    units: {
-                        ram: ramsNeeded,
-                        axe: wallTemplate.axe || 0,
-                        spy: wallTemplate.spy || 0
-                    }
-                });
+            for (const attack of attacksToProcess) {
+                // Track the type for the instruction (use first attack's type, or 'mixed' if different)
+                if (!attackType) {
+                    attackType = attack.type;
+                    targetBuilding = attack.target;
+                } else if (CONFIG.spiritMode) {
+                    attackType = 'mixed';
+                    targetBuilding = 'multiple';
+                }
 
-                log(`Wall attack: ${attack.currentLevel} → 0 with ${ramsNeeded} rams (ONE wave)`);
-
-            } else {
-                // BUILDING: Multiple waves (1 level per wave)
-                let currentLevel = attack.currentLevel;
-                const targetLevel = attack.finalTargetLevel || 1;
-
-                while (currentLevel > targetLevel) {
-                    const waveAttack = SiegeCalculator.calculateSingleAttack(attack.target, currentLevel);
-                    const escort = { ...CONFIG.catapultEscort };
-
-                    // Only send spy on the LAST wave
-                    const isLastWave = (currentLevel - 1) === targetLevel;
-                    if (!isLastWave) {
-                        escort.spy = 0;
-                    }
+                if (attack.type === 'ram') {
+                    // WALL: ONE wave with all rams to break to 0
+                    const wallTemplate = getWallTemplate(attack.currentLevel);
+                    // Ram count comes from template (customizable!)
+                    const ramsNeeded = wallTemplate.ram || SiegeCalculator.ramsToBreakWall(attack.currentLevel);
 
                     waves.push({
                         waveNumber: waves.length + 1,
-                        fromLevel: currentLevel,
-                        toLevel: currentLevel - 1,
-                        units: { catapult: waveAttack.unitsNeeded, ...escort }
+                        fromLevel: attack.currentLevel,
+                        toLevel: 0,
+                        targetBuilding: 'wall',
+                        units: {
+                            ram: ramsNeeded,
+                            axe: wallTemplate.axe || 0,
+                            spy: wallTemplate.spy || 0
+                        }
                     });
-                    currentLevel--;
-                }
 
-                log(`Building attack: ${attack.target} ${attack.currentLevel} → ${targetLevel} (${waves.length} waves)`);
+                    log(`Wall attack: ${attack.currentLevel} → 0 with ${ramsNeeded} rams (ONE wave)`);
+
+                } else {
+                    // BUILDING: Multiple waves (1 level per wave)
+                    let currentLevel = attack.currentLevel;
+                    // Use nullish coalescing to handle finalTargetLevel = 0 correctly
+                    const targetLevel = attack.finalTargetLevel ?? 1;
+
+                    while (currentLevel > targetLevel) {
+                        const waveAttack = SiegeCalculator.calculateSingleAttack(attack.target, currentLevel);
+                        const escort = { ...CONFIG.catapultEscort };
+
+                        // In SPIRIT MODE: Only send spy on the LAST wave of ALL attacks
+                        // In DEFAULT MODE: Only send spy on the LAST wave of this building
+                        const isLastWaveOfThisBuilding = (currentLevel - 1) === targetLevel;
+                        const isLastAttack = attack === attacksToProcess[attacksToProcess.length - 1];
+                        const isLastWave = isLastWaveOfThisBuilding && isLastAttack;
+
+                        if (!isLastWave) {
+                            escort.spy = 0;
+                        }
+
+                        waves.push({
+                            waveNumber: waves.length + 1,
+                            fromLevel: currentLevel,
+                            toLevel: currentLevel - 1,
+                            targetBuilding: attack.target,
+                            units: { catapult: waveAttack.unitsNeeded, ...escort }
+                        });
+                        currentLevel--;
+                    }
+
+                    log(`Building attack: ${attack.target} ${attack.currentLevel} → ${targetLevel} (${attack.currentLevel - targetLevel} waves)`);
+                }
+            }
+
+            if (CONFIG.spiritMode && attacksToProcess.length > 1) {
+                log(`SPIRIT MODE: Combined ${attacksToProcess.length} buildings into ${waves.length} total waves`);
             }
 
             // Prepare instruction with ALL waves
@@ -774,8 +818,8 @@
                 action: 'attack',
                 coordinate: attackInfo.coordinate,
                 villageId: attackInfo.villageId,
-                attackType: attack.type,
-                targetBuilding: attack.target,
+                attackType: attackType,
+                targetBuilding: targetBuilding,
                 totalWaves: waves.length,
                 waves: waves,
                 currentWave: 1
@@ -789,8 +833,8 @@
             Communication.setWaveState({
                 villageId: attackInfo.villageId,
                 coordinate: attackInfo.coordinate,
-                targetBuilding: attack.target,
-                attackType: attack.type,
+                targetBuilding: targetBuilding,
+                attackType: attackType,
                 currentWave: 1,
                 totalWaves: waves.length,
                 waves: waves
@@ -864,9 +908,30 @@
                 if (typeof UI !== 'undefined') {
                     UI.SuccessMessage(`Támadás elküldve: ${data.coordinate || ''}${waveInfo}`);
                 }
+
+                // Update button state to show completion
+                const btn = document.getElementById('report_catapult_attack_btn');
+                if (btn) {
+                    btn.value = 'Kész!';
+                    btn.disabled = false;
+                    // Re-enable after a short delay
+                    setTimeout(() => {
+                        if (btn) {
+                            btn.value = 'Támadás küldése';
+                        }
+                    }, 2000);
+                }
+
                 // Continue AUTO workflow
                 if (CONFIG.autoAttack) {
-                    this.goToNextReport();
+                    setTimeout(() => {
+                        // Check again in case user disabled AUTO during the delay
+                        if (CONFIG.autoAttack) {
+                            this.goToNextReport();
+                        } else {
+                            log('AUTO mode was disabled, stopping workflow');
+                        }
+                    }, 1500);
                 }
             } else if (data.action === 'attack_failed') {
                 // Show detailed message for not enough troops
@@ -875,10 +940,29 @@
                     UI.ErrorMessage(message);
                 }
 
+                // Re-enable button
+                const btn = document.getElementById('report_catapult_attack_btn');
+                if (btn) {
+                    btn.value = 'Hiba!';
+                    btn.disabled = false;
+                    setTimeout(() => {
+                        if (btn) {
+                            btn.value = 'Támadás küldése';
+                        }
+                    }, 2000);
+                }
+
                 // If not enough troops, still move to next report in auto mode
                 // (can't attack this village now)
                 if (CONFIG.autoAttack) {
-                    this.goToNextReport();
+                    setTimeout(() => {
+                        // Check again in case user disabled AUTO during the delay
+                        if (CONFIG.autoAttack) {
+                            this.goToNextReport();
+                        } else {
+                            log('AUTO mode was disabled, stopping workflow');
+                        }
+                    }, 1500);
                 }
             }
         },
@@ -960,9 +1044,16 @@
             panel.className = 'vis';
             panel.style.cssText = 'width: 100%; margin: 10px 0; border: 1px solid #DED3B9;';
 
+            // Mode indicator
+            const modeText = CONFIG.spiritMode ? 'Spirit Mód' : 'Normál Mód';
+            const modeColor = CONFIG.spiritMode ? '#ff9800' : '#2196f3';
+
             panel.innerHTML = `
                 <tr>
-                    <th style="text-align: left;">Katapult / Faltörő Támadás</th>
+                    <th style="text-align: left;">
+                        Katapult / Faltörő Támadás
+                        <span style="float: right; font-size: 11px; padding: 2px 6px; background: ${modeColor}; color: white; border-radius: 3px;">${modeText}</span>
+                    </th>
                 </tr>
                 <tr>
                     <td id="report_catapult_status" class="report_catapult_${statusClass}" style="padding: 6px;">
@@ -975,7 +1066,7 @@
                             style="margin: 2px;" ${attackInfo ? '' : 'disabled'}>
                         <input type="button" id="report_catapult_next_btn" class="btn" value="Következő" style="margin: 2px;">
                         <input type="button" id="report_catapult_settings_btn" class="btn" value="Beállítások" style="margin: 2px;">
-                        <input type="button" id="report_catapult_auto_btn" class="btn ${CONFIG.autoAttack ? 'btn-confirm-yes' : ''}" 
+                        <input type="button" id="report_catapult_auto_btn" class="btn ${CONFIG.autoAttack ? 'btn-confirm-yes' : ''}"
                             value="${CONFIG.autoAttack ? 'AUTO ON' : 'AUTO OFF'}" style="margin: 2px;">
                     </td>
                 </tr>
@@ -1069,7 +1160,8 @@
                 return;
             }
 
-            log('Running AUTO workflow...');
+            const mode = CONFIG.spiritMode ? 'SPIRIT' : 'DEFAULT';
+            log(`Running AUTO workflow in ${mode} mode...`);
 
             // Step 1: Check if we're on a report page
             if (!window.location.href.includes('screen=report') || !window.location.href.includes('view=')) {
@@ -1104,15 +1196,15 @@
             }
 
             // Step 6: Send the attack
-            log('Attack needed, sending...');
+            log(`Attack needed, sending ${analysis.attacks.length} building(s) in ${mode} mode...`);
             const attackSent = await this.sendAttack(analysis);
 
             if (!attackSent) {
                 log('Attack failed to send, moving to next');
                 await this.goToNextReport();
             }
-            // If attack was sent, the worker will notify us when done
-            // and handleWorkerMessage will call goToNextReport
+            // If attack was sent, the worker will notify us when ALL waves are done
+            // processWorkerNotification will then call goToNextReport
         },
 
         // Navigate to next report with short delay
@@ -1169,10 +1261,11 @@
             const currentWaveIdx = waveState.currentWave - 1;
             if (currentWaveIdx >= waveState.waves.length) return null;
 
+            // Each wave has its own targetBuilding - don't overwrite it!
+            const wave = waveState.waves[currentWaveIdx];
             return {
-                ...waveState.waves[currentWaveIdx],
+                ...wave,
                 coordinate: waveState.coordinate,
-                targetBuilding: waveState.targetBuilding,
                 attackType: waveState.attackType,
                 villageId: waveState.villageId,
                 currentWave: waveState.currentWave,
@@ -1665,6 +1758,10 @@
                     <tr>
                         <td style="padding: 6px; background-color: #fff5da;">
                             <label style="display: block; margin-bottom: 5px; cursor: pointer;">
+                                <input type="checkbox" id="spirit_mode" ${CONFIG.spiritMode ? 'checked' : ''}>
+                                <strong>Spirit Mód</strong> - Minden épület egy jelentésből (fal → barakk → main → egyéb)
+                            </label>
+                            <label style="display: block; margin-bottom: 5px; cursor: pointer;">
                                 <input type="checkbox" id="auto_advance" ${CONFIG.autoAdvanceReport ? 'checked' : ''}>
                                 Automatikus következő jelentés
                             </label>
@@ -1725,6 +1822,7 @@
         CONFIG.reportDelayMax = parseInt(document.getElementById('report_delay_max').value, 10) || 1200;
 
         // Update checkboxes
+        CONFIG.spiritMode = document.getElementById('spirit_mode').checked;
         CONFIG.autoAdvanceReport = document.getElementById('auto_advance').checked;
         CONFIG.debug = document.getElementById('debug_mode').checked;
 
