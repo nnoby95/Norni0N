@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tribal Wars Bot Helper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 280px;
+            min-height: 200px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: linear-gradient(180deg, #d4b896 0%, #c4a882 50%, #b89b6e 100%);
+            color: #3d2914;
+            border: 4px solid #5c3d1e;
+            border-radius: 3px;
+            box-shadow:
+                inset 0 0 20px rgba(0,0,0,0.1),
+                0 0 0 2px #8b6914,
+                0 0 0 4px #5c3d1e;
+        }
+
+        /* Header - Wood beam style */
+        .header {
+            background: linear-gradient(180deg, #6b4423 0%, #4a2f17 50%, #3d2410 100%);
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 3px solid #8b6914;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            color: #f4d9a0;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            letter-spacing: 1px;
+        }
+
+        .header .subtitle {
+            color: #c4a060;
+            font-size: 11px;
+            margin-top: 3px;
+            font-style: italic;
+        }
+
+        /* Content area - Parchment style */
+        .content {
+            padding: 20px;
+            background:
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(139, 105, 20, 0.03) 2px,
+                    rgba(139, 105, 20, 0.03) 4px
+                );
+        }
+
+        /* Toggle container */
+        .toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Large toggle button */
+        .toggle-btn {
+            width: 140px;
+            height: 60px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Georgia', serif;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .toggle-btn.on {
+            background: linear-gradient(180deg, #4a7c31 0%, #3d6628 50%, #2d4d1e 100%);
+            color: #d4f0c4;
+            border: 3px solid #6ba34a;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 3px 6px rgba(0,0,0,0.3),
+                0 0 10px rgba(74, 124, 49, 0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .toggle-btn.on:hover {
+            background: linear-gradient(180deg, #5a8c41 0%, #4d7638 50%, #3d5d2e 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 3px 8px rgba(0,0,0,0.4),
+                0 0 15px rgba(74, 124, 49, 0.4);
+        }
+
+        .toggle-btn.off {
+            background: linear-gradient(180deg, #8b4513 0%, #723a0f 50%, #5c2d0c 100%);
+            color: #f0d4c4;
+            border: 3px solid #a65c2a;
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                0 3px 6px rgba(0,0,0,0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .toggle-btn.off:hover {
+            background: linear-gradient(180deg, #9b5523 0%, #824a1f 50%, #6c3d1c 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                0 3px 8px rgba(0,0,0,0.4);
+        }
+
+        .toggle-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Settings */
+        .settings {
+            background: rgba(61, 41, 20, 0.1);
+            border: 2px solid #8b6914;
+            border-radius: 5px;
+            padding: 12px 15px;
+            width: 100%;
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-label {
+            font-size: 12px;
+            color: #3d2914;
+            font-weight: bold;
+        }
+
+        .setting-select {
+            background: linear-gradient(180deg, #f5deb3 0%, #deb887 100%);
+            border: 2px solid #8b6914;
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-family: 'Georgia', serif;
+            font-size: 12px;
+            color: #3d2914;
+            cursor: pointer;
+        }
+
+        .setting-select:focus {
+            outline: none;
+            border-color: #6b4423;
+        }
+
+        /* Status display */
+        .status {
+            background: rgba(61, 41, 20, 0.1);
+            border: 2px solid #8b6914;
+            border-radius: 5px;
+            padding: 10px 15px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 11px;
+            color: #6b4423;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .status-text {
+            font-size: 13px;
+            font-weight: bold;
+            color: #3d2914;
+        }
+
+        .status-text.active {
+            color: #3d6628;
+        }
+
+        .status-text.inactive {
+            color: #8b4513;
+        }
+
+        /* Footer */
+        .footer {
+            background: linear-gradient(180deg, #5c3d1e 0%, #4a2f17 100%);
+            padding: 8px;
+            text-align: center;
+            border-top: 2px solid #8b6914;
+        }
+
+        .footer-text {
+            color: #c4a060;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Tribal Wars Bot Helper</h1>
+        <div class="subtitle">Auto-click bot protection</div>
+    </div>
+
+    <div class="content">
+        <div class="toggle-container">
+            <button id="toggle-btn" class="toggle-btn on">ON</button>
+
+            <div class="settings">
+                <div class="setting-row">
+                    <span class="setting-label">Check interval:</span>
+                    <select id="interval-select" class="setting-select">
+                        <option value="250">250ms (Fast)</option>
+                        <option value="500">500ms</option>
+                        <option value="1000" selected>1000ms (Default)</option>
+                        <option value="2000">2000ms</option>
+                        <option value="3000">3000ms (Slow)</option>
+                    </select>
+                </div>
+                <div class="setting-row" style="margin-top: 10px;">
+                    <span class="setting-label">Console logs:</span>
+                    <select id="logs-select" class="setting-select">
+                        <option value="true">Enabled</option>
+                        <option value="false" selected>Disabled</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="status">
+                <div class="status-label">Status</div>
+                <div id="status-text" class="status-text active">Detecting...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-text">v2.0 - Clicks "I am human" automatically</div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

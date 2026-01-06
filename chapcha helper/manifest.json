@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Tribal Wars Bot Helper",
+  "version": "2.0.0",
+  "description": "Automatically clicks 'I am human' checkbox for bot protection in Tribal Wars",
+
+  "permissions": [
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://*.tribalwars.net/*",
+    "https://*.klanhaboru.hu/*",
+    "https://hcaptcha.com/*",
+    "https://*.hcaptcha.com/*"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.tribalwars.net/game.php*",
+        "https://*.klanhaboru.hu/game.php*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://newassets.hcaptcha.com/*",
+        "https://*.hcaptcha.com/*"
+      ],
+      "js": ["hcaptcha-iframe.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Tribal Wars Bot Helper"
+  }
+}
