@@ -5657,6 +5657,119 @@ function szem4_EPITO_csopDelete(ezt){try{
 	}
 }catch(e){alert2("Hiba:\n"+e);}}
 
+/* Import villages from overview_villages page */
+var EPIT_IMPORT_REF = null;
+
+function szem4_EPITO_importFromOverview() {
+	try {
+		// Open the overview_villages page
+		const overviewUrl = VILL1ST.replace(/screen=[^&]+/, 'screen=overview_villages').replace(/&intro.*$/, '');
+		EPIT_IMPORT_REF = window.open(overviewUrl, '_blank', 'width=1000,height=600');
+
+		if (!EPIT_IMPORT_REF) {
+			alert2('❌ Nem sikerült megnyitni az áttekintő oldalt! / Could not open overview page!\n\nEngedélyezd a popup ablakokat! / Allow popups!');
+			return;
+		}
+
+		naplo("Építő", "📥 Import: Falu áttekintő megnyitva... / Village overview opened...");
+
+		// Wait for page to load, then parse villages
+		let checkCount = 0;
+		const maxChecks = 30; // 15 seconds max
+
+		const checkInterval = setInterval(() => {
+			checkCount++;
+			try {
+				if (EPIT_IMPORT_REF.closed) {
+					clearInterval(checkInterval);
+					debug('szem4_EPITO_importFromOverview', 'Import window was closed by user');
+					return;
+				}
+
+				// Check if page is loaded
+				if (EPIT_IMPORT_REF.document && EPIT_IMPORT_REF.document.readyState === 'complete') {
+					const villageRows = EPIT_IMPORT_REF.document.querySelectorAll('#combined_table tbody tr, #production_table tbody tr');
+
+					if (villageRows.length > 0) {
+						clearInterval(checkInterval);
+						szem4_EPITO_parseImportedVillages(villageRows);
+						return;
+					}
+				}
+
+				if (checkCount >= maxChecks) {
+					clearInterval(checkInterval);
+					alert2('❌ Időtúllépés! / Timeout!\n\nAz oldal nem töltődött be időben. / Page did not load in time.');
+					if (EPIT_IMPORT_REF && !EPIT_IMPORT_REF.closed) EPIT_IMPORT_REF.close();
+				}
+			} catch(e) {
+				// Cross-origin or other error - keep trying
+				if (checkCount >= maxChecks) {
+					clearInterval(checkInterval);
+					debug('szem4_EPITO_importFromOverview', `Import error after ${checkCount} checks: ${e}`);
+				}
+			}
+		}, 500);
+
+	} catch(e) {
+		alert2('❌ Import hiba / Import error:\n' + e);
+		debug('szem4_EPITO_importFromOverview', e);
+	}
+}
+
+function szem4_EPITO_parseImportedVillages(rows) {
+	try {
+		let importedCoords = [];
+		let importedCount = 0;
+
+		for (const row of rows) {
+			try {
+				// Find the village link/span with coordinates
+				// Format: "villagename (XXX|YYY) K##"
+				const villageCell = row.querySelector('td:first-child');
+				if (!villageCell) continue;
+
+				const cellText = villageCell.textContent;
+				const coordMatch = cellText.match(/\((\d{1,3}\|\d{1,3})\)/);
+
+				if (coordMatch && coordMatch[1]) {
+					importedCoords.push(coordMatch[1]);
+					importedCount++;
+				}
+			} catch(e) {
+				// Skip invalid rows
+			}
+		}
+
+		if (importedCount === 0) {
+			alert2('❌ Nem találtam falukat! / No villages found!');
+			if (EPIT_IMPORT_REF && !EPIT_IMPORT_REF.closed) EPIT_IMPORT_REF.close();
+			return;
+		}
+
+		// Close the import window
+		if (EPIT_IMPORT_REF && !EPIT_IMPORT_REF.closed) EPIT_IMPORT_REF.close();
+
+		// Put coordinates into input field
+		const adat = document.getElementById("epit_ujfalu_adat");
+		if (adat) {
+			const input = adat.getElementsByTagName("input")[0];
+			if (input) {
+				input.value = importedCoords.join(' ');
+			}
+		}
+
+		naplo("Építő", `📥 Import: ${importedCount} falu koordináta beolvasva! / ${importedCount} village coordinates imported!`);
+		alert2(`✅ ${importedCount} falu koordináta beolvasva!\n${importedCount} village coordinates imported!\n\nKattints az "Új falu(k)" gombra a hozzáadáshoz!\nClick "Új falu(k)" to add them!`);
+
+		debug('szem4_EPITO_parseImportedVillages', `Imported ${importedCount} villages: ${importedCoords.join(', ')}`);
+
+	} catch(e) {
+		alert2('❌ Feldolgozási hiba / Parse error:\n' + e);
+		debug('szem4_EPITO_parseImportedVillages', e);
+	}
+}
+
 function szem4_EPITO_ujFalu() {
 	try {
 		var adat = document.getElementById("epit_ujfalu_adat");
@@ -5991,7 +6104,28 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	if (buildList === '') buildList = ';';
 	buildList=buildList.split(";");
 	buildList.pop();
-	
+
+	/* Auto-Finish Check - Click free instant complete button if <=2:59 remaining */
+	if (EPIT_AUTO_FINISH.enabled && firstBuildTime > 0 && firstBuildTime <= 3) {
+		try {
+			const freeFinishBtn = EPIT_REF.document.querySelector('a.btn-instant-free');
+			if (freeFinishBtn) {
+				debug('szem4_EPITO_IntettiBuild', `Auto-Finish: Found free finish button! Time remaining: ${firstBuildTime} min`);
+				naplo("Építő", `⚡ Auto-Finish: ${EPIT_REF.game_data.village.name} - Ingyenes befejezés (${firstBuildTime} perc)`);
+				szem4_EPITO_infoCell(PMEP[2], "alap", `⚡ Auto-Finish: Ingyenes befejezés... / Free instant complete...`);
+				freeFinishBtn.click();
+				// Set short return time to recheck after the instant complete
+				szem4_EPITO_addIdo(PMEP[2], 0.2); // ~12 seconds
+				debug('szem4_EPITO_IntettiBuild', 'Auto-Finish: Button clicked, returning to let page refresh');
+				return;
+			} else {
+				debug('szem4_EPITO_IntettiBuild', `Auto-Finish: No free button found (time: ${firstBuildTime} min) - button may not be available yet`);
+			}
+		} catch(e) {
+			debug('szem4_EPITO_IntettiBuild', `Auto-Finish error: ${e}`);
+		}
+	}
+
 	// Check premium status for queue size limit (multiple detection methods)
 	let isPremiumUser = false;
 	try {
@@ -6040,32 +6174,62 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 		currentBuildLvls[buildList[i]]++;
 	}
 
-	/* Következő építendő épület meghatározása */
-	var nextToBuild = '';
-	var buildOrderArr=buildOrder.split(";");
-	for (var i=0;i<buildOrderArr.length;i++) {
-		let cel = buildOrderArr[i].split(' ');
-		cel[1] = parseInt(cel[1]);
-		if (cel[0] == 'MINES') {
-			let smallest = 31;
-			if (currentBuildLvls['wood'] < cel[1]) {
-				smallest = currentBuildLvls['wood'];
-				nextToBuild = 'wood';
+	/* Force Farm Check - Override build order if population is low */
+	let forceFarmTriggered = false;
+	if (EPIT_FORCE_FARM.enabled) {
+		const popMax = EPIT_REF.game_data.village.pop_max;
+		const popUsed = EPIT_REF.game_data.village.pop;
+		const popFree = popMax - popUsed;
+		const freePercent = (popFree / popMax) * 100;
+
+		if (freePercent < EPIT_FORCE_FARM.threshold) {
+			// Check edge cases before forcing farm
+			if (currentBuildLvls['farm'] >= 30) {
+				// Farm is maxed - can't force, show warning and continue with normal build
+				debug('szem4_EPITO_IntettiBuild', `Force Farm: SKIP - Farm already at max level 30. Free pop: ${freePercent.toFixed(1)}%`);
+				naplo("Építő", `⚠️ Force Farm: Tanya MAX (30)! Szabad: ${popFree}/${popMax} (${freePercent.toFixed(1)}%)`);
+			} else if (buildList.includes('farm')) {
+				// Farm already in queue - skip forcing
+				debug('szem4_EPITO_IntettiBuild', `Force Farm: SKIP - Farm already in build queue. Free pop: ${freePercent.toFixed(1)}%`);
+			} else {
+				// Force farm build!
+				forceFarmTriggered = true;
+				debug('szem4_EPITO_IntettiBuild', `Force Farm: TRIGGERED! Free pop: ${popFree}/${popMax} (${freePercent.toFixed(1)}%) < ${EPIT_FORCE_FARM.threshold}%`);
+				naplo("Építő", `🌾 Force Farm: ${EPIT_REF.game_data.village.name} - Szabad: ${popFree}/${popMax} (${freePercent.toFixed(1)}%)`);
 			}
-			if (currentBuildLvls['stone'] < cel[1] && currentBuildLvls['stone'] < smallest) {
-				smallest = currentBuildLvls['stone'];
-				nextToBuild = 'stone';
-			}
-			if (currentBuildLvls['iron'] < cel[1] && currentBuildLvls['iron'] < smallest) {
-				smallest = currentBuildLvls['iron'];
-				nextToBuild = 'iron';
-			}
-			if (nextToBuild != '') break;
 		}
-		// TODO: FASTEST
-		if (currentBuildLvls[cel[0]] < cel[1]) {
-			nextToBuild = cel[0];
-			break;
+	}
+
+	/* Következő építendő épület meghatározása */
+	var nextToBuild = forceFarmTriggered ? 'farm' : '';
+
+	/* Only process build order if force farm didn't trigger */
+	if (!forceFarmTriggered) {
+		var buildOrderArr=buildOrder.split(";");
+		for (var i=0;i<buildOrderArr.length;i++) {
+			let cel = buildOrderArr[i].split(' ');
+			cel[1] = parseInt(cel[1]);
+			if (cel[0] == 'MINES') {
+				let smallest = 31;
+				if (currentBuildLvls['wood'] < cel[1]) {
+					smallest = currentBuildLvls['wood'];
+					nextToBuild = 'wood';
+				}
+				if (currentBuildLvls['stone'] < cel[1] && currentBuildLvls['stone'] < smallest) {
+					smallest = currentBuildLvls['stone'];
+					nextToBuild = 'stone';
+				}
+				if (currentBuildLvls['iron'] < cel[1] && currentBuildLvls['iron'] < smallest) {
+					smallest = currentBuildLvls['iron'];
+					nextToBuild = 'iron';
+				}
+				if (nextToBuild != '') break;
+			}
+			// TODO: FASTEST
+			if (currentBuildLvls[cel[0]] < cel[1]) {
+				nextToBuild = cel[0];
+				break;
+			}
 		}
 	}
 
@@ -6358,11 +6522,146 @@ try{
 }catch(e){debug('epit', 'Worker engine error: ' + e);setTimeout(function(){szem4_EPITO_motor();}, 3000);}}
 
 ujkieg_hang("Építő","epites;falu_kesz;kritikus_hiba");
-ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr><tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"⏰ Return idő = Ekkor nézi újra a falut<br><br>🎁 AUTOMATIKUS: Nyersanyag hiány esetén jutalmakat próbál gyűjteni!<br><br>⚡ MANUÁLIS: Dupla klikk = Return MOST! (azonnal újraellenőrzés)")\'>⏰ Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről.<br><br>Színek:<br>🟢 Alap = Normális működés<br>🟡 Sárga = Orvosolható (vár nyersre/építésre)<br>🔴 Piros = Kritikus hiba (beavatkozás kell)<br><br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a></p></td></tr>');
+ujkieg("epit","Építő",'<tr><td><h2 align="center">Építési listák</h2><table align="center" class="vis" style="border:1px solid black;color: black;"><tr><th onmouseover=\'sugo(this,"Építési lista neve, amire később hivatkozhatunk")\'>Csoport neve</th><th onmouseover=\'sugo(this,"Az építési sorrend megadása. Saját lista esetén ellenőrizzük az OK? linkre kattintva annak helyességét!")\' style="width:800px">Építési lista</th></tr><tr><td>Alapértelmezett</td><td><input type="text" disabled="disabled" value="main 10;storage 10;wall 10;main 15;wall 15;storage 15;farm 10;main 20;wall 20;MINES 10;smith 5;barracks 5;stable 5;storage 20;farm 20;market 10;main 22;smith 12;farm 25;storage 28;farm 26;MINES 24;market 19;barracks 15;stable 10;garage 5;MINES 26;farm 28;storage 30;barracks 20;stable 15;farm 30;barracks 25;stable 20;MINES 30;smith 20;snob 1" size="125"><a onclick="szem4_EPITO_cscheck(this)" style="color:blue; cursor:pointer;"> OK?</a></td></tr></table><p align="center">Csoportnév: <input type="text" value="" size="30" id="epit_ujcsopnev" placeholder="Nem tartalmazhat . _ ; karaktereket"> <a href="javascript: szem4_EPITO_ujCsop()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+' " height="17px"> Új csoport</a></p></td></tr>\
+<tr><td>\
+<table align="center" class="vis" style="border:1px solid black;color:black;width:600px;margin:10px auto;">\
+<tr><th colspan="2" style="background:#c1a264;color:#000;">Építő Beállítások / Builder Settings</th></tr>\
+<tr>\
+<td style="padding:8px;" onmouseover=\'sugo(this,"Ha a falu szabad népessége a megadott % alá esik, automatikusan Tanyát épít a listától függetlenül.<br><br>Példa: 10% = ha 1000 max népességből már 900+ használt, akkor tanyát épít.")\'>\
+<input type="checkbox" id="epit_forcefarm_enabled" onchange="szem4_EPITO_applyForceFarmSettings()"> \
+<strong>Force Farm</strong> - Tanya építése ha szabad népesség ez alatt: \
+<select id="epit_forcefarm_threshold" onchange="szem4_EPITO_applyForceFarmSettings()" style="margin-left:5px;">\
+<option value="5">5%</option>\
+<option value="10">10%</option>\
+<option value="15">15%</option>\
+<option value="20">20%</option>\
+</select>\
+</td>\
+<td style="padding:8px;width:200px;font-size:11px;color:#666;">\
+Ha BE, és a szabad hely < küszöb, akkor Tanya épül először (ha lehet).\
+</td>\
+</tr>\
+<tr>\
+<td style="padding:8px;" onmouseover=\'sugo(this,"Ha az első építés hátralévő ideje 3 perc alatt van (≤2:59), automatikusan rákattint az INGYENES azonnali befejezés gombra.<br><br>Tribal Wars/Klánháború: 3 perc alatt az épület befejezése INGYENES!")\'>\
+<input type="checkbox" id="epit_autofinish_enabled" onchange="szem4_EPITO_applyAutoFinishSettings()"> \
+<strong>Auto-Finish</strong> - Ingyenes befejezés ha ≤2:59 van hátra\
+</td>\
+<td style="padding:8px;width:200px;font-size:11px;color:#666;">\
+Ha BE, és ≤2:59 van hátra, automatikusan befejezi INGYEN.\
+</td>\
+</tr>\
+</table>\
+</td></tr>\
+<tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"⏰ Return idő = Ekkor nézi újra a falut<br><br>🎁 AUTOMATIKUS: Nyersanyag hiány esetén jutalmakat próbál gyűjteni!<br><br>⚡ MANUÁLIS: Dupla klikk = Return MOST! (azonnal újraellenőrzés)")\'>⏰ Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről.<br><br>Színek:<br>🟢 Alap = Normális működés<br>🟡 Sárga = Orvosolható (vár nyersre/építésre)<br>🔴 Piros = Kritikus hiba (beavatkozás kell)<br><br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a> \
+<a href="javascript: szem4_EPITO_importFromOverview()" style="color:#90caf9;text-decoration:none;margin-left:15px;" onmouseover=\'sugo(this,"Megnyitja a falu áttekintő oldalt és automatikusan beolvassa az ÖSSZES faludat!<br><br>Opens the village overview and automatically imports ALL your villages!")\'>📥 Import összes / Import all</a></p></td></tr>');
+setTimeout(szem4_EPITO_initForceFarmUI, 100);
+setTimeout(szem4_EPITO_initAutoFinishUI, 100);
 
 var EPIT_LEPES=0;
 var EPIT_REF; var EPIT_HIBA=0; var EPIT_GHIBA=0;
 var PMEP; var EPIT_PAUSE=false;
+
+/* Force Farm Settings - Auto-build farm when free population is low */
+var EPIT_FORCE_FARM = {
+	enabled: false,
+	threshold: 10  // Percentage: 5, 10, 15, or 20
+};
+
+/* Auto-Finish Settings - Auto-click free instant complete button when <=2:59 remaining */
+var EPIT_AUTO_FINISH = {
+	enabled: false
+};
+
+/* Load Force Farm settings from localStorage */
+function szem4_EPITO_loadForceFarmSettings() {
+	try {
+		const saved = localStorage.getItem(AZON + "_epit_forcefarm");
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			EPIT_FORCE_FARM.enabled = parsed.enabled || false;
+			EPIT_FORCE_FARM.threshold = parsed.threshold || 10;
+		}
+	} catch(e) { debug("EPITO_loadForceFarm", e); }
+}
+
+/* Save Force Farm settings to localStorage */
+function szem4_EPITO_saveForceFarmSettings() {
+	try {
+		localStorage.setItem(AZON + "_epit_forcefarm", JSON.stringify(EPIT_FORCE_FARM));
+		debug("EPITO_saveForceFarm", `Saved: enabled=${EPIT_FORCE_FARM.enabled}, threshold=${EPIT_FORCE_FARM.threshold}%`);
+	} catch(e) { debug("EPITO_saveForceFarm", e); }
+}
+
+/* Apply Force Farm settings from UI */
+function szem4_EPITO_applyForceFarmSettings() {
+	try {
+		const checkbox = document.getElementById("epit_forcefarm_enabled");
+		const select = document.getElementById("epit_forcefarm_threshold");
+		if (checkbox && select) {
+			EPIT_FORCE_FARM.enabled = checkbox.checked;
+			EPIT_FORCE_FARM.threshold = parseInt(select.value, 10);
+			szem4_EPITO_saveForceFarmSettings();
+			naplo("Építő", `🌾 Force Farm: ${EPIT_FORCE_FARM.enabled ? 'BE' : 'KI'}, Küszöb: ${EPIT_FORCE_FARM.threshold}%`);
+		}
+	} catch(e) { debug("EPITO_applyForceFarm", e); }
+}
+
+/* Initialize Force Farm UI state */
+function szem4_EPITO_initForceFarmUI() {
+	try {
+		const checkbox = document.getElementById("epit_forcefarm_enabled");
+		const select = document.getElementById("epit_forcefarm_threshold");
+		if (checkbox && select) {
+			checkbox.checked = EPIT_FORCE_FARM.enabled;
+			select.value = EPIT_FORCE_FARM.threshold;
+		}
+	} catch(e) { debug("EPITO_initForceFarmUI", e); }
+}
+
+szem4_EPITO_loadForceFarmSettings();
+
+/* Load Auto-Finish settings from localStorage */
+function szem4_EPITO_loadAutoFinishSettings() {
+	try {
+		const saved = localStorage.getItem(AZON + "_epit_autofinish");
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			EPIT_AUTO_FINISH.enabled = parsed.enabled || false;
+		}
+	} catch(e) { debug("EPITO_loadAutoFinish", e); }
+}
+
+/* Save Auto-Finish settings to localStorage */
+function szem4_EPITO_saveAutoFinishSettings() {
+	try {
+		localStorage.setItem(AZON + "_epit_autofinish", JSON.stringify(EPIT_AUTO_FINISH));
+		debug("EPITO_saveAutoFinish", `Saved: enabled=${EPIT_AUTO_FINISH.enabled}`);
+	} catch(e) { debug("EPITO_saveAutoFinish", e); }
+}
+
+/* Apply Auto-Finish settings from UI */
+function szem4_EPITO_applyAutoFinishSettings() {
+	try {
+		const checkbox = document.getElementById("epit_autofinish_enabled");
+		if (checkbox) {
+			EPIT_AUTO_FINISH.enabled = checkbox.checked;
+			szem4_EPITO_saveAutoFinishSettings();
+			naplo("Építő", `⚡ Auto-Finish: ${EPIT_AUTO_FINISH.enabled ? 'BE' : 'KI'}`);
+		}
+	} catch(e) { debug("EPITO_applyAutoFinish", e); }
+}
+
+/* Initialize Auto-Finish UI state */
+function szem4_EPITO_initAutoFinishUI() {
+	try {
+		const checkbox = document.getElementById("epit_autofinish_enabled");
+		if (checkbox) {
+			checkbox.checked = EPIT_AUTO_FINISH.enabled;
+		}
+	} catch(e) { debug("EPITO_initAutoFinishUI", e); }
+}
+
+szem4_EPITO_loadAutoFinishSettings();
 szem4_EPITO_motor();
 szem4_EPITO_perccsokkento();
 
@@ -7277,6 +7576,8 @@ function szem4_ADAT_epito_save(){try{
 		if (i<adat.length-1) eredmeny+=".";
 	}
 	localStorage.setItem(AZON+"_epit",eredmeny);
+	/* Also save Force Farm settings */
+	szem4_EPITO_saveForceFarmSettings();
 	var d=new Date(); document.getElementById("adat_opts").rows[2].cells[2].textContent=d.toLocaleString();
 	return;
 }catch(e){debug("ADAT_epito_save",e);}}
@@ -7313,6 +7614,9 @@ function szem4_ADAT_epito_load(){try{
 	for (var i=0;i<adat.length;i++) {
 		hely[i+1].cells[1].getElementsByTagName("select")[0].value=adat[i];
 	}
+	/* Also load and apply Force Farm settings */
+	szem4_EPITO_loadForceFarmSettings();
+	szem4_EPITO_initForceFarmUI();
 	alert2("Építési adatok betöltése kész.");
 	return;
 }catch(e){debug("ADAT_epito_load",e);}}
