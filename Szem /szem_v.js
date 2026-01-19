@@ -7162,6 +7162,8 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 
 /* Progressive Failure Handler - Implements 1min → 5min → PAUSE escalation */
 function szem4_EPITO_handleFailure(villageRow) {try{
+	// DISABLED TEMPORARILY
+	return;
 	// Extract village coordinates
 	let coord = villageRow.cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
 
@@ -8450,18 +8452,18 @@ function szem4_ADAT_epito_save(){try{
 		eredmeny+=adat[i].cells[0].textContent+"-"+adat[i].cells[1].getElementsByTagName("input")[0].value;
 		if (i<adat.length-1) eredmeny+=".";
 	}
-	
+
 	/*Falulista*/
 	eredmeny+="_";
 	adat=document.getElementById("epit").getElementsByTagName("table")[1].rows;
 	for (var i=1;i<adat.length;i++) {
 		eredmeny+=adat[i].cells[0].textContent;
-		if (i<adat.length-1) eredmeny+=".";
+		if (i<adat.rows.length-1) eredmeny+=".";
 	}
 	eredmeny+="_";
 	for (var i=1;i<adat.length;i++) {
 		eredmeny+=adat[i].cells[1].getElementsByTagName("select")[0].value;
-		if (i<adat.length-1) eredmeny+=".";
+		if (i<adat.rows.length-1) eredmeny+=".";
 	}
 	localStorage.setItem(AZON+"_epit",eredmeny);
 	/* Also save Force Farm settings */
