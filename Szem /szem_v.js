@@ -6139,14 +6139,60 @@ setTimeout(() => {
 function szem4_EPITO_perccsokkento(){try{
 	var hely=document.getElementById("epit").getElementsByTagName("table")[1].rows;
 	var patt=/[0-9]+\:[0-9]+/g;
+
 	for (var i=1;i<hely.length;i++) {
+		// SAFETY CHECK: Ensure row has all required cells
+		if (!hely[i].cells || hely[i].cells.length < 4) {
+			debug('Építő_pcsökk', `Row ${i} has incomplete cells (${hely[i].cells ? hely[i].cells.length : 0}), skipping`);
+			continue;
+		}
+
 		let currentCell = hely[i].cells[3];
+
+		// SMART QUEUE MODE: Use stored endtime for accurate countdown
+		if (EPIT_SMART_QUEUE.enabled) {
+			let queueEndtime = currentCell.getAttribute('data-queue-endtime');
+			if (queueEndtime) {
+				// Calculate remaining time from stored endtime
+				let endtime = parseInt(queueEndtime);
+				let now = Math.floor(Date.now() / 1000); // Current unix timestamp
+				let remainingSeconds = endtime - now;
+
+				if (remainingSeconds > 0) {
+					let minutes = Math.floor(remainingSeconds / 60);
+					let formattedTime = writeAllBuildTime(minutes, true);
+					// Update time in cell text
+					if (currentCell.textContent.search(patt) > -1) {
+						currentCell.textContent = currentCell.textContent.replace(patt, formattedTime);
+					} else {
+						// No time pattern found, add it
+						currentCell.textContent = '🧠 ' + formattedTime + ' ' + currentCell.textContent;
+					}
+					debug('Építő_pcsökk_Smart', `Row ${i}: ${minutes} min remaining (endtime: ${new Date(endtime * 1000).toLocaleTimeString()})`);
+				} else {
+					// Building finished
+					currentCell.removeAttribute('data-queue-endtime');
+					currentCell.textContent = "✅ Kész / Done";
+					debug('Építő_pcsökk_Smart', `Row ${i}: Queue finished!`);
+				}
+				continue; // Skip classic countdown for this row
+			}
+		}
+
+		// CLASSIC MODE: Manual countdown (time--)
 		if (currentCell.textContent.search(patt)>-1) {
 			let time = currentCell.textContent.match(patt)[0];
 			time = time.split(':').map(a => parseInt(a,10));
 			time = time[0] * 60 + time[1];
-			time--;
-			currentCell.textContent = currentCell.textContent.replace(patt, writeAllBuildTime(time, true));
+
+			// Prevent negative time
+			if (time > 0) {
+				time--;
+				currentCell.textContent = currentCell.textContent.replace(patt, writeAllBuildTime(time, true));
+			} else {
+				// Time reached 0
+				currentCell.textContent = currentCell.textContent.replace(patt, "00:00");
+			}
 		}
 	}
 }catch(e){debug("Építő_pcsökk",e); setTimeout("szem4_EPITO_perccsokkento()",60000);}}
@@ -6585,17 +6631,139 @@ function szem4_EPITO_forceReturn(villageRow) {
 	}
 }
 
+/* Smart Queue: Get build queue from game window (inspired by your getBuildQueue logic) */
+function szem4_EPITO_getBuildQueue(gameWindow) {try{
+	if (!gameWindow || !gameWindow.document) {
+		debug('getBuildQueue', 'No game window provided');
+		return null;
+	}
+
+	// Helper: Extract building ID from CSS class
+	function getBuildingIdFromClass(className) {
+		var idx = className.indexOf('buildorder_');
+		if (idx !== -1) {
+			var buildingId = className.substring(idx + 11);
+			var spaceIdx = buildingId.indexOf(' ');
+			if (spaceIdx !== -1) buildingId = buildingId.substring(0, spaceIdx);
+			return buildingId;
+		}
+		return null;
+	}
+
+	// Helper: Parse duration string "HH:MM:SS" to seconds
+	function parseDuration(text) {
+		var parts = text.trim().split(':');
+		if (parts.length === 3) {
+			return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+		}
+		return 0;
+	}
+
+	var queueItems = [];
+	var rows = gameWindow.document.querySelectorAll('tr.sortable_row, tr.lit.nodrag');
+	var buildingCounts = {};
+
+	rows.forEach(function(row, i) {
+		var tds = row.getElementsByTagName('td');
+		var buildingId = getBuildingIdFromClass(row.className);
+
+		if (!buildingCounts[buildingId]) buildingCounts[buildingId] = 0;
+		buildingCounts[buildingId]++;
+
+		// Try to get building data from game
+		var buildingData = null;
+		var currentLevel = null;
+		var queuedLevel = null;
+
+		try {
+			if (gameWindow.BuildingMain && gameWindow.BuildingMain.buildings && buildingId) {
+				buildingData = gameWindow.BuildingMain.buildings[buildingId];
+				currentLevel = buildingData ? parseInt(buildingData.level) : null;
+				queuedLevel = currentLevel ? currentLevel + buildingCounts[buildingId] : null;
+			}
+		} catch(e) {
+			debug('getBuildQueue', 'Could not access BuildingMain: ' + e);
+		}
+
+		var timerEl = row.querySelector('[data-endtime]');
+		var durationSpan = tds[1] ? tds[1].querySelector('span') : null;
+
+		queueItems.push({
+			position: i + 1,
+			buildingId: buildingId,
+			level: queuedLevel,
+			isCurrentlyBuilding: row.className.indexOf('nodrag') !== -1,
+			durationSeconds: parseDuration(durationSpan ? durationSpan.textContent : ''),
+			endtimeUnix: timerEl ? parseInt(timerEl.getAttribute('data-endtime')) : null
+		});
+	});
+
+	// Calculate endtime for queued items (not currently building)
+	if (queueItems.length > 1 && queueItems[0].endtimeUnix) {
+		var prevEndtime = queueItems[0].endtimeUnix;
+		for (var j = 1; j < queueItems.length; j++) {
+			if (!queueItems[j].endtimeUnix) {
+				queueItems[j].endtimeUnix = prevEndtime + queueItems[j].durationSeconds;
+			}
+			prevEndtime = queueItems[j].endtimeUnix;
+		}
+	}
+
+	debug('getBuildQueue', `Found ${queueItems.length} items in queue`);
+	return queueItems;
+}catch(e){debug("getBuildQueue",e); return null;}}
+
 function szem4_EPITO_IntettiBuild(buildOrder){try{
 	try{TamadUpdt(EPIT_REF);}catch(e){}
 	var buildList=""; /*Current BuildingList IDs*/
 	var allBuildTime=0; /*Ennyi perc építési idő, csak kiírás végett*/
 	var firstBuildTime=0; /*Az első épület építési ideje*/
 	var textTime;
+	var smartQueueData = null; // Will hold getBuildQueue() result if enabled
 
-	try {
-		if (!EPIT_REF.document.getElementById("buildqueue")) throw 'No queue';
-		var buildQueueRows=EPIT_REF.document.getElementById("buildqueue").rows;
-		for (var i=1;i<buildQueueRows.length;i++) {try{
+	// SMART QUEUE MODE: Use advanced queue reading
+	if (EPIT_SMART_QUEUE.enabled) {
+		try {
+			smartQueueData = szem4_EPITO_getBuildQueue(EPIT_REF);
+			if (smartQueueData && smartQueueData.length > 0) {
+				debug('IntettiBuild_SmartQueue', `Smart Queue: Found ${smartQueueData.length} items`);
+
+				// Build buildList from smart queue
+				buildList = smartQueueData.map(item => item.buildingId).join(';') + ';';
+
+				// Calculate times from smart queue
+				allBuildTime = smartQueueData.reduce((sum, item) => sum + (item.durationSeconds / 60), 0);
+				firstBuildTime = smartQueueData.length > 0 ? (smartQueueData[0].durationSeconds / 60) : 0;
+
+				allBuildTime = Math.round(allBuildTime);
+				firstBuildTime = Math.ceil(firstBuildTime);
+
+				debug('IntettiBuild_SmartQueue', `Build times: first=${firstBuildTime}min, total=${allBuildTime}min`);
+
+				// Store queue end time in village row for accurate countdown
+				if (smartQueueData.length > 0) {
+					let lastItem = smartQueueData[smartQueueData.length - 1];
+					if (lastItem.endtimeUnix) {
+						PMEP[2].cells[3].setAttribute('data-queue-endtime', lastItem.endtimeUnix);
+						debug('IntettiBuild_SmartQueue', `Stored queue endtime: ${lastItem.endtimeUnix} (${new Date(lastItem.endtimeUnix * 1000).toLocaleString()})`);
+					}
+				}
+			} else {
+				debug('IntettiBuild_SmartQueue', 'Smart Queue returned no items, falling back to classic');
+				smartQueueData = null; // Fall back to classic
+			}
+		} catch(e) {
+			debug('IntettiBuild_SmartQueue', `Smart Queue failed: ${e}, falling back to classic`);
+			smartQueueData = null; // Fall back to classic on error
+		}
+	}
+
+	// CLASSIC MODE: Use original queue reading (fallback or when Smart Queue disabled)
+	if (!EPIT_SMART_QUEUE.enabled || !smartQueueData) {
+		try {
+			if (!EPIT_REF.document.getElementById("buildqueue")) throw 'No queue';
+			var buildQueueRows=EPIT_REF.document.getElementById("buildqueue").rows;
+			for (var i=1;i<buildQueueRows.length;i++) {try{
 			// Skip rows without images (progress bars, separators)
 			var imgElement = buildQueueRows[i].cells[0].getElementsByTagName("img")[0];
 			if (!imgElement) continue;
@@ -6618,20 +6786,21 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 			// Silently skip invalid rows (progress bars, etc.)
 		}}
 
-		allBuildTime = Math.round(allBuildTime);
-		firstBuildTime = Math.ceil(firstBuildTime);
+			allBuildTime = Math.round(allBuildTime);
+			firstBuildTime = Math.ceil(firstBuildTime);
 
-		if (isNaN(allBuildTime)) allBuildTime = 5;
-		if (isNaN(firstBuildTime)) firstBuildTime = 5;
-		if (firstBuildTime>180) firstBuildTime=180;
-		
-		debug('szem4_EPITO_IntettiBuild', `Build queue detected: ${buildList} (${buildList.split(';').filter(x=>x).length} buildings)`);
-	}catch(e){
-		var buildList=";"; 
-		var allBuildTime=0; 
-		var firstBuildTime=0;
-		debug('szem4_EPITO_IntettiBuild', `Error reading build queue: ${e}`);
-	}
+			if (isNaN(allBuildTime)) allBuildTime = 5;
+			if (isNaN(firstBuildTime)) firstBuildTime = 5;
+			if (firstBuildTime>180) firstBuildTime=180;
+
+			debug('szem4_EPITO_IntettiBuild', `Build queue detected: ${buildList} (${buildList.split(';').filter(x=>x).length} buildings)`);
+		}catch(e){
+			var buildList=";";
+			var allBuildTime=0;
+			var firstBuildTime=0;
+			debug('szem4_EPITO_IntettiBuild', `Error reading build queue: ${e}`);
+		}
+	} // End of CLASSIC MODE if block
 	
 	if (buildList === '') buildList = ';';
 	buildList=buildList.split(";");
@@ -6991,6 +7160,96 @@ function szem4_EPITO_IntettiBuild(buildOrder){try{
 	szem4_EPITO_addIdo(PMEP[2], 120);
 }}
 
+/* Progressive Failure Handler - Implements 1min → 5min → PAUSE escalation */
+function szem4_EPITO_handleFailure(villageRow) {try{
+	// Extract village coordinates
+	let coord = villageRow.cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+
+	// Initialize failure tracking for this village if needed
+	if (!EPIT_VILLAGE_FAILURES[coord]) {
+		EPIT_VILLAGE_FAILURES[coord] = { count: 0, lastFail: 0 };
+	}
+
+	let failure = EPIT_VILLAGE_FAILURES[coord];
+	failure.count++;
+	failure.lastFail = Date.now();
+
+	if (failure.count === 1) {
+		// First failure: retry in 1 minute
+		szem4_EPITO_addIdo(villageRow, 1);
+		szem4_EPITO_infoCell(villageRow, "yellow", `⚠️ Page load failed, retry in 1 min`);
+		naplo('Építő', `Village ${coord} failed to load - retry in 1 minute`);
+		debug('szem4_EPITO_handleFailure', `First failure for ${coord}, retry in 1 min`);
+
+	} else if (failure.count === 2) {
+		// Second failure: retry in 5 minutes
+		szem4_EPITO_addIdo(villageRow, 5);
+		szem4_EPITO_infoCell(villageRow, "orange", `⚠️⚠️ Failed again, retry in 5 min`);
+		naplo('Építő ⚠️', `Village ${coord} failed AGAIN - retry in 5 minutes`);
+		debug('szem4_EPITO_handleFailure', `Second failure for ${coord}, retry in 5 min`);
+		playSound('bot2'); // Warning sound
+
+	} else {
+		// Third+ failure: PAUSE builder - needs human intervention
+		EPIT_PAUSE = true;
+		szem4_EPITO_infoCell(villageRow, "red", `🛑 FAILED 3 TIMES - BUILDER PAUSED`);
+		naplo('🛑 ÉPÍTŐ LEÁLLÍTVA', `Village ${coord} failed 3 times - Builder PAUSED! Check the village manually.`);
+		debug('szem4_EPITO_handleFailure', `Third failure for ${coord} - BUILDER PAUSED`);
+		playSound('kritikus_hiba'); // Critical sound
+
+		// Update UI to show pause state
+		szem4_EPITO_showPauseAlert(coord);
+	}
+}catch(e){debug("EPITO_handleFailure",e);}}
+
+/* Clear failure counter on successful page load */
+function szem4_EPITO_clearFailure(villageRow) {try{
+	let coord = villageRow.cells[0].textContent.trim().match(/\([0-9]+\|[0-9]+\)$/)[0].replace('(','').replace(')','');
+	if (EPIT_VILLAGE_FAILURES[coord]) {
+		debug('szem4_EPITO_clearFailure', `Clearing failure counter for ${coord} (was at ${EPIT_VILLAGE_FAILURES[coord].count} failures)`);
+		delete EPIT_VILLAGE_FAILURES[coord];
+	}
+}catch(e){debug("EPITO_clearFailure",e);}}
+
+/* Show pause alert in UI */
+function szem4_EPITO_showPauseAlert(coord) {try{
+	// Try to add alert to UI if epit section exists
+	let epitSection = document.getElementById('epit');
+	if (epitSection) {
+		// Remove old alert if exists
+		let oldAlert = document.getElementById('epit_pause_alert');
+		if (oldAlert) oldAlert.remove();
+
+		// Create new alert
+		let alertDiv = document.createElement('div');
+		alertDiv.id = 'epit_pause_alert';
+		alertDiv.style.cssText = 'background:#ff4444;color:white;padding:15px;margin:10px;border-radius:5px;font-weight:bold;text-align:center;';
+		alertDiv.innerHTML = `
+			🛑 ÉPÍTŐ MEGÁLLT / BUILDER PAUSED<br>
+			Village ${coord} failed 3 times!<br>
+			<button onclick="szem4_EPITO_resumeBuilder()" style="margin-top:10px;padding:8px 15px;font-size:14px;cursor:pointer;">
+				🔄 Resume Builder / Folytatás
+			</button>
+		`;
+		epitSection.insertBefore(alertDiv, epitSection.firstChild);
+	}
+}catch(e){debug("EPITO_showPauseAlert",e);}}
+
+/* Resume builder after pause */
+function szem4_EPITO_resumeBuilder() {try{
+	EPIT_PAUSE = false;
+	EPIT_VILLAGE_FAILURES = {}; // Clear all failure counters for fresh start
+	EPIT_SAME_VILLAGE_ATTEMPTS = 0;
+	EPIT_LAST_VILLAGE_ID = null;
+
+	// Remove alert
+	let alert = document.getElementById('epit_pause_alert');
+	if (alert) alert.remove();
+
+	naplo('✅ Építő folytatva', 'Builder resumed - all failure counters cleared');
+	debug('szem4_EPITO_resumeBuilder', 'Builder resumed by user');
+}catch(e){debug("EPITO_resumeBuilder",e);}}
+
 function szem4_EPITO_motor(){try{
 	var nexttime=750;
 	if (BOT||EPIT_PAUSE||USER_ACTIVITY) {nexttime=5000;}
@@ -7000,6 +7259,26 @@ function szem4_EPITO_motor(){try{
 	switch (EPIT_LEPES) {
 		case 0: PMEP=szem4_EPITO_Wopen(); /*FaluID;lista;link_a_faluhoz*/
 				if (PMEP[0]) {
+					// ANTI-SPAM: Detect if trying same village repeatedly (prevents log pattern like your issue)
+					if (EPIT_LAST_VILLAGE_ID === PMEP[0]) {
+						EPIT_SAME_VILLAGE_ATTEMPTS++;
+						if (EPIT_SAME_VILLAGE_ATTEMPTS > 3) {
+							// Same village 4+ times in a row = something is wrong
+							naplo('🚨 Anti-spam', `Village ${PMEP[0]} attempted ${EPIT_SAME_VILLAGE_ATTEMPTS} times rapidly - forcing 5min delay`);
+							debug('szem4_EPITO_motor', `ANTI-SPAM: Village ${PMEP[0]} attempted ${EPIT_SAME_VILLAGE_ATTEMPTS} times, adding delay`);
+							szem4_EPITO_addIdo(PMEP[2], 5); // Force 5 minute delay
+							EPIT_SAME_VILLAGE_ATTEMPTS = 0;
+							EPIT_LAST_VILLAGE_ID = null;
+							EPIT_LEPES = 0;
+							nexttime = 5000;
+							break; // Skip opening this village
+						}
+					} else {
+						// Different village = reset counter
+						EPIT_SAME_VILLAGE_ATTEMPTS = 0;
+						EPIT_LAST_VILLAGE_ID = PMEP[0];
+					}
+
 					// Village is ready - open or reuse window
 					if (!EPIT_REF || EPIT_REF.closed) {
 						EPIT_REF=windowOpener('epit', VILL1ST.replace("screen=overview","screen=main").replace(/village=[0-9]+/,"village="+PMEP[0]), AZON+"_SZEM4EPIT");
@@ -7012,6 +7291,8 @@ function szem4_EPITO_motor(){try{
 					EPIT_LEPES=1;
 				} else {
 					// No village ready - keep window open but update title
+					EPIT_SAME_VILLAGE_ATTEMPTS = 0; // Reset counter when no village
+					EPIT_LAST_VILLAGE_ID = null;
 					if (EPIT_REF && !EPIT_REF.closed) {
 						if (MOBILE_MODE) {
 							// On mobile, close to save resources
@@ -7033,9 +7314,17 @@ function szem4_EPITO_motor(){try{
 				}
 				if (EPIT_REF && !EPIT_REF.closed && EPIT_LEPES == 1) EPIT_REF.document.title = '🔨 Szem4/építő - Építés / Building';
 				break;
-		case 1: if (isPageLoaded(EPIT_REF,PMEP[0],"screen=main", ['#buildings'])) {EPIT_HIBA=0; EPIT_GHIBA=0;
+		case 1: if (isPageLoaded(EPIT_REF,PMEP[0],"screen=main", ['#buildings'])) {
+					// SUCCESS: Page loaded properly
+					EPIT_HIBA=0; EPIT_GHIBA=0;
+					szem4_EPITO_clearFailure(PMEP[2]); // Clear failure counter for this village
+					EPIT_SAME_VILLAGE_ATTEMPTS = 0; // Reset rapid-fire counter
 					szem4_EPITO_IntettiBuild(PMEP[1]);
-				} else {EPIT_HIBA++;}
+				} else {
+					// FAILURE: Page didn't load
+					EPIT_HIBA++;
+					szem4_EPITO_handleFailure(PMEP[2]); // Progressive: 1min → 5min → PAUSE
+				}
 				EPIT_LEPES=0;
 				break;
 		default: EPIT_LEPES=0;
@@ -7082,16 +7371,31 @@ Ha BE, és a szabad hely < küszöb, akkor Tanya épül először (ha lehet).\
 Ha BE, és ≤2:59 van hátra, automatikusan befejezi INGYEN.\
 </td>\
 </tr>\
+<tr>\
+<td style="padding:8px;" onmouseover=\'sugo(this,"🧠 INTELLIGENS RENDSZER:<br><br>✅ Beolvassa a valódi építési sort a játékból<br>✅ Ellenőrzi hogy tele van-e a sor (2 épület max)<br>✅ Pontosan tudja mikor lesz szabad hely<br>✅ Precíz visszaszámláló az Info oszlopban<br><br>⚠️ Kissé lassabb, de sokkal okosabb!<br><br>KI = Klasszikus mód (gyorsabb, egyszerűbb)")\'>\
+<input type="checkbox" id="epit_smartqueue_enabled" onchange="szem4_EPITO_applySmartQueueSettings()"> \
+<strong>🧠 Smart Queue</strong> - Intelligens építési sor kezelés\
+</td>\
+<td style="padding:8px;width:200px;font-size:11px;color:#666;">\
+🧠 Beolvassa a játék építési sorát → precízebb időzítés és visszaszámlálás.\
+</td>\
+</tr>\
 </table>\
 </td></tr>\
 <tr><td><h2 align="center">Építendő faluk</h2><table align="center" class="vis" style="border:1px solid black;color: black;width:950px" id="epit_lista"><tr><th style="width: 250px;" onclick=\'rendez("szoveg",false,this,"epit_lista",0)\' onmouseover=\'sugo(this,"Rendezhető. Itt építek. Dupla klikk a falura = sor törlése")\'>Falu</th><th onclick=\'rendez("lista",false,this,"epit_lista",1)\' onmouseover=\'sugo(this,"Rendezhető. Felső táblázatban használt lista közül választhatsz egyet, melyet később bármikor megváltoztathatsz.")\' style="width: 135px;">Használt lista</th><th style="width: 130px; cursor: pointer;" onclick=\'rendez("datum",false,this,"epit_lista",2)\' onmouseover=\'sugo(this,"⏰ Return idő = Ekkor nézi újra a falut<br><br>🎁 AUTOMATIKUS: Nyersanyag hiány esetén jutalmakat próbál gyűjteni!<br><br>⚡ MANUÁLIS: Dupla klikk = Return MOST! (azonnal újraellenőrzés)")\'>⏰ Return</th><th style="cursor: pointer;" onclick=\'rendez("szoveg",false,this,"epit_lista",3)\' onmouseover=\'sugo(this,"Rendezhető. Szöveges információ a faluban zajló építésről.<br><br>Színek:<br>🟢 Alap = Normális működés<br>🟡 Sárga = Orvosolható (vár nyersre/építésre)<br>🔴 Piros = Kritikus hiba (beavatkozás kell)<br><br>Dupla klikk=alaphelyzet")\'><u>Infó</u></th></tr></table><p align="center" id="epit_ujfalu_adat">Csoport: <select><option value="Alapértelmezett">Alapértelmezett</option> </select> \Faluk: <input type="text" value="" placeholder="Koordináták: 123|321 123|322 ..." size="50"> \<a href="javascript: szem4_EPITO_ujFalu()" style="color:white;text-decoration:none;"><img src="'+pic("plus.png")+'" height="17px"> Új falu(k)</a> \
 <a href="javascript: szem4_EPITO_importFromOverview()" style="color:#90caf9;text-decoration:none;margin-left:15px;" onmouseover=\'sugo(this,"Megnyitja a falu áttekintő oldalt és automatikusan beolvassa az ÖSSZES faludat!<br><br>Opens the village overview and automatically imports ALL your villages!")\'>📥 Import összes / Import all</a></p></td></tr>');
 setTimeout(szem4_EPITO_initForceFarmUI, 100);
 setTimeout(szem4_EPITO_initAutoFinishUI, 100);
+setTimeout(szem4_EPITO_initSmartQueueUI, 100);
 
 var EPIT_LEPES=0;
 var EPIT_REF; var EPIT_HIBA=0; var EPIT_GHIBA=0;
 var PMEP; var EPIT_PAUSE=false;
+
+/* Progressive Failure Handling - Track per-village failures */
+var EPIT_VILLAGE_FAILURES = {}; // { "451|510": { count: 0, lastFail: timestamp }, ... }
+var EPIT_LAST_VILLAGE_ID = null; // Track last village to detect rapid-fire attempts
+var EPIT_SAME_VILLAGE_ATTEMPTS = 0; // Counter for same village rapid attempts
 
 /* Force Farm Settings - Auto-build farm when free population is low */
 var EPIT_FORCE_FARM = {
@@ -7102,6 +7406,11 @@ var EPIT_FORCE_FARM = {
 /* Auto-Finish Settings - Auto-click free instant complete button when <=2:59 remaining */
 var EPIT_AUTO_FINISH = {
 	enabled: false
+};
+
+/* Smart Queue Management - Advanced build queue tracking */
+var EPIT_SMART_QUEUE = {
+	enabled: false  // When enabled: reads actual game queue, smarter timing, accurate countdowns
 };
 
 /* Load Force Farm settings from localStorage */
@@ -7194,6 +7503,50 @@ function szem4_EPITO_initAutoFinishUI() {
 }
 
 szem4_EPITO_loadAutoFinishSettings();
+
+/* Load Smart Queue settings from localStorage */
+function szem4_EPITO_loadSmartQueueSettings() {
+	try {
+		const saved = localStorage.getItem(AZON + "_epit_smartqueue");
+		if (saved) {
+			const parsed = JSON.parse(saved);
+			EPIT_SMART_QUEUE.enabled = parsed.enabled || false;
+		}
+	} catch(e) { debug("EPITO_loadSmartQueue", e); }
+}
+
+/* Save Smart Queue settings to localStorage */
+function szem4_EPITO_saveSmartQueueSettings() {
+	try {
+		localStorage.setItem(AZON + "_epit_smartqueue", JSON.stringify(EPIT_SMART_QUEUE));
+		debug("EPITO_saveSmartQueue", `Saved: enabled=${EPIT_SMART_QUEUE.enabled}`);
+	} catch(e) { debug("EPITO_saveSmartQueue", e); }
+}
+
+/* Apply Smart Queue settings from UI */
+function szem4_EPITO_applySmartQueueSettings() {
+	try {
+		const checkbox = document.getElementById("epit_smartqueue_enabled");
+		if (checkbox) {
+			EPIT_SMART_QUEUE.enabled = checkbox.checked;
+			szem4_EPITO_saveSmartQueueSettings();
+			naplo("Építő 🧠", `Smart Queue: ${EPIT_SMART_QUEUE.enabled ? 'BE - Intelligens mód' : 'KI - Klasszikus mód'}`);
+			debug("EPITO_applySmartQueue", `Smart Queue toggled: ${EPIT_SMART_QUEUE.enabled}`);
+		}
+	} catch(e) { debug("EPITO_applySmartQueue", e); }
+}
+
+/* Initialize Smart Queue UI state */
+function szem4_EPITO_initSmartQueueUI() {
+	try {
+		const checkbox = document.getElementById("epit_smartqueue_enabled");
+		if (checkbox) {
+			checkbox.checked = EPIT_SMART_QUEUE.enabled;
+		}
+	} catch(e) { debug("EPITO_initSmartQueueUI", e); }
+}
+
+szem4_EPITO_loadSmartQueueSettings();
 szem4_EPITO_motor();
 szem4_EPITO_perccsokkento();
 
