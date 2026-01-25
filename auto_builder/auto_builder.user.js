@@ -93,24 +93,24 @@ const PALADIN_COST = {
 };
 
 // Default template: Norbi0N_BotStart
-// MINES = stone (clay) -> wood (timber) -> iron in exact order
+// MINES = stone (clay) -> wood (timber) -> iron in exact order, level by level
 const DEFAULT_TEMPLATE = {
     name: "Norbi0N_BotStart",
     sequence: [
-        // MINES 1
+        // MINES 1 (clay 1, timber 1, iron 1)
         { building: "stone", level: 1 }, { building: "wood", level: 1 }, { building: "iron", level: 1 },
         { building: "main", level: 2 },
         { building: "farm", level: 2 },
-        // MINES 2
+        // MINES 2 (each mine +1)
         { building: "stone", level: 2 }, { building: "wood", level: 2 }, { building: "iron", level: 2 },
         { building: "storage", level: 3 },
         { building: "farm", level: 3 },
-        // MINES 3
+        // MINES 3 (each mine +1)
         { building: "stone", level: 3 }, { building: "wood", level: 3 }, { building: "iron", level: 3 },
         { building: "main", level: 3 },
         { building: "barracks", level: 1 },
         { building: "market", level: 1 },
-        // MINES 4
+        // MINES 4 (each mine +1)
         { building: "stone", level: 4 }, { building: "wood", level: 4 }, { building: "iron", level: 4 },
         { building: "market", level: 2 },
         { building: "main", level: 5 },
@@ -118,12 +118,20 @@ const DEFAULT_TEMPLATE = {
         { building: "smith", level: 1 },
         { building: "storage", level: 4 },
         { building: "farm", level: 4 },
-        // MINES 8
+        // MINES 5 (each mine +1)
+        { building: "stone", level: 5 }, { building: "wood", level: 5 }, { building: "iron", level: 5 },
+        // MINES 6 (each mine +1)
+        { building: "stone", level: 6 }, { building: "wood", level: 6 }, { building: "iron", level: 6 },
+        // MINES 7 (each mine +1)
+        { building: "stone", level: 7 }, { building: "wood", level: 7 }, { building: "iron", level: 7 },
+        // MINES 8 (each mine +1)
         { building: "stone", level: 8 }, { building: "wood", level: 8 }, { building: "iron", level: 8 },
         { building: "storage", level: 5 },
         { building: "main", level: 7 },
         { building: "farm", level: 5 },
-        // MINES 10
+        // MINES 9 (each mine +1)
+        { building: "stone", level: 9 }, { building: "wood", level: 9 }, { building: "iron", level: 9 },
+        // MINES 10 (each mine +1)
         { building: "stone", level: 10 }, { building: "wood", level: 10 }, { building: "iron", level: 10 },
         { building: "storage", level: 6 },
         { building: "main", level: 10 },
@@ -134,21 +142,23 @@ const DEFAULT_TEMPLATE = {
         { building: "stable", level: 3 },
         { building: "farm", level: 7 },
         { building: "storage", level: 9 },
-        // MINES 11
+        // MINES 11 (each mine +1)
         { building: "stone", level: 11 }, { building: "wood", level: 11 }, { building: "iron", level: 11 },
         { building: "farm", level: 8 },
         { building: "storage", level: 10 },
-        // MINES 13
+        // MINES 12 (each mine +1)
+        { building: "stone", level: 12 }, { building: "wood", level: 12 }, { building: "iron", level: 12 },
+        // MINES 13 (each mine +1)
         { building: "stone", level: 13 }, { building: "wood", level: 13 }, { building: "iron", level: 13 },
         { building: "market", level: 5 },
         { building: "storage", level: 11 },
-        // MINES 14
+        // MINES 14 (each mine +1)
         { building: "stone", level: 14 }, { building: "wood", level: 14 }, { building: "iron", level: 14 },
         { building: "storage", level: 12 },
         { building: "barracks", level: 8 },
         { building: "stable", level: 5 },
         { building: "main", level: 13 },
-        // MINES 15
+        // MINES 15 (each mine +1)
         { building: "stone", level: 15 }, { building: "wood", level: 15 }, { building: "iron", level: 15 },
         { building: "main", level: 15 },
         { building: "storage", level: 13 },
@@ -156,19 +166,26 @@ const DEFAULT_TEMPLATE = {
         { building: "farm", level: 9 },
         { building: "storage", level: 14 },
         { building: "wall", level: 5 },
-        // MINES 16
+        // MINES 16 (each mine +1)
         { building: "stone", level: 16 }, { building: "wood", level: 16 }, { building: "iron", level: 16 },
         { building: "storage", level: 15 },
-        // MINES 18
+        // MINES 17 (each mine +1)
+        { building: "stone", level: 17 }, { building: "wood", level: 17 }, { building: "iron", level: 17 },
+        // MINES 18 (each mine +1)
         { building: "stone", level: 18 }, { building: "wood", level: 18 }, { building: "iron", level: 18 },
         { building: "farm", level: 10 },
+        { building: "storage", level: 15 },
         { building: "market", level: 15 },
-        // MINES 20
+        // MINES 19 (each mine +1)
+        { building: "stone", level: 19 }, { building: "wood", level: 19 }, { building: "iron", level: 19 },
+        // MINES 20 (each mine +1)
         { building: "stone", level: 20 }, { building: "wood", level: 20 }, { building: "iron", level: 20 },
         { building: "main", level: 17 },
         { building: "storage", level: 18 },
         { building: "main", level: 20 },
-        // MINES 22
+        // MINES 21 (each mine +1)
+        { building: "stone", level: 21 }, { building: "wood", level: 21 }, { building: "iron", level: 21 },
+        // MINES 22 (each mine +1)
         { building: "stone", level: 22 }, { building: "wood", level: 22 }, { building: "iron", level: 22 },
         { building: "farm", level: 11 },
         { building: "storage", level: 21 },
@@ -176,7 +193,11 @@ const DEFAULT_TEMPLATE = {
         { building: "garage", level: 3 },
         { building: "barracks", level: 10 },
         { building: "stable", level: 7 },
-        // MINES 25
+        // MINES 23 (each mine +1)
+        { building: "stone", level: 23 }, { building: "wood", level: 23 }, { building: "iron", level: 23 },
+        // MINES 24 (each mine +1)
+        { building: "stone", level: 24 }, { building: "wood", level: 24 }, { building: "iron", level: 24 },
+        // MINES 25 (each mine +1)
         { building: "stone", level: 25 }, { building: "wood", level: 25 }, { building: "iron", level: 25 },
         { building: "farm", level: 12 },
         { building: "storage", level: 23 },
@@ -184,7 +205,9 @@ const DEFAULT_TEMPLATE = {
         { building: "stable", level: 8 },
         { building: "farm", level: 13 },
         { building: "wall", level: 15 },
-        // MINES 27
+        // MINES 26 (each mine +1)
+        { building: "stone", level: 26 }, { building: "wood", level: 26 }, { building: "iron", level: 26 },
+        // MINES 27 (each mine +1)
         { building: "stone", level: 27 }, { building: "wood", level: 27 }, { building: "iron", level: 27 },
         { building: "storage", level: 25 },
         { building: "market", level: 20 },
@@ -193,7 +216,11 @@ const DEFAULT_TEMPLATE = {
         { building: "smith", level: 15 },
         { building: "farm", level: 15 },
         { building: "storage", level: 27 },
-        // MINES 30
+        // MINES 28 (each mine +1)
+        { building: "stone", level: 28 }, { building: "wood", level: 28 }, { building: "iron", level: 28 },
+        // MINES 29 (each mine +1)
+        { building: "stone", level: 29 }, { building: "wood", level: 29 }, { building: "iron", level: 29 },
+        // MINES 30 (each mine +1)
         { building: "stone", level: 30 }, { building: "wood", level: 30 }, { building: "iron", level: 30 },
         { building: "barracks", level: 18 },
         { building: "stable", level: 13 },
@@ -213,21 +240,242 @@ const DEFAULT_TEMPLATE = {
     created: "2024-12-28"
 };
 
+// Standard template - Complete village development with wall and hiding place
+const STANDARD_TEMPLATE = {
+    name: "Standard",
+    sequence: [
+        { building: "hide", level: 1 },
+        { building: "stone", level: 1 }, { building: "wood", level: 1 }, { building: "iron", level: 1 },
+        { building: "stone", level: 2 }, { building: "wood", level: 2 }, { building: "iron", level: 2 },
+        { building: "stone", level: 3 }, { building: "wood", level: 3 }, { building: "iron", level: 3 },
+        { building: "main", level: 2 }, { building: "main", level: 3 },
+        { building: "storage", level: 2 }, { building: "farm", level: 2 },
+        { building: "storage", level: 3 },
+        { building: "market", level: 1 }, { building: "market", level: 2 },
+        { building: "hide", level: 2 }, { building: "hide", level: 3 },
+        { building: "farm", level: 3 },
+        { building: "barracks", level: 1 },
+        { building: "wall", level: 1 }, { building: "wall", level: 2 },
+        { building: "hide", level: 4 },
+        { building: "wood", level: 4 }, { building: "stone", level: 4 }, { building: "farm", level: 4 }, { building: "iron", level: 4 },
+        { building: "wall", level: 3 },
+        { building: "storage", level: 4 },
+        { building: "hide", level: 5 },
+        { building: "storage", level: 5 },
+        { building: "wall", level: 4 },
+        { building: "farm", level: 5 },
+        { building: "stone", level: 5 }, { building: "wood", level: 5 },
+        { building: "stone", level: 6 }, { building: "wood", level: 6 },
+        { building: "iron", level: 5 },
+        { building: "stone", level: 7 }, { building: "wood", level: 7 },
+        { building: "stone", level: 8 }, { building: "wood", level: 8 },
+        { building: "iron", level: 6 },
+        { building: "stone", level: 9 }, { building: "wood", level: 9 },
+        { building: "iron", level: 7 }, { building: "iron", level: 8 },
+        { building: "stone", level: 10 }, { building: "wood", level: 10 },
+        { building: "stone", level: 11 }, { building: "wood", level: 11 },
+        { building: "iron", level: 9 },
+        { building: "market", level: 3 }, { building: "market", level: 4 }, { building: "market", level: 5 },
+        { building: "stone", level: 12 }, { building: "wood", level: 12 },
+        { building: "main", level: 4 },
+        { building: "iron", level: 10 },
+        { building: "stone", level: 13 }, { building: "wood", level: 13 },
+        { building: "iron", level: 11 },
+        { building: "stone", level: 14 }, { building: "wood", level: 14 },
+        { building: "iron", level: 12 },
+        { building: "main", level: 5 },
+        { building: "storage", level: 6 },
+        { building: "stone", level: 15 }, { building: "wood", level: 15 },
+        { building: "iron", level: 13 },
+        { building: "storage", level: 7 },
+        { building: "barracks", level: 2 },
+        { building: "stone", level: 16 }, { building: "wood", level: 16 },
+        { building: "iron", level: 14 },
+        { building: "statue", level: 1 },
+        { building: "storage", level: 8 },
+        { building: "farm", level: 6 }, { building: "farm", level: 7 },
+        { building: "iron", level: 15 },
+        { building: "stone", level: 17 }, { building: "wood", level: 17 },
+        { building: "iron", level: 16 },
+        { building: "storage", level: 9 },
+        { building: "farm", level: 8 },
+        { building: "iron", level: 17 },
+        { building: "stone", level: 18 }, { building: "wood", level: 18 },
+        { building: "storage", level: 10 },
+        { building: "stone", level: 19 }, { building: "wood", level: 19 },
+        { building: "storage", level: 11 },
+        { building: "main", level: 6 }, { building: "main", level: 7 }, { building: "main", level: 8 },
+        { building: "storage", level: 12 },
+        { building: "iron", level: 18 },
+        { building: "stone", level: 20 }, { building: "wood", level: 20 },
+        { building: "farm", level: 9 },
+        { building: "storage", level: 13 },
+        { building: "main", level: 9 }, { building: "main", level: 10 },
+        { building: "stone", level: 21 }, { building: "wood", level: 21 },
+        { building: "iron", level: 19 },
+        { building: "farm", level: 10 },
+        { building: "storage", level: 14 },
+        { building: "main", level: 11 }, { building: "main", level: 12 }, { building: "main", level: 13 },
+        { building: "stone", level: 22 }, { building: "wood", level: 22 },
+        { building: "iron", level: 20 },
+        { building: "farm", level: 11 },
+        { building: "main", level: 14 }, { building: "main", level: 15 },
+        { building: "storage", level: 15 }, { building: "storage", level: 16 },
+        { building: "stone", level: 23 }, { building: "wood", level: 23 },
+        { building: "main", level: 16 }, { building: "main", level: 17 },
+        { building: "iron", level: 21 },
+        { building: "farm", level: 12 },
+        { building: "main", level: 18 }, { building: "main", level: 19 },
+        { building: "storage", level: 17 },
+        { building: "stone", level: 24 }, { building: "wood", level: 24 },
+        { building: "main", level: 20 },
+        { building: "iron", level: 22 },
+        { building: "storage", level: 18 }, { building: "storage", level: 19 },
+        { building: "farm", level: 13 },
+        { building: "iron", level: 23 },
+        { building: "storage", level: 20 },
+        { building: "farm", level: 14 },
+        { building: "iron", level: 24 },
+        { building: "farm", level: 15 },
+        { building: "smith", level: 1 }, { building: "smith", level: 2 }, { building: "smith", level: 3 },
+        { building: "smith", level: 4 }, { building: "smith", level: 5 },
+        { building: "barracks", level: 3 }, { building: "barracks", level: 4 }, { building: "barracks", level: 5 },
+        { building: "barracks", level: 6 },
+        { building: "stable", level: 1 }, { building: "stable", level: 2 }, { building: "stable", level: 3 },
+        { building: "farm", level: 16 },
+        { building: "storage", level: 21 },
+        { building: "market", level: 6 }, { building: "market", level: 7 }, { building: "market", level: 8 },
+        { building: "market", level: 9 }, { building: "market", level: 10 },
+        { building: "farm", level: 17 },
+        { building: "storage", level: 22 },
+        { building: "farm", level: 18 },
+        { building: "barracks", level: 7 }, { building: "barracks", level: 8 }, { building: "barracks", level: 9 },
+        { building: "stable", level: 4 },
+        { building: "smith", level: 6 }, { building: "smith", level: 7 }, { building: "smith", level: 8 },
+        { building: "smith", level: 9 }, { building: "smith", level: 10 },
+        { building: "garage", level: 1 }, { building: "garage", level: 2 }, { building: "garage", level: 3 },
+        { building: "smith", level: 11 }, { building: "smith", level: 12 },
+        { building: "farm", level: 19 },
+        { building: "barracks", level: 10 }, { building: "barracks", level: 11 },
+        { building: "stable", level: 5 }, { building: "stable", level: 6 }, { building: "stable", level: 7 },
+        { building: "farm", level: 20 },
+        { building: "smith", level: 13 }, { building: "smith", level: 14 },
+        { building: "farm", level: 21 },
+        { building: "smith", level: 15 }, { building: "smith", level: 16 },
+        { building: "farm", level: 22 },
+        { building: "smith", level: 17 }, { building: "smith", level: 18 },
+        { building: "farm", level: 23 },
+        { building: "smith", level: 19 }, { building: "smith", level: 20 },
+        { building: "farm", level: 24 },
+        { building: "snob", level: 1 },
+        { building: "farm", level: 25 },
+        { building: "barracks", level: 12 }, { building: "barracks", level: 13 },
+        { building: "stable", level: 8 },
+        { building: "barracks", level: 14 },
+        { building: "stable", level: 9 },
+        { building: "barracks", level: 15 },
+        { building: "stable", level: 10 },
+        { building: "farm", level: 26 },
+        { building: "garage", level: 4 }, { building: "garage", level: 5 },
+        { building: "iron", level: 25 }, { building: "wood", level: 25 }, { building: "stone", level: 25 },
+        { building: "iron", level: 26 }, { building: "wood", level: 26 }, { building: "stone", level: 26 },
+        { building: "farm", level: 27 },
+        { building: "storage", level: 23 },
+        { building: "iron", level: 27 }, { building: "wood", level: 27 }, { building: "stone", level: 27 },
+        { building: "iron", level: 28 }, { building: "wood", level: 28 }, { building: "stone", level: 28 },
+        { building: "storage", level: 24 },
+        { building: "barracks", level: 16 }, { building: "barracks", level: 17 },
+        { building: "stable", level: 11 }, { building: "stable", level: 12 },
+        { building: "barracks", level: 18 }, { building: "barracks", level: 19 },
+        { building: "stable", level: 13 }, { building: "stable", level: 14 },
+        { building: "barracks", level: 20 },
+        { building: "stable", level: 15 },
+        { building: "garage", level: 6 }, { building: "garage", level: 7 }, { building: "garage", level: 8 },
+        { building: "farm", level: 28 },
+        { building: "storage", level: 25 },
+        { building: "iron", level: 29 }, { building: "wood", level: 29 }, { building: "stone", level: 29 },
+        { building: "iron", level: 30 }, { building: "wood", level: 30 }, { building: "stone", level: 30 },
+        { building: "wall", level: 5 }, { building: "wall", level: 6 }, { building: "wall", level: 7 },
+        { building: "wall", level: 8 }, { building: "wall", level: 9 }, { building: "wall", level: 10 },
+        { building: "wall", level: 11 }, { building: "wall", level: 12 }, { building: "wall", level: 13 },
+        { building: "wall", level: 14 }, { building: "wall", level: 15 }, { building: "wall", level: 16 },
+        { building: "wall", level: 17 }, { building: "wall", level: 18 }, { building: "wall", level: 19 },
+        { building: "wall", level: 20 },
+        { building: "farm", level: 29 }, { building: "farm", level: 30 },
+        { building: "storage", level: 26 }, { building: "storage", level: 27 }, { building: "storage", level: 28 },
+        { building: "storage", level: 29 }, { building: "storage", level: 30 },
+        { building: "barracks", level: 21 }, { building: "barracks", level: 22 },
+        { building: "stable", level: 16 }, { building: "stable", level: 17 },
+        { building: "garage", level: 9 },
+        { building: "barracks", level: 23 }, { building: "barracks", level: 24 }, { building: "barracks", level: 25 },
+        { building: "stable", level: 18 }, { building: "stable", level: 19 }, { building: "stable", level: 20 },
+        { building: "garage", level: 10 }, { building: "garage", level: 11 }, { building: "garage", level: 12 },
+        { building: "garage", level: 13 }, { building: "garage", level: 14 }, { building: "garage", level: 15 },
+        { building: "hide", level: 6 }, { building: "hide", level: 7 }, { building: "hide", level: 8 },
+        { building: "hide", level: 9 }, { building: "hide", level: 10 }
+    ],
+    created: "2026-01-25"
+};
+
+// Kezdő (Starter) Template - Short 12-step starter build
+const KEZDO_TEMPLATE = {
+    name: "Kezdő",
+    sequence: [
+        { building: "storage", level: 2 },
+        { building: "storage", level: 3 },
+        { building: "farm", level: 3 },
+        { building: "wood", level: 2 },
+        { building: "stone", level: 2 },
+        { building: "iron", level: 2 },
+        { building: "main", level: 3 },
+        { building: "stone", level: 3 },
+        { building: "wood", level: 3 },
+        { building: "iron", level: 3 },
+        { building: "hide", level: 3 },
+        { building: "barracks", level: 3 }
+    ],
+    created: "2026-01-25"
+};
+
 function installDefaultTemplate() {
     const templates = getTemplates();
-    // Check if Norbi0N_BotStart already exists
-    let exists = false;
+
+    // Check if templates already exist
+    let botStartExists = false;
+    let standardExists = false;
+    let kezdoExists = false;
+
     for (const id in templates) {
         if (templates[id].name === "Norbi0N_BotStart") {
-            exists = true;
-            break;
+            botStartExists = true;
+        }
+        if (templates[id].name === "Standard") {
+            standardExists = true;
+        }
+        if (templates[id].name === "Kezdő") {
+            kezdoExists = true;
         }
     }
-    if (!exists) {
+
+    if (!botStartExists) {
         const templateId = "norbi0n_botstart_" + Date.now();
         templates[templateId] = DEFAULT_TEMPLATE;
         saveTemplates(templates);
         console.log("[Auto Builder] Installed default template: Norbi0N_BotStart");
+    }
+
+    if (!standardExists) {
+        const templateId = "standard_" + Date.now();
+        templates[templateId] = STANDARD_TEMPLATE;
+        saveTemplates(templates);
+        console.log("[Auto Builder] Installed default template: Standard");
+    }
+
+    if (!kezdoExists) {
+        const templateId = "kezdo_" + Date.now();
+        templates[templateId] = KEZDO_TEMPLATE;
+        saveTemplates(templates);
+        console.log("[Auto Builder] Installed default template: Kezdő");
     }
 }
 
