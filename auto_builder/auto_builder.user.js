@@ -7,6 +7,9 @@
 // @match        https://*/game.php?village=*&screen=info_player&mode=daily_bonus*
 // @match        https://*/game.php?village=*&screen=place&mode=scavenge*
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/nnoby95/Norni0N/main/auto_builder/auto_builder.user.js
+// @downloadURL  https://raw.githubusercontent.com/nnoby95/Norni0N/main/auto_builder/auto_builder.user.js
+// @supportURL   https://github.com/nnoby95/Norni0N/issues
 // ==/UserScript==
 
 "use strict";
